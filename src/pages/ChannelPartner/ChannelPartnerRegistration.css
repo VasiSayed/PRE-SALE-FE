@@ -1,0 +1,359 @@
+/* Channel Partner Registration */
+
+.cp-page {
+  padding: 20px 24px 40px;
+}
+
+.cp-header-title {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.cp-card {
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 18px 20px 22px;
+  margin-bottom: 20px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+.cp-card-header {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 14px;
+}
+
+.cp-card-body {
+  margin-top: 4px;
+}
+
+.cp-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.cp-grid-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.cp-grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.cp-grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.cp-grid-1 {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.cp-mt-16 {
+  margin-top: 16px;
+}
+
+.cp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cp-field label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #111827;
+}
+
+.cp-input,
+.cp-textarea {
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  padding: 8px 10px;
+  font-size: 13px;
+  background: #f9fafb;
+  outline: none;
+}
+
+.cp-input:focus,
+.cp-textarea:focus {
+  border-color: #2563eb;
+  background: #ffffff;
+}
+
+.cp-textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+/* Checkboxes */
+
+.cp-checkbox-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+}
+
+.cp-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #111827;
+}
+
+.cp-checkbox input {
+  width: 14px;
+  height: 14px;
+}
+
+/* Terms row */
+
+.cp-terms-row {
+  margin-top: 16px;
+}
+
+/* Submit + footer */
+
+.cp-submit-wrapper {
+  display: flex;
+  justify-content: center;
+  margin: 24px 0 12px;
+}
+
+.cp-submit-btn {
+  min-width: 220px;
+  padding: 10px 20px;
+  font-size: 14px;
+}
+
+.cp-footer {
+  text-align: center;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.cp-footer-sep {
+  margin: 0 6px;
+}
+
+.cp-link {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.cp-link:hover {
+  text-decoration: underline;
+}
+
+/* Responsive */
+
+@media (max-width: 1024px) {
+  .cp-grid-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cp-grid-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .cp-page {
+    padding: 16px 12px 32px;
+  }
+
+  .cp-grid-4,
+  .cp-grid-3,
+  .cp-grid-2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ----- Project chip above form ----- */
+.cp-project-chip {
+  max-width: 1120px;
+  margin: 16px auto 4px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 14px;
+  color: #4b5563;
+}
+
+.cp-project-chip button {
+  border: none;
+  outline: none;
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #4f46e5;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.cp-project-chip button:hover {
+  background: #e0e7ff;
+}
+
+/* ---------- Project Select Modal (compact) ---------- */
+
+.cp-project-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45); /* dark blur overlay */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2500; /* higher than navbar / salesnav */
+}
+
+/* Smaller, centered card */
+.cp-project-modal {
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.35);
+  width: min(520px, 95vw);
+  max-height: 80vh;
+  padding: 18px 20px 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header */
+.cp-project-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.cp-project-modal-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0;
+}
+
+.cp-project-modal-subtitle {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.cp-project-modal-close {
+  border: none;
+  background: #eef2ff;
+  color: #4f46e5;
+  border-radius: 999px;
+  width: 28px;
+  height: 28px;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+/* Scroll area for project cards */
+.cp-project-grid {
+  margin-top: 14px;
+  padding-right: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  max-height: 56vh;
+}
+
+/* Compact project card */
+.cp-project-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  padding: 10px 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease-in-out;
+}
+
+.cp-project-card:hover {
+  background: #eef2ff;
+  border-color: #4f46e5;
+  transform: translateY(-1px);
+}
+
+/* Small image thumbnail */
+.cp-project-image-wrap {
+  flex-shrink: 0;
+  width: 90px;
+  height: 72px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.cp-project-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cp-project-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.cp-project-name {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: #f9fafb; /* light text */
+  background: linear-gradient(135deg, #102a54 0%, #1a3d6e 50%, #102a54 100%);
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.35);
+}
+
+
+.cp-project-meta {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+/* Small chip above main form (already in JSX) */
+.cp-project-chip {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1120px;
+  margin: 0 auto 10px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #102a54;
+  font-size: 13px;
+}
+
+.cp-project-chip button {
+  border: none;
+  background: #102a54;
+  color: #ffffff;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}

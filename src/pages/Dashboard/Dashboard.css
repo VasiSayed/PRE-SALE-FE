@@ -1,0 +1,36 @@
+.page-container {
+  min-height: 100vh;
+  background: #f9fafb;
+  padding: 24px;
+}
+
+.page-content {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.placeholder-card {
+  background: white;
+  border-radius: 12px;
+  padding: 80px 40px;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.placeholder-icon {
+  font-size: 5rem;
+  margin-bottom: 24px;
+}
+
+.placeholder-card h1 {
+  font-size: 2rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 16px 0;
+}
+
+.placeholder-card p {
+  color: #6b7280;
+  font-size: 1.1rem;
+  margin: 0;
+}

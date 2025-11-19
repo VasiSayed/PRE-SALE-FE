@@ -1,0 +1,116 @@
+.sales-navigation {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: #ffffff;
+  border-bottom: 2px solid #e5e7eb;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* Primary Section Row */
+.sales-navigation__primary {
+  display: flex;
+  gap: 8px;
+  padding: 12px 24px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.nav-section-btn {
+  padding: 10px 24px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.nav-section-btn:hover {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.nav-section-btn.active {
+  background: #102a54;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(16, 42, 84, 0.2);
+}
+
+/* Secondary Tabs Row */
+.sales-navigation__secondary {
+  display: flex;
+  gap: 4px;
+  padding: 8px 24px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.sales-navigation__secondary::-webkit-scrollbar {
+  height: 4px;
+}
+
+.sales-navigation__secondary::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 2px;
+}
+
+.nav-tab-btn {
+  padding: 8px 16px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #6b7280;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  position: relative;
+}
+
+.nav-tab-btn:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.nav-tab-btn.active {
+  color: #102a54;
+  font-weight: 600;
+}
+
+.nav-tab-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 8px;
+  right: 8px;
+  height: 3px;
+  background: #102a54;
+  border-radius: 2px 2px 0 0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .sales-navigation__primary {
+    padding: 10px 16px;
+  }
+
+  .sales-navigation__secondary {
+    padding: 6px 16px;
+  }
+
+  .nav-section-btn {
+    padding: 8px 16px;
+    font-size: 0.9rem;
+  }
+
+  .nav-tab-btn {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+  }
+}

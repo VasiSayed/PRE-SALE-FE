@@ -1,0 +1,467 @@
+.booking-form-page {
+  max-width: 1180px;
+  margin: 24px auto 48px;
+  padding: 16px 24px 40px;
+  background: #fafafa;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  color: #222;
+
+  /* scroll stability */
+  position: relative;
+  overflow-anchor: none;
+}
+
+.bf-card {
+  background: #ffffff;
+  border-radius: 8px;
+  border: 1px solid #e3e3e3;
+  padding: 20px 20px 8px;
+  margin-bottom: 20px;
+}
+
+.bf-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.bf-col {
+  flex: 1;
+  min-width: 220px;
+}
+
+.bf-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 4px;
+  color: #555;
+}
+
+.bf-required {
+  color: #d32f2f;
+}
+
+.bf-input,
+.bf-textarea,
+.bf-select {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 4px;
+  border: 1px solid #d0d0d0;
+  font-size: 14px;
+  outline: none;
+  background: #fff;
+}
+
+.bf-input:focus,
+.bf-textarea:focus,
+.bf-select:focus {
+  border-color: #1976d2;
+  box-shadow: 0 0 0 1px rgba(25, 118, 210, 0.1);
+}
+
+.bf-textarea {
+  resize: vertical;
+}
+
+.bf-input-readonly {
+  background: #f3f3f3;
+}
+
+/* Photo upload block */
+.bf-photo-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+  margin-bottom: 4px;
+}
+
+.bf-photo-upload {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.bf-photo-circle {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: #e2e2e2;
+  border: 2px solid #d0d0d0;
+}
+
+/* Sections */
+.bf-section {
+  margin-bottom: 18px;
+}
+
+.bf-section-header {
+  width: 100%;
+  border: 1px solid #dedede;
+  border-radius: 6px;
+  background: #f3f3f3;
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+.bf-section-header:hover {
+  background: #ececec;
+}
+
+.bf-section-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.bf-chevron {
+  font-size: 16px;
+  transition: transform 0.2s ease;
+}
+
+.bf-chevron-open {
+  transform: rotate(180deg);
+}
+
+.bf-section-body {
+  background: #ffffff;
+  border: 1px solid #ececec;
+  border-radius: 0 0 6px 6px;
+  border-top: none;
+  padding: 16px 16px 12px;
+  margin-top: -1px;
+}
+
+/* Subcards inside a section */
+.bf-subcard {
+  border: 1px solid #e4e4e4;
+  border-radius: 6px;
+  padding: 12px 12px 4px;
+  margin-bottom: 16px;
+  background: #fafafa;
+}
+
+/* Applicants rows */
+.bf-row-applicant {
+  border-bottom: 1px solid #e4e4e4;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+}
+
+.bf-row-applicant:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.bf-col-title {
+  max-width: 260px;
+}
+
+/* Radio group */
+.bf-radio-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.bf-radio-group label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Upload buttons */
+.bf-row-upload {
+  align-items: flex-end;
+}
+
+.bf-row-upload-compact .bf-col {
+  flex: 1;
+}
+
+.bf-upload-btn-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bf-btn-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.bf-file-name {
+  font-size: 12px;
+  color: #444;
+  margin-top: 4px;
+}
+
+.bf-file-names {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Buttons */
+.bf-btn-primary,
+.bf-btn-secondary,
+.bf-btn-gold {
+  border: none;
+  border-radius: 4px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.bf-btn-primary {
+  background: #1976d2;
+  color: #fff;
+}
+
+.bf-btn-primary:hover {
+  background: #165fa3;
+}
+
+.bf-btn-secondary {
+  background: #f5f5f5;
+  color: #333;
+  border: 1px solid #d2d2d2;
+}
+
+.bf-btn-secondary:hover {
+  background: #ebebeb;
+}
+
+.bf-btn-gold {
+  background: #d6aa2f;
+  color: #fff;
+}
+
+.bf-btn-gold:hover {
+  background: #bf9320;
+}
+
+.bf-btn-full {
+  width: 100%;
+  margin-top: 8px;
+}
+
+/* Footer actions */
+.bf-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+/* Dropdown container */
+.bf-dropdown {
+  position: relative;
+}
+
+/* Button jaisa hi input style use kar rahe ho */
+.bf-dropdown-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+/* Actual dropdown menu */
+.bf-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin-top: 4px;
+  z-index: 1000; /* nav / card ke upar aaye */
+}
+
+/* Items */
+.bf-dropdown-item {
+  width: 100%;
+  padding: 6px 10px;
+  text-align: left;
+  border: none;
+  background: #fff;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.bf-dropdown-item:hover {
+  background: #f5f5f5;
+}
+
+/* Simple error text */
+.bf-error {
+  color: #c62828;
+  font-size: 14px;
+}
+
+/* For right aligned text */
+.bf-text-right {
+  text-align: right;
+}
+
+/* Small tweaks for narrow screens */
+@media (max-width: 768px) {
+  .booking-form-page {
+    padding: 12px;
+  }
+
+  .bf-section-body {
+    padding: 12px 10px 8px;
+  }
+}
+
+
+
+.bf-kyc-box {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f9fafb;
+  border: 1px dashed #e5e7eb;
+}
+
+.bf-kyc-status-chip {
+  margin-top: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  color: #1e3a8a;
+}
+
+.bf-kyc-badge {
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.bf-kyc-pending {
+  background: #fef9c3;
+  color: #854d0e;
+}
+
+.bf-kyc-approved {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.bf-kyc-rejected {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.bf-kyc-box {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #fff8e1;
+  border: 1px solid #f5d37a;
+}
+
+.bf-kyc-status-chip {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 999px;
+  background: #f9fafb;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bf-kyc-status-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.bf-kyc-status-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.bf-btn-icon {
+  border: none;
+  background: #e5e7eb;
+  border-radius: 999px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.bf-kyc-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.bf-kyc-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.bf-kyc-approved {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.bf-kyc-rejected {
+  background: #fee2e2;
+  color: #991b1b;
+}
+.bf-lead-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+  font-size: 14px;
+}
+
+.bf-lead-table th,
+.bf-lead-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #e2e2e2;
+  text-align: left;
+}
+
+.bf-lead-table th {
+  font-weight: 600;
+  background: #f7f7f7;
+}
+
+.bf-pagination {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: auto;
+}
+
+

@@ -1,0 +1,162 @@
+.inventory-page {
+  padding: 18px;
+}
+
+/* Top toolbar: search + Add */
+.inventory-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.search-input {
+  border: none;
+  outline: none;
+  min-width: 280px;
+  font-size: 14px;
+}
+
+.btn-primary {
+  background: #102a54;
+  color: white;
+  padding: 8px 18px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.btn-primary:hover {
+  background: #0d1f3f;
+}
+
+/* Project chips from my-scope */
+.scope-projects {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.scope-chip {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.scope-chip.active {
+  background: #102a54;
+  color: white;
+  border-color: #102a54;
+}
+
+.scope-hint {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.scope-error {
+  font-size: 13px;
+  color: #b91c1c;
+}
+
+/* Pagination hint & table */
+.pagination-hint {
+  text-align: right;
+  color: #6b7280;
+  margin-top: 6px;
+  font-size: 13px;
+}
+
+.table-wrapper {
+  margin-top: 8px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+}
+
+/* Table styling */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.data-table thead tr {
+  background: #f3f4f6;
+}
+
+.data-table th,
+.data-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+}
+
+.row-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.icon-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.icon-btn:hover {
+  transform: scale(1.2);
+}
+
+/* Attachments cell with PDF icon */
+.attachments-cell {
+  text-align: center;
+}
+
+.pdf-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  border: 1px solid #9ca3af;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Pager (bottom right) */
+.pager {
+  margin-top: 12px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.pager button {
+  border-radius: 4px;
+  border: 1px solid #d1d5db;
+  padding: 2px 8px;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.pager button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

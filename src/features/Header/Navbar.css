@@ -1,0 +1,142 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.custom-navbar {
+  background-color: #102a54 !important;
+   padding: 12px 32px 12px 12px;
+  margin: 0;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.custom-navbar .d-flex {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+
+
+.custom-navbar img.rounded-circle {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 50%;
+  background: #fff;
+  margin-left: 0;
+}
+
+
+.custom-navbar .text-white {
+  color: #ffffff;
+  font-size: 1.8rem;
+  font-weight: 600;
+  font-family: 'Inter', 'Segoe UI', 'Roboto', 'Open Sans', sans-serif;
+  letter-spacing: -0.5px;
+  white-space: nowrap;
+  margin-left: 8px;
+}
+
+
+.custom-navbar .ms-auto {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.icon {
+  width: 22px;
+  height: 22px;
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.icon:hover {
+  color: #f1c40f;
+  transform: translateY(-1px) scale(1.05);
+}
+
+.logout-btn {
+  background-color: transparent;
+  border: 1px solid #ffffff;
+  color: #ffffff;
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  margin-left: 8px;
+}
+
+.logout-btn:hover {
+  background-color: #ffffff;
+  color: #102a54;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(255, 255, 255, 0.2);
+}
+
+.logout-btn:active {
+  transform: translateY(0);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .custom-navbar {
+    padding: 10px 16px 10px 8px;
+  }
+
+
+  .custom-navbar img.rounded-circle {
+    width: 48px;
+    height: 48px;
+  }
+
+  .custom-navbar .text-white {
+    font-size: 1.3rem;
+  }
+
+  .icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .custom-navbar .ms-auto {
+    gap: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .custom-navbar {
+    padding: 8px 12px 8px 6px;
+  }
+
+
+  .custom-navbar img.rounded-circle {
+    width: 40px;
+    height: 40px;
+  }
+
+  .custom-navbar .text-white {
+    font-size: 1.1rem;
+  }
+
+  .icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .custom-navbar .ms-auto {
+    gap: 10px;
+  }
+}
