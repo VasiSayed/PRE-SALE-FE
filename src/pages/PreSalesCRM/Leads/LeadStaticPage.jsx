@@ -613,16 +613,17 @@ const LeadStaticPage = () => {
     navigate(`/inventory-planning/?project_id=${projectId}`);
   };
 
-  const handleBookFlatClick = () => {
-    if (!lead) return;
-    const projectId = lead.project;
-    if (!projectId) {
-      console.warn("No project id on lead", lead);
-      toast.error("Project is not linked for this lead.");
-      return;
-    }
-    navigate(`/booking/form/?project_id=${projectId}`);
-  };
+const handleBookFlatClick = () => {
+  if (!lead) return;
+  const projectId = lead.project;
+  if (!projectId) {
+    console.warn("No project id on lead", lead);
+    toast.error("Project is not linked for this lead.");
+    return;
+  }
+  navigate(`/booking/form/?project_id=${projectId}&lead_id=${lead.id}`);
+};
+
 
   const handleQuotationClick = () => {
     if (!lead) return;

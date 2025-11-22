@@ -5,15 +5,7 @@ import axiosInstance from "../../api/axiosInstance";
 import "./BookingForm.css";
 import projectImage from "../../assets/project.webp";
 
-/**
- * IMPORTANT:
- * - axiosInstance baseURL: e.g. "http://127.0.0.1:8000/api"
- * - BOOK_API_PREFIX below = "/book"
- *   => final URLs:
- *      POST   /api/book/kyc-requests/
- *      GET    /api/book/kyc-requests/<id>/
- *      POST   /api/book/bookings/
- */
+
 const BOOK_API_PREFIX = "/book";
 
 /** Collapsible section component */
@@ -37,6 +29,7 @@ const BookingForm = () => {
   const [searchParams] = useSearchParams();
   const leadIdFromUrl =
     searchParams.get("lead_id") || searchParams.get("lead") || null;
+
   const projectIdFromUrl =
     searchParams.get("project_id") || searchParams.get("project");
 
@@ -59,6 +52,8 @@ const BookingForm = () => {
   const [section] = useState("pre");
   const [activeItem] = useState("booking-form");
 
+
+
   const [openSections, setOpenSections] = useState({
     applicantNames: true,
     contactDetails: true,
@@ -67,6 +62,8 @@ const BookingForm = () => {
     flatInfo: true,
     taxDetails: true,
     applicantKyc: true,
+    costSummary: true,
+    taxesStatutory: true, // ADD THIS
     paymentSchedule: true,
     funding: true,
     advanceDeposit: true,
@@ -121,6 +118,19 @@ const BookingForm = () => {
   const [parkingDetails, setParkingDetails] = useState("");
   const [parkingNumber, setParkingNumber] = useState("");
 
+  // --------- Cost Summary & Offers ----------
+  const [costTemplate, setCostTemplate] = useState(null);
+  const [offers, setOffers] = useState([]);
+  const [selectedOfferId, setSelectedOfferId] = useState("");
+  const [selectedOfferData, setSelectedOfferData] = useState(null);
+
+  // Computed cost values
+  const [gstAmount, setGstAmount] = useState(0);
+  const [stampDutyAmount, setStampDutyAmount] = useState(0);
+  const [totalTaxes, setTotalTaxes] = useState(0);
+  const [offerDiscountValue, setOfferDiscountValue] = useState(0);
+  const [finalAmount, setFinalAmount] = useState(0);
+
   const [gstNo, setGstNo] = useState("");
 
   // --------- KYC gating state ----------
@@ -138,6 +148,109 @@ const BookingForm = () => {
     { name: "", percentage: "", days: "" },
   ]);
 
+  // --------- Additional Charges (dynamic) ----------
+  const [additionalCharges, setAdditionalCharges] = useState([
+    { name: "", type: "FIXED", value: "", amount: 0 }, // FIXED or PERCENTAGE
+  ]);
+
+  // Tax checkboxes (to enable/disable taxes)
+  const [gstEnabled, setGstEnabled] = useState(true);
+  const [stampDutyEnabled, setStampDutyEnabled] = useState(true);
+  const [registrationEnabled, setRegistrationEnabled] = useState(true);
+  const [legalFeeEnabled, setLegalFeeEnabled] = useState(true);
+
+  // Computed values for display
+  const [additionalChargesTotal, setAdditionalChargesTotal] = useState(0);
+  const [amountBeforeTaxes, setAmountBeforeTaxes] = useState(0);
+
+  // ---------- Calculate additional charges total ----------
+  useEffect(() => {
+    const total = additionalCharges.reduce((sum, charge) => {
+      return sum + (Number(charge.amount) || 0);
+    }, 0);
+    setAdditionalChargesTotal(total);
+  }, [additionalCharges]);
+
+  // ---------- Calculate amount before taxes ----------
+  useEffect(() => {
+    const baseValue = Number(agreementValue) || 0;
+    const additionalTotal = Number(additionalChargesTotal) || 0;
+    setAmountBeforeTaxes(baseValue + additionalTotal);
+  }, [agreementValue, additionalChargesTotal]);
+
+  // ---------- Calculate taxes based on amount before taxes ----------
+  useEffect(() => {
+    if (!costTemplate) {
+      setGstAmount(0);
+      setStampDutyAmount(0);
+      setTotalTaxes(0);
+      return;
+    }
+
+    const baseValue = Number(amountBeforeTaxes) || 0;
+    const gstPercent = Number(costTemplate.gst_percent) || 0;
+    const stampPercent = Number(costTemplate.stamp_duty_percent) || 0;
+    const regAmount = Number(costTemplate.registration_amount) || 0;
+    const legalAmount = Number(costTemplate.legal_fee_amount) || 0;
+
+    const calcGst = gstEnabled ? (baseValue * gstPercent) / 100 : 0;
+    const calcStamp = stampDutyEnabled ? (baseValue * stampPercent) / 100 : 0;
+    const calcReg = registrationEnabled ? regAmount : 0;
+    const calcLegal = legalFeeEnabled ? legalAmount : 0;
+
+    const calcTotal = calcGst + calcStamp + calcReg + calcLegal;
+
+    setGstAmount(calcGst);
+    setStampDutyAmount(calcStamp);
+    setTotalTaxes(calcTotal);
+  }, [
+    amountBeforeTaxes,
+    costTemplate,
+    gstEnabled,
+    stampDutyEnabled,
+    registrationEnabled,
+    legalFeeEnabled,
+  ]);
+
+  // ---------- Calculate offer discount and final amount ----------
+  useEffect(() => {
+    const beforeDiscount = Number(amountBeforeTaxes) || 0;
+    const taxes = Number(totalTaxes) || 0;
+    const totalWithTaxes = beforeDiscount + taxes;
+
+    let discount = 0;
+
+    if (selectedOfferData) {
+      if (selectedOfferData.percentage) {
+        discount =
+          (totalWithTaxes * Number(selectedOfferData.percentage)) / 100;
+      } else if (selectedOfferData.amount) {
+        discount = Number(selectedOfferData.amount);
+      }
+    }
+
+    setOfferDiscountValue(discount);
+    setFinalAmount(totalWithTaxes - discount);
+  }, [amountBeforeTaxes, totalTaxes, selectedOfferData]);
+
+  // ---------- Calculate additional charge amounts based on type ----------
+  useEffect(() => {
+    const baseValue = Number(agreementValue) || 0;
+
+    setAdditionalCharges((prev) =>
+      prev.map((charge) => {
+        if (!charge.value) return { ...charge, amount: 0 };
+
+        if (charge.type === "PERCENTAGE") {
+          const amount = (baseValue * Number(charge.value)) / 100;
+          return { ...charge, amount };
+        } else {
+          // FIXED
+          return { ...charge, amount: Number(charge.value) || 0 };
+        }
+      })
+    );
+  }, [agreementValue]);
   // --------- Funding / advance ----------
   const [loanRequired, setLoanRequired] = useState("NO"); // YES / NO
   const [bookingAmount, setBookingAmount] = useState("");
@@ -347,6 +460,44 @@ const BookingForm = () => {
     (u) => String(u.id) === String(selectedUnitId)
   );
 
+  // ---------- Fetch cost template & offers when leadId is available ----------
+  useEffect(() => {
+    if (!leadId) {
+      setCostTemplate(null);
+      setOffers([]);
+      return;
+    }
+
+    const fetchCostData = async () => {
+      try {
+        const res = await axiosInstance.get(`/costsheet/lead/${leadId}/init/`);
+        const data = res.data || {};
+
+        // Store template data
+        const template = data.template || {};
+        setCostTemplate({
+          gst_percent: template.gst_percent || 0,
+          stamp_duty_percent: template.stamp_duty_percent || 0,
+          registration_amount: template.registration_amount || 0,
+          legal_fee_amount: template.legal_fee_amount || 0,
+        });
+
+        // Store offers
+        setOffers(data.offers || []);
+
+        // Optional: Update payment plans if different from project-level
+        if (data.payment_plans && data.payment_plans.length > 0) {
+          setPaymentPlans(data.payment_plans);
+        }
+      } catch (err) {
+        console.error("Failed to fetch cost template & offers:", err);
+        // Don't block form if this fails
+      }
+    };
+
+    fetchCostData();
+  }, [leadId]);
+
   // ---------- KYC status refresh ----------
   const handleRefreshKycStatus = async () => {
     if (!kycRequestId) {
@@ -396,6 +547,43 @@ const BookingForm = () => {
     ]);
   };
 
+  const handleAddAdditionalCharge = () => {
+    setAdditionalCharges((prev) => [
+      ...prev,
+      { name: "", type: "FIXED", value: "", amount: 0 },
+    ]);
+  };
+
+  const handleUpdateAdditionalCharge = (index, field, value) => {
+    setAdditionalCharges((prev) =>
+      prev.map((charge, idx) => {
+        if (idx !== index) return charge;
+
+        const updated = { ...charge, [field]: value };
+
+        // Recalculate amount when value or type changes
+        if (field === "value" || field === "type") {
+          const baseValue = Number(agreementValue) || 0;
+          const chargeValue = field === "value" ? value : charge.value;
+          const chargeType = field === "type" ? value : charge.type;
+
+          if (chargeType === "PERCENTAGE") {
+            updated.amount = (baseValue * Number(chargeValue || 0)) / 100;
+          } else {
+            updated.amount = Number(chargeValue || 0);
+          }
+        }
+
+        return updated;
+      })
+    );
+  };
+
+  const handleRemoveAdditionalCharge = (index) => {
+    if (additionalCharges.length === 1) return;
+    setAdditionalCharges((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
   // ---------- KYC request create ----------
   const handleSendKycRequest = async () => {
     if (!selectedUnitId) {
@@ -441,6 +629,63 @@ const BookingForm = () => {
       }
     }
   };
+
+  // ---------- Calculate costs whenever agreementValue or template changes ----------
+  useEffect(() => {
+    if (!agreementValue || !costTemplate) {
+      setGstAmount(0);
+      setStampDutyAmount(0);
+      setTotalTaxes(0);
+      return;
+    }
+
+    const baseValue = Number(agreementValue) || 0;
+    const gstPercent = Number(costTemplate.gst_percent) || 0;
+    const stampPercent = Number(costTemplate.stamp_duty_percent) || 0;
+    const regAmount = Number(costTemplate.registration_amount) || 0;
+    const legalAmount = Number(costTemplate.legal_fee_amount) || 0;
+
+    const calcGst = (baseValue * gstPercent) / 100;
+    const calcStamp = (baseValue * stampPercent) / 100;
+    const calcTotal = calcGst + calcStamp + regAmount + legalAmount;
+
+    setGstAmount(calcGst);
+    setStampDutyAmount(calcStamp);
+    setTotalTaxes(calcTotal);
+  }, [agreementValue, costTemplate]);
+
+  // ---------- Calculate offer discount and final amount ----------
+  useEffect(() => {
+    const baseValue = Number(agreementValue) || 0;
+    const taxes = Number(totalTaxes) || 0;
+    const amountBeforeDiscount = baseValue + taxes;
+
+    let discount = 0;
+
+    if (selectedOfferData) {
+      if (selectedOfferData.percentage) {
+        // Percentage-based discount
+        discount =
+          (amountBeforeDiscount * Number(selectedOfferData.percentage)) / 100;
+      } else if (selectedOfferData.amount) {
+        // Flat amount discount
+        discount = Number(selectedOfferData.amount);
+      }
+    }
+
+    setOfferDiscountValue(discount);
+    setFinalAmount(amountBeforeDiscount - discount);
+  }, [agreementValue, totalTaxes, selectedOfferData]);
+
+  // ---------- Update selected offer data when offer changes ----------
+  useEffect(() => {
+    if (!selectedOfferId) {
+      setSelectedOfferData(null);
+      return;
+    }
+    const offer = offers.find((o) => String(o.id) === String(selectedOfferId));
+    setSelectedOfferData(offer || null);
+  }, [selectedOfferId, offers]);
 
   // Auto-fill KYC deal amount from agreement value if empty
   useEffect(() => {
@@ -576,7 +821,6 @@ const BookingForm = () => {
       // Primary IDs
       fd.append("unit_id", selectedUnitId);
       if (leadId) {
-        // backend side: Booking.sales_lead FK (you already use sales_lead_id in other APIs)
         fd.append("sales_lead_id", String(leadId));
       }
 
@@ -617,6 +861,42 @@ const BookingForm = () => {
       // Tax
       fd.append("gst_no", gstNo || "");
 
+      // Additional charges (NEW)
+      fd.append("additional_charges", JSON.stringify(additionalCharges));
+      fd.append("additional_charges_total", additionalChargesTotal.toFixed(2));
+      fd.append("amount_before_taxes", amountBeforeTaxes.toFixed(2));
+
+      // Cost Summary fields with checkbox states (NEW - ENHANCED)
+      if (costTemplate) {
+        fd.append("gst_percent", costTemplate.gst_percent || "0");
+        fd.append("gst_enabled", gstEnabled ? "true" : "false");
+        fd.append("gst_amount", gstAmount.toFixed(2));
+
+        fd.append("stamp_duty_percent", costTemplate.stamp_duty_percent || "0");
+        fd.append("stamp_duty_enabled", stampDutyEnabled ? "true" : "false");
+        fd.append("stamp_duty_amount", stampDutyAmount.toFixed(2));
+
+        fd.append(
+          "registration_amount",
+          costTemplate.registration_amount || "0"
+        );
+        fd.append(
+          "registration_enabled",
+          registrationEnabled ? "true" : "false"
+        );
+
+        fd.append("legal_fee_amount", costTemplate.legal_fee_amount || "0");
+        fd.append("legal_fee_enabled", legalFeeEnabled ? "true" : "false");
+      }
+
+      // Offer (NEW)
+      if (selectedOfferId) {
+        fd.append("offer_id", selectedOfferId);
+      }
+      fd.append("offer_discount", offerDiscountValue.toFixed(2));
+      fd.append("total_taxes", totalTaxes.toFixed(2));
+      fd.append("final_amount", finalAmount.toFixed(2));
+
       // Payment / KYC
       fd.append("payment_plan_type", paymentPlanType);
 
@@ -624,6 +904,7 @@ const BookingForm = () => {
       if (requiresKyc === "YES" && kycRequestId) {
         fd.append("kyc_request_id", String(kycRequestId));
       }
+
       if (paymentPlanType === "MASTER" && selectedPaymentPlanId) {
         fd.append("payment_plan_id", selectedPaymentPlanId);
       }
@@ -647,13 +928,12 @@ const BookingForm = () => {
       fd.append("loan_amount_expected", "");
       fd.append("booking_amount", bookingAmount || "0");
       fd.append("other_charges", otherCharges || "0");
-      // total_advance backend will auto-calc
 
       // Extra info for primary applicant (for BookingApplicant creation in backend)
       fd.append("primary_pan_no", primaryPanNo || "");
       fd.append("primary_aadhar_no", primaryAadharNo || "");
 
-      // main photo (if you later want to store as attachment)
+      // main photo
       if (photoFile) {
         fd.append("photo", photoFile);
       }
@@ -665,7 +945,7 @@ const BookingForm = () => {
         }
       });
 
-      // Additional applicants (UI-only, but sending as JSON for future use)
+      // Additional applicants
       fd.append(
         "additional_applicants",
         JSON.stringify(additionalApplicants || [])
@@ -694,7 +974,6 @@ const BookingForm = () => {
       setSaving(false);
     }
   };
-
   return (
     <div className="setup-page">
       <div className="setup-container">
@@ -1620,26 +1899,385 @@ const BookingForm = () => {
                 </div>
               </Section>
 
-              {/* Tax Details */}
+              {/* Additional Charges */}
               <Section
-                id="taxDetails"
-                title="Tax Details"
-                open={openSections.taxDetails}
+                id="costSummary"
+                title="Additional Charges"
+                open={openSections.costSummary}
                 onToggle={toggleSection}
               >
-                <div className="bf-row">
-                  <div className="bf-col">
-                    <label className="bf-label">
-                      GST <span className="bf-required">*</span>
-                    </label>
-                    <input
-                      className="bf-input"
-                      type="text"
-                      value={gstNo}
-                      onChange={(e) => setGstNo(e.target.value)}
-                    />
+                {!leadId ? (
+                  <div className="bf-subcard">
+                    <p style={{ color: "#6b7280" }}>
+                      Cost summary is only available when booking is linked to a
+                      lead.
+                    </p>
                   </div>
-                </div>
+                ) : !costTemplate ? (
+                  <div className="bf-subcard">
+                    <p style={{ color: "#6b7280" }}>Loading cost template...</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="bf-subcard">
+                      <div style={{ marginBottom: "16px" }}>
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "2fr 1fr 1fr 1fr",
+                            gap: "12px",
+                            marginBottom: "8px",
+                            fontWeight: "600",
+                            fontSize: "13px",
+                            color: "#6b7280",
+                          }}
+                        >
+                          <div>Charge Name</div>
+                          <div>Type</div>
+                          <div>Value</div>
+                          <div>Amount</div>
+                        </div>
+
+                        {additionalCharges.map((charge, idx) => (
+                          <div
+                            key={idx}
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: "2fr 1fr 1fr 1fr auto",
+                              gap: "12px",
+                              marginBottom: "12px",
+                              alignItems: "center",
+                            }}
+                          >
+                            <input
+                              className="bf-input"
+                              type="text"
+                              placeholder="e.g., Amenity Charges"
+                              value={charge.name}
+                              onChange={(e) =>
+                                handleUpdateAdditionalCharge(
+                                  idx,
+                                  "name",
+                                  e.target.value
+                                )
+                              }
+                            />
+
+                            <select
+                              className="bf-input"
+                              value={charge.type}
+                              onChange={(e) =>
+                                handleUpdateAdditionalCharge(
+                                  idx,
+                                  "type",
+                                  e.target.value
+                                )
+                              }
+                            >
+                              <option value="FIXED">Fixed</option>
+                              <option value="PERCENTAGE">Percentage</option>
+                            </select>
+
+                            <input
+                              className="bf-input"
+                              type="number"
+                              placeholder={
+                                charge.type === "PERCENTAGE" ? "%" : "Amount"
+                              }
+                              value={charge.value}
+                              onChange={(e) =>
+                                handleUpdateAdditionalCharge(
+                                  idx,
+                                  "value",
+                                  e.target.value
+                                )
+                              }
+                            />
+
+                            <input
+                              className="bf-input bf-input-readonly"
+                              type="number"
+                              value={charge.amount.toFixed(2)}
+                              readOnly
+                            />
+
+                            {additionalCharges.length > 1 && (
+                              <button
+                                type="button"
+                                className="bf-btn-secondary"
+                                onClick={() =>
+                                  handleRemoveAdditionalCharge(idx)
+                                }
+                                style={{ padding: "6px 12px" }}
+                              >
+                                ✕
+                              </button>
+                            )}
+                          </div>
+                        ))}
+
+                        <button
+                          type="button"
+                          className="bf-btn-secondary"
+                          onClick={handleAddAdditionalCharge}
+                          style={{ marginTop: "8px" }}
+                        >
+                          + Add New Charge
+                        </button>
+                      </div>
+
+                      {/* Summary - WITHOUT Final Amount */}
+                      <div
+                        style={{
+                          borderTop: "1px solid #e5e7eb",
+                          paddingTop: "16px",
+                          marginTop: "16px",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            marginBottom: "8px",
+                            color: "#6b7280",
+                          }}
+                        >
+                          <span>Net Base Value</span>
+                          <span>₹{Number(agreementValue || 0).toFixed(2)}</span>
+                        </div>
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            marginBottom: "8px",
+                            color: "#6b7280",
+                          }}
+                        >
+                          <span>Additional Charges Total</span>
+                          <span>₹{additionalChargesTotal.toFixed(2)}</span>
+                        </div>
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            paddingTop: "12px",
+                            borderTop: "2px solid #e5e7eb",
+                            fontWeight: "600",
+                            fontSize: "15px",
+                          }}
+                        >
+                          <span>Amount Before Taxes</span>
+                          <span>₹{amountBeforeTaxes.toFixed(2)}</span>
+                        </div>
+                      </div>
+
+                      {/* Offer Selection */}
+                      {offers.length > 0 && (
+                        <div style={{ marginTop: "16px" }}>
+                          <label className="bf-label">
+                            Apply Offer (Optional)
+                          </label>
+                          <select
+                            className="bf-input"
+                            value={selectedOfferId}
+                            onChange={(e) => setSelectedOfferId(e.target.value)}
+                          >
+                            <option value="">No Offer</option>
+                            {offers.map((offer) => (
+                              <option key={offer.id} value={offer.id}>
+                                {offer.name}
+                                {offer.percentage &&
+                                  ` (${offer.percentage}% off)`}
+                                {offer.amount && ` (₹${offer.amount} off)`}
+                              </option>
+                            ))}
+                          </select>
+                          {offerDiscountValue > 0 && (
+                            <div
+                              style={{
+                                marginTop: "8px",
+                                color: "#059669",
+                                fontWeight: "600",
+                              }}
+                            >
+                              Offer Discount: -₹{offerDiscountValue.toFixed(2)}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </Section>
+
+              {/* Taxes & Statutory */}
+              <Section
+                id="taxesStatutory"
+                title="Taxes & Statutory"
+                open={openSections.taxesStatutory}
+                onToggle={toggleSection}
+              >
+                {!leadId || !costTemplate ? (
+                  <div className="bf-subcard">
+                    <p style={{ color: "#6b7280" }}>
+                      Tax details will be available after Additional Charges
+                      section loads.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bf-subcard">
+                    <div style={{ display: "flex", gap: "24px" }}>
+                      {/* Left side - Tax checkboxes */}
+                      <div style={{ flex: 1 }}>
+                        <div style={{ marginBottom: "12px" }}>
+                          <label
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "8px",
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={gstEnabled}
+                              onChange={(e) => setGstEnabled(e.target.checked)}
+                            />
+                            <span>
+                              GST ({costTemplate.gst_percent}% on Amount Before
+                              Taxes)
+                            </span>
+                          </label>
+                        </div>
+
+                        <div style={{ marginBottom: "12px" }}>
+                          <label
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "8px",
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={stampDutyEnabled}
+                              onChange={(e) =>
+                                setStampDutyEnabled(e.target.checked)
+                              }
+                            />
+                            <span>
+                              Stamp Duty ({costTemplate.stamp_duty_percent}% on
+                              Amount Before Taxes)
+                            </span>
+                          </label>
+                        </div>
+
+                        <div style={{ marginBottom: "12px" }}>
+                          <label
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "8px",
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={registrationEnabled}
+                              onChange={(e) =>
+                                setRegistrationEnabled(e.target.checked)
+                              }
+                            />
+                            <span>
+                              Registration Fees (₹
+                              {Number(costTemplate.registration_amount).toFixed(
+                                2
+                              )}
+                              )
+                            </span>
+                          </label>
+                        </div>
+
+                        <div style={{ marginBottom: "12px" }}>
+                          <label
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "8px",
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={legalFeeEnabled}
+                              onChange={(e) =>
+                                setLegalFeeEnabled(e.target.checked)
+                              }
+                            />
+                            <span>
+                              Legal Fees (₹
+                              {Number(costTemplate.legal_fee_amount).toFixed(2)}
+                              )
+                            </span>
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Right side - Tax summary */}
+                      <div
+                        style={{
+                          minWidth: "300px",
+                          padding: "16px",
+                          backgroundColor: "#f9fafb",
+                          borderRadius: "8px",
+                          border: "1px solid #e5e7eb",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: "13px",
+                            fontWeight: "500",
+                            marginBottom: "8px",
+                            color: "#6b7280",
+                          }}
+                        >
+                          Total Taxes
+                        </div>
+                        <div
+                          style={{
+                            fontSize: "18px",
+                            fontWeight: "600",
+                            marginBottom: "16px",
+                          }}
+                        >
+                          ₹{totalTaxes.toFixed(2)}
+                        </div>
+                        <div
+                          style={{
+                            paddingTop: "12px",
+                            borderTop: "1px solid #e5e7eb",
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontSize: "13px",
+                              color: "#6b7280",
+                              marginBottom: "6px",
+                            }}
+                          >
+                            Final Amount (Incl. Taxes):
+                          </div>
+                          <div
+                            style={{
+                              fontSize: "24px",
+                              fontWeight: "700",
+                              color: "#059669",
+                            }}
+                          >
+                            ₹{finalAmount.toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </Section>
 
               {/* Applicant KYC (generic docs – separate from gating KYC) */}
@@ -1906,89 +2544,126 @@ const BookingForm = () => {
                         />
                       </div>
                     </div>
-                    <div className="bf-plan-table">
-                      <div className="bf-plan-header">
-                        <span>#</span>
-                        <span>Name</span>
-                        <span>%</span>
-                        <span>Days</span>
-                        <span />
+
+                    {/* Updated grid layout matching screenshot */}
+                    <div style={{ marginTop: "16px" }}>
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "2fr 1fr 1fr 1fr",
+                          gap: "12px",
+                          marginBottom: "8px",
+                          fontWeight: "600",
+                          fontSize: "13px",
+                          color: "#6b7280",
+                        }}
+                      >
+                        <div>Installment Name</div>
+                        <div>Percentage</div>
+                        <div>Amount</div>
+                        <div>Due Date</div>
                       </div>
+
                       {customSlabs.map((row, idx) => (
-                        <div key={idx} className="bf-plan-row">
-                          <span>{idx + 1}</span>
-                          <span>
-                            <input
-                              className="bf-input"
-                              type="text"
-                              value={row.name}
-                              onChange={(e) =>
-                                handleUpdateCustomSlab(
-                                  idx,
-                                  "name",
-                                  e.target.value
-                                )
-                              }
-                              placeholder="On Booking"
-                            />
-                          </span>
-                          <span>
-                            <input
-                              className="bf-input"
-                              type="number"
-                              value={row.percentage}
-                              onChange={(e) =>
-                                handleUpdateCustomSlab(
-                                  idx,
-                                  "percentage",
-                                  e.target.value
-                                )
-                              }
-                              placeholder="10"
-                            />
-                          </span>
-                          <span>
-                            <input
-                              className="bf-input"
-                              type="number"
-                              value={row.days}
-                              onChange={(e) =>
-                                handleUpdateCustomSlab(
-                                  idx,
-                                  "days",
-                                  e.target.value
-                                )
-                              }
-                              placeholder="0"
-                            />
-                          </span>
-                          <span>
-                            {customSlabs.length > 1 && (
-                              <button
-                                type="button"
-                                className="bf-btn-secondary"
-                                onClick={() => handleRemoveCustomSlab(idx)}
-                              >
-                                ✕
-                              </button>
-                            )}
-                          </span>
+                        <div
+                          key={idx}
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "2fr 1fr 1fr 1fr auto",
+                            gap: "12px",
+                            marginBottom: "12px",
+                            alignItems: "center",
+                          }}
+                        >
+                          <input
+                            className="bf-input"
+                            type="text"
+                            value={row.name}
+                            onChange={(e) =>
+                              handleUpdateCustomSlab(
+                                idx,
+                                "name",
+                                e.target.value
+                              )
+                            }
+                            placeholder="e.g., On Booking"
+                          />
+
+                          <input
+                            className="bf-input"
+                            type="number"
+                            value={row.percentage}
+                            onChange={(e) =>
+                              handleUpdateCustomSlab(
+                                idx,
+                                "percentage",
+                                e.target.value
+                              )
+                            }
+                            placeholder="10"
+                          />
+
+                          <input
+                            className="bf-input bf-input-readonly"
+                            type="number"
+                            value={
+                              row.percentage
+                                ? (
+                                    (Number(agreementValue || 0) *
+                                      Number(row.percentage)) /
+                                    100
+                                  ).toFixed(2)
+                                : "0.00"
+                            }
+                            readOnly
+                          />
+
+                          <input
+                            className="bf-input"
+                            type="date"
+                            value={row.days || ""}
+                            onChange={(e) =>
+                              handleUpdateCustomSlab(
+                                idx,
+                                "days",
+                                e.target.value
+                              )
+                            }
+                            placeholder="dd-mm-yyyy"
+                          />
+
+                          {customSlabs.length > 1 && (
+                            <button
+                              type="button"
+                              className="bf-btn-secondary"
+                              onClick={() => handleRemoveCustomSlab(idx)}
+                              style={{ padding: "6px 12px" }}
+                            >
+                              ✕
+                            </button>
+                          )}
                         </div>
                       ))}
-                    </div>
-                    <div className="bf-row">
-                      <div className="bf-col">
-                        <button
-                          type="button"
-                          className="bf-btn-secondary"
-                          onClick={handleAddCustomSlab}
-                        >
-                          + Add Slab
-                        </button>
+
+                      <div
+                        style={{
+                          marginTop: "12px",
+                          color: "#dc2626",
+                          fontSize: "14px",
+                        }}
+                      >
+                        Total Percentage: {customTotalPercentage.toFixed(2)}%
+                        (should be 100%)
                       </div>
-                      <div className="bf-col bf-text-right">
-                        <strong>Total %:</strong> {customTotalPercentage}%
-                      </div>
+
+                      <button
+                        type="button"
+                        className="bf-btn-secondary"
+                        onClick={handleAddCustomSlab}
+                        style={{ marginTop: "8px" }}
+                      >
+                        + Add Installment
+                      </button>
                     </div>
                   </div>
                 )}
