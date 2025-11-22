@@ -271,7 +271,7 @@ export default function InventoryList() {
                       <button
                         title="View"
                         className="icon-btn"
-                        onClick={() => navigate(`/sales/inventory/${inv.id}`)}
+                        onClick={() => navigate(`/inventory/unit/${inv.id}`)}
                       >
                         👁️
                       </button>

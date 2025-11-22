@@ -1,0 +1,25 @@
+/* SectionHeader.css */
+
+.section-header-bar {
+  background: #D9D9D9;
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  border-radius: 4px 4px 0 0;
+}
+
+.section-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  text-align: center;
+  flex: 1;
+}
+
+.section-header-icon {
+  font-size: 20px;
+  font-weight: bold;
+  width: 30px;
+  text-align: right;
+}

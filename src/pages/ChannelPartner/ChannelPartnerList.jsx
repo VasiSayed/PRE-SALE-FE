@@ -183,7 +183,9 @@ export default function ChannelPartnerList() {
                           title="Edit"
                           className="action-btn edit-btn"
                           onClick={() =>
-                            navigate("/channel-partner-setup?open=identity")
+                            navigate(
+                              `/channel-partner-setup?open=identity&partner_id=${row.id}`
+                            )
                           }
                         >
                           ✏️

@@ -123,26 +123,30 @@ export default function ProjectsList() {
               rows.map((p) => (
                 <tr key={p.id}>
                   <td className="row-actions" style={{ textAlign: "center" }}>
+                    {/* Edit → go to /sales/projects/:projectId */}
                     <button
                       title="Edit"
                       className="icon-btn"
-                      onClick={() =>
-                        navigate(
-                          `/setup?open=project&hideNav=1&return=${encodeURIComponent(
-                            "/sales/projects"
-                          )}#edit-${p.id}`
-                        )
-                      }
+                      onClick={() => navigate(`/sales/projects/${p.id}`)}
                     >
                       <i className="fa fa-edit" />
                     </button>
+
+                    {/* Delete (unchanged for now) */}
                     <button title="Delete" className="icon-btn">
                       <i className="fa fa-trash" />
                     </button>
-                    <button title="View" className="icon-btn">
+
+                    {/* View → same detail page */}
+                    <button
+                      title="View"
+                      className="icon-btn"
+                      onClick={() => navigate(`/sales/projects/${p.id}`)}
+                    >
                       <i className="fa fa-eye" />
                     </button>
                   </td>
+
                   <td>{p.name}</td>
                   <td>{p.developer || "-"}</td>
                   <td>{p.total_inventory ?? p.units_count ?? "-"}</td>

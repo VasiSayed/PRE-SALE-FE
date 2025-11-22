@@ -1,0 +1,362 @@
+/* Page background */
+.qp-page {
+  background-color: #f5f5f7;
+  min-height: 100vh;
+  padding: 32px 24px;
+  box-sizing: border-box;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    "Segoe UI", sans-serif;
+}
+
+/* Outer card – same feel as sample screenshot */
+.qp-inner {
+  max-width: 900px;
+  margin: 0 auto 40px;
+  background-color: #ffffff;
+  border-radius: 18px;
+  padding: 24px 28px 32px;
+  box-shadow: 0 14px 35px rgba(15, 23, 42, 0.08);
+  border: 1px solid #e5e7eb;
+}
+
+.qp-inner-loading {
+  text-align: center;
+  font-size: 14px;
+  padding: 40px 0;
+}
+
+/* Sections */
+
+.qp-section {
+  margin-bottom: 28px;
+}
+
+.qp-section-header {
+  margin-bottom: 24px;
+}
+
+/* Titles / headings */
+
+.qp-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #5b4fff;
+  margin: 0 0 12px;
+}
+
+.qp-section-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #5b4fff;
+  margin: 0 0 10px;
+}
+
+/* Header meta row */
+
+.qp-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.qp-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.qp-meta-line {
+  font-size: 13px;
+  color: #374151;
+}
+
+.qp-meta-label {
+  font-weight: 500;
+  color: #4b5563;
+}
+
+.qp-meta-value {
+  font-weight: 400;
+  color: #111827;
+}
+
+.qp-header-right {
+  font-size: 13px;
+  color: #374151;
+  white-space: nowrap;
+}
+
+/* Cards / panels */
+
+.qp-panel {
+  background-color: #ffffff;
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+  padding: 16px 20px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.qp-panel-soft {
+  background-color: #faf5ff;
+  border-color: #efe4ff;
+}
+
+.qp-panel-terms {
+  padding-left: 24px;
+}
+
+/* Customer block */
+
+.qp-cust-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 2px;
+}
+
+.qp-cust-address {
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 10px;
+}
+
+.qp-cust-grid {
+  display: flex;
+  justify-content: space-between;
+  gap: 32px;
+  flex-wrap: wrap;
+}
+
+.qp-cust-col {
+  min-width: 220px;
+}
+
+.qp-cust-col-right {
+  text-align: left;
+}
+
+.qp-label-value {
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.qp-label {
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.qp-value {
+  color: #111827;
+}
+
+/* Tables */
+
+.qp-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+}
+
+.qp-table thead tr {
+  background-color: #f9fafb;
+}
+
+.qp-table thead th {
+  padding: 10px 14px;
+  font-weight: 600;
+  color: #6b7280;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.qp-table tbody td {
+  padding: 10px 14px;
+  color: #111827;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.qp-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.qp-align-right {
+  text-align: right;
+}
+
+/* Net price row */
+
+.qp-row-net td {
+  background-color: #ede9ff;
+  font-weight: 600;
+}
+
+.qp-net-label {
+  color: #4c1d95;
+}
+
+.qp-net-amount {
+  color: #4f46e5;
+}
+
+/* Grand total */
+
+.qp-grand-total-wrap {
+  margin-top: 18px;
+  text-align: center;
+}
+
+.qp-grand-total {
+  font-size: 15px;
+  font-weight: 600;
+  color: #4f46e5;
+}
+
+.qp-grand-total span {
+  font-weight: 700;
+}
+
+.qp-grand-words {
+  margin-top: 4px;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+/* Terms list */
+
+.qp-terms-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  color: #4b5563;
+}
+
+.qp-terms-list li {
+  margin-bottom: 4px;
+}
+
+.qp-last-section {
+  margin-bottom: 0;
+}
+
+/* Responsive */
+
+@media (max-width: 768px) {
+  .qp-page {
+    padding: 20px 12px;
+  }
+
+  .qp-inner {
+    padding: 20px 16px 24px;
+  }
+
+  .qp-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .qp-header-right {
+    white-space: normal;
+  }
+
+  .qp-cust-grid {
+    flex-direction: column;
+  }
+}
+
+/* ---- Pricing summary block under Pricing Breakdown ---- */
+
+.qp-summary {
+  margin-top: 12px;
+  padding: 12px 16px 8px;
+  border-radius: 12px;
+  background-color: #f9fafb;
+  border: 1px dashed #e5e7eb;
+}
+
+.qp-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 13px;
+  color: #111827;
+  margin-bottom: 4px;
+}
+
+.qp-summary-row:last-child {
+  margin-bottom: 0;
+}
+
+.qp-summary-label {
+  font-weight: 500;
+  color: #4b5563;
+}
+
+.qp-summary-value {
+  font-weight: 600;
+}
+
+/* highlight final row */
+.qp-summary-row-final .qp-summary-label {
+  font-weight: 600;
+  color: #111827;
+}
+
+.qp-summary-row-final .qp-summary-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: #16a34a; /* nice green highlight */
+}
+
+/* Mobile tweak */
+@media (max-width: 768px) {
+  .qp-summary-row {
+    font-size: 12px;
+  }
+}
+
+
+/* ===== Totals summary card under Taxes ===== */
+
+.qp-summary-card {
+  margin-top: 18px;
+  padding: 14px 18px;
+  border-radius: 14px;
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+}
+
+.qp-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  color: #111827;
+  margin-bottom: 6px;
+}
+
+.qp-summary-row:last-child {
+  margin-bottom: 0;
+}
+
+.qp-summary-row-final {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid #e5e7eb;
+  font-weight: 600;
+}
+
+.qp-summary-amount {
+  font-weight: 600;
+  color: #111827;
+}
+
+/* small tweak for mobile */
+@media (max-width: 768px) {
+  .qp-summary-card {
+    padding: 12px 14px;
+  }
+}
+
+

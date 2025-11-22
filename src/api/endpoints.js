@@ -1,11 +1,12 @@
 //endpoint.js
 import api, { BASE_URL } from "./axiosInstance";
-
 // Keep URLs centralized
 export const URLS = {
   // auth
   login: "accounts/login/",
   refresh: "accounts/token/refresh/",
+
+  salesExtraInfo: "sales/extra-info/",
 
   // setup bundle + scope
   setupBundle: "client/setup-bundle/",
@@ -55,8 +56,7 @@ export const URLS = {
   channelPartnerTiers: "channel/partner-tiers/",
   channelCrmIntegrations: "channel/crm-integrations/",
   channelPartnerDetail: (id) => `channel/partners/${id}/`,
-  channelPartnerUpdateSection: (id) =>
-    `channel/partners/${id}/update_section/`,
+  channelPartnerUpdateSection: (id) => `channel/partners/${id}/update_section/`,
 
   visitingHalf: "leadManagement/visiting-half/",
   familySize: "leadManagement/family-size/",
@@ -65,6 +65,15 @@ export const URLS = {
   occupations: "leadManagement/occupations/",
   designations: "leadManagement/designations/",
   leadStages: "leadManagement/stages/",
+
+  leadSetupByProject: "/leadManagement/lead-setup-by-project/",
+
+  leadVisitingHalf: "/leadManagement/visiting-half/",
+  leadFamilySize: "/leadManagement/family-size/",
+  leadResidencyOwnership: "/leadManagement/residency-ownership/",
+  leadPossessionDesigned: "/leadManagement/possession-designed/",
+  leadOccupations: "/leadManagement/occupations/",
+  leadDesignations: "/leadManagement/designations/",
 };
 
 export const AuthAPI = {
@@ -259,6 +268,11 @@ export const AdditionalInfoAPI = {
     api.post(URLS.designations, payload).then((r) => r.data),
   deleteDesignation: (id) =>
     api.delete(`${URLS.designations}${id}/`).then((r) => r.data),
+
+  getBulkExtraInfo(params = {}) {
+    // GET /api/sales/extra-info/?project_id=...
+    return api.get(URLS.salesExtraInfo, { params }).then((res) => res.data);
+  },
 };
 
 export const LeadStageAPI = {

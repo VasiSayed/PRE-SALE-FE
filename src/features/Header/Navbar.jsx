@@ -96,7 +96,7 @@ function Navbar({ currentUser, onLogout, showLogout = true }) {
         borderRadius: 0,
         display: "flex",
         alignItems: "center",
-        justifyContent: "space-between"
+        justifyContent: "space-between",
       }}
     >
       {/* Left Section */}
@@ -112,12 +112,13 @@ function Navbar({ currentUser, onLogout, showLogout = true }) {
           style={{
             fontSize: "1.8rem",
             fontWeight: "600",
-            fontFamily: "'Inter', 'Segoe UI', 'Roboto', 'Open Sans', sans-serif",
+            fontFamily:
+              "'Inter', 'Segoe UI', 'Roboto', 'Open Sans', sans-serif",
             letterSpacing: "-0.5px",
             marginLeft: 8,
           }}
         >
-          LOTUS DEVELOPERS
+          SHREE RAM KRUSHNA DEVELOPERS
         </span>
       </div>
 
@@ -130,15 +131,10 @@ function Navbar({ currentUser, onLogout, showLogout = true }) {
         </Link>
         <ProfileIcon className="icon" />
         {showLogout && (
-          <button
-            onClick={onLogout}
-            className="logout-btn"
-            title="Logout"
-          >
+          <button onClick={onLogout} className="logout-btn" title="Logout">
             Logout
           </button>
         )}
-
       </div>
     </nav>
   );

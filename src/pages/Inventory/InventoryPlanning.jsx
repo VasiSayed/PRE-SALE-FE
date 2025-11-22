@@ -1,6 +1,7 @@
+// src/pages/Inventory/InventoryPlanning.jsx
 import React, { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import api, { axiosInstance } from "../../api/axiosInstance";
+import api from "../../api/axiosInstance";
 import "./InventoryPlanning.css";
 
 const AVAILABILITY_CLASS = {
@@ -9,248 +10,459 @@ const AVAILABILITY_CLASS = {
   BLOCKED: "status-blocked",
 };
 
+const STATUS_LABEL = {
+  AVAILABLE: "Available",
+  BLOCKED: "Block",
+  BOOKED: "Sold Out",
+};
+
+const FILTER_LABEL = {
+  ALL: "All",
+  AVAILABLE: "Available",
+  BLOCKED: "Block",
+  BOOKED: "Sold Out",
+};
+
 const InventoryPlanning = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+
+  const [projects, setProjects] = useState([]);
+  const [selectedProjectId, setSelectedProjectId] = useState("");
 
   const [tree, setTree] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const [selectedTowerId, setSelectedTowerId] = useState(null);
-  const [openFloors, setOpenFloors] = useState({});
+  const [statusFilter, setStatusFilter] = useState("ALL");
 
-  // ---- resolve project id from URL or localStorage ----
   const projectIdFromUrl = searchParams.get("project_id");
-  const projectId =
+  const initialProjectId =
     projectIdFromUrl ||
     localStorage.getItem("ACTIVE_PROJECT_ID") ||
-    localStorage.getItem("PROJECT_ID");
+    localStorage.getItem("PROJECT_ID") ||
+    "";
 
+  // ---------- load projects (my-scope) ----------
   useEffect(() => {
-    if (!projectId) {
-      setError("project_id is missing in URL or localStorage.");
+    api
+      .get("/client/my-scope/")
+      .then((res) => {
+        const data = res.data || {};
+        const list = data.projects || data.project_list || data.results || [];
+
+        setProjects(list);
+
+        if (!selectedProjectId) {
+          const fallbackId =
+            initialProjectId || (list.length ? String(list[0].id) : "");
+          if (fallbackId) setSelectedProjectId(fallbackId);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load project scope", err);
+        setProjects([]);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ---------- load inventory tree for selected project ----------
+  useEffect(() => {
+    if (!selectedProjectId) {
+      setTree(null);
       setLoading(false);
+      setError("");
       return;
     }
 
     setLoading(true);
     setError("");
 
+    localStorage.setItem("ACTIVE_PROJECT_ID", String(selectedProjectId));
+    localStorage.setItem("PROJECT_ID", String(selectedProjectId));
+
     api
       .get("/client/inventory/tree/", {
-        params: { project_id: projectId },
+        params: { project_id: selectedProjectId },
       })
       .then((res) => {
-        const data = res.data;
-        setTree(data);
-
-        if (data.towers && data.towers.length > 0) {
-          setSelectedTowerId(data.towers[0].id);
-        }
+        setTree(res.data || null);
       })
       .catch((err) => {
         console.error("Failed to load inventory tree", err);
+        setTree(null);
         setError("Failed to load inventory data.");
       })
       .finally(() => setLoading(false));
-  }, [projectId]);
+  }, [selectedProjectId]);
 
-  const handleTowerClick = (towerId) => {
-    setSelectedTowerId(towerId);
-    setOpenFloors({}); // reset floor expansion
+  // ---------- helpers ----------
+
+  const handleProjectChange = (e) => {
+    setSelectedProjectId(e.target.value || "");
   };
 
-  const toggleFloor = (floorId) => {
-    setOpenFloors((prev) => ({
-      ...prev,
-      [floorId]: !prev[floorId],
-    }));
+  const handleProjectReset = () => {
+    if (projects.length) {
+      setSelectedProjectId(String(projects[0].id));
+    } else {
+      setSelectedProjectId("");
+    }
   };
 
   const handleUnitClick = (unitId) => {
-    // 👉 Navigate to detail page with unit id + project id in URL
-    if (projectId) {
-      navigate(`/inventory/unit/${unitId}?project_id=${projectId}`);
+    if (selectedProjectId) {
+      navigate(`/inventory/unit/${unitId}?project_id=${selectedProjectId}`);
     } else {
       navigate(`/inventory/unit/${unitId}`);
     }
   };
 
-  const selectedTower =
-    tree?.towers?.find((t) => t.id === selectedTowerId) || null;
-  const floors = selectedTower?.floors || [];
-
   const getUnitStatusClass = (unit) => {
     const inv = unit.inventory;
     if (!inv) return "status-unknown";
-
-    const cls = AVAILABILITY_CLASS[inv.availability_status];
-    return cls || "status-unknown";
+    return AVAILABILITY_CLASS[inv.availability_status] || "status-unknown";
   };
 
-  if (loading) {
-    return <div className="inventory-page">Loading inventory...</div>;
-  }
+  const getStatusLabelFromCode = (code) => {
+    if (!code) return "No Inv";
+    return STATUS_LABEL[code] || code;
+  };
 
-  if (error) {
-    return <div className="inventory-page error-text">{error}</div>;
-  }
+  const applyFilter = (units = [], filter = "ALL") => {
+    if (filter === "ALL") return units;
+    return units.filter((u) => u.inventory?.availability_status === filter);
+  };
 
-  if (!tree) {
-    return (
-      <div className="inventory-page">
-        <div>No inventory data found for this project.</div>
-      </div>
-    );
-  }
+  const computeCountsForUnits = (units = []) => {
+    const counts = { available: 0, blocked: 0, booked: 0 };
+    units.forEach((u) => {
+      const st = u.inventory?.availability_status;
+      if (st === "AVAILABLE") counts.available += 1;
+      else if (st === "BLOCKED") counts.blocked += 1;
+      else if (st === "BOOKED") counts.booked += 1;
+    });
+    return counts;
+  };
+
+  // tower totals (always total, not filtered)
+  const computeTowerCounts = (tower) => {
+    const allUnits = [];
+    (tower.floors || []).forEach((f) => {
+      (f.units || []).forEach((u) => allUnits.push(u));
+    });
+    return computeCountsForUnits(allUnits);
+  };
+
+  // project totals (for top summary bar)
+  const computeProjectCounts = (treeObj) => {
+    const counts = { available: 0, blocked: 0, booked: 0 };
+    if (!treeObj) return counts;
+
+    (treeObj.towers || []).forEach((tower) => {
+      (tower.floors || []).forEach((floor) => {
+        (floor.units || []).forEach((u) => {
+          const st = u.inventory?.availability_status;
+          if (st === "AVAILABLE") counts.available += 1;
+          else if (st === "BLOCKED") counts.blocked += 1;
+          else if (st === "BOOKED") counts.booked += 1;
+        });
+      });
+    });
+
+    return counts;
+  };
+
+  const getTowerBadge = (tower) => {
+    if (!tower?.name) return "#";
+    return tower.name.charAt(0).toUpperCase();
+  };
+
+  const getFloorLabel = (floor) =>
+    floor.name || floor.label || floor.number || `Floor ${floor.id}`;
+
+  // non-numeric floors first, then numeric (G, Stilt, etc.)
+  const sortedFloors = (tower) => {
+    const floors = tower?.floors || [];
+    return [...floors].sort((a, b) => {
+      const aStr = String(a.number ?? a.name ?? "");
+      const bStr = String(b.number ?? b.name ?? "");
+
+      const aNum = Number(aStr);
+      const bNum = Number(bStr);
+
+      const aIsNum = !Number.isNaN(aNum);
+      const bIsNum = !Number.isNaN(bNum);
+
+      if (aIsNum && bIsNum) return aNum - bNum;
+      if (!aIsNum && !bIsNum) return aStr.localeCompare(bStr);
+      if (!aIsNum && bIsNum) return -1;
+      if (aIsNum && !bIsNum) return 1;
+      return 0;
+    });
+  };
+
+  const projectCounts = tree ? computeProjectCounts(tree) : null;
+
+  // ---------- render ----------
 
   return (
     <div className="inventory-page">
-      <div className="inventory-header">
-        <h1 className="inventory-title">
-          Inventory Plan – {tree.project?.name || "Project"}
-        </h1>
-        <div className="inventory-subtitle">
-          Select a tower on the left, then a floor to view units and their
-          status.
-        </div>
+      <div className="inventory-top-strip" />
+
+      {/* toolbar */}
+      <div className="inventory-toolbar">
+        <select
+          className="project-select"
+          value={selectedProjectId || ""}
+          onChange={handleProjectChange}
+        >
+          <option value="">Select Project</option>
+          {projects.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name || p.project_name || `Project #${p.id}`}
+            </option>
+          ))}
+        </select>
+
+        <button
+          type="button"
+          className="toolbar-btn toolbar-btn-primary"
+          onClick={() =>
+            selectedProjectId && setSelectedProjectId(selectedProjectId)
+          }
+        >
+          Submit
+        </button>
+
+        <button
+          type="button"
+          className="toolbar-btn toolbar-btn-secondary"
+          onClick={handleProjectReset}
+        >
+          Reset
+        </button>
       </div>
 
-      <div className="inventory-layout">
-        {/* ---------------- LEFT: Towers ---------------- */}
-        <div className="inventory-tower-panel">
-          <div className="panel-title">Towers</div>
+      {/* compact project summary bar with filter */}
+      {!loading && !error && tree && projectCounts && (
+        <div className="project-summary-bar">
+          <button
+            type="button"
+            className={
+              "project-name-block" +
+              (statusFilter === "ALL" ? " project-filter-active" : "")
+            }
+            onClick={() => setStatusFilter("ALL")}
+          >
+            {tree.project?.name || "Project"}
+          </button>
 
-          {tree.towers?.length ? (
-            tree.towers.map((tower) => (
-              <button
-                key={tower.id}
-                type="button"
-                className={
-                  "tower-item" +
-                  (tower.id === selectedTowerId ? " tower-item-active" : "")
-                }
-                onClick={() => handleTowerClick(tower.id)}
-              >
-                <div className="tower-name">{tower.name}</div>
-                <div className="tower-meta">
-                  {tower.floors?.length || 0} floors
-                </div>
-              </button>
-            ))
-          ) : (
-            <div className="empty-text">No towers found.</div>
-          )}
-        </div>
-
-        {/* ---------------- RIGHT: Floors + Units ---------------- */}
-        <div className="inventory-main-panel">
-          <div className="inventory-main-header">
-            <div>
-              <div className="panel-title">
-                {selectedTower ? selectedTower.name : "Select a tower"}
+          <div className="project-summary-row">
+            <button
+              type="button"
+              className={
+                "project-summary-item-btn" +
+                (statusFilter === "AVAILABLE" ? " project-filter-active" : "")
+              }
+              onClick={() => setStatusFilter("AVAILABLE")}
+            >
+              <div className="summary-label">Available</div>
+              <div className="summary-count summary-count-available">
+                {projectCounts.available}
               </div>
-              <div className="inventory-main-sub">
-                {floors.length
-                  ? `${floors.length} floor(s) configured`
-                  : "No floors for this tower."}
-              </div>
-            </div>
+            </button>
 
-            {/* Legend */}
-            <div className="inventory-legend">
-              <span className="legend-item">
-                <span className="legend-chip status-available" /> Available
-              </span>
-              <span className="legend-item">
-                <span className="legend-chip status-booked" /> Booked
-              </span>
-              <span className="legend-item">
-                <span className="legend-chip status-blocked" /> Blocked
-              </span>
-              <span className="legend-item">
-                <span className="legend-chip status-unknown" /> No Inventory
-              </span>
-            </div>
+            <button
+              type="button"
+              className={
+                "project-summary-item-btn" +
+                (statusFilter === "BLOCKED" ? " project-filter-active" : "")
+              }
+              onClick={() => setStatusFilter("BLOCKED")}
+            >
+              <div className="summary-label">Block</div>
+              <div className="summary-count summary-count-blocked">
+                {projectCounts.blocked}
+              </div>
+            </button>
+
+            <button
+              type="button"
+              className={
+                "project-summary-item-btn" +
+                (statusFilter === "BOOKED" ? " project-filter-active" : "")
+              }
+              onClick={() => setStatusFilter("BOOKED")}
+            >
+              <div className="summary-label">Sold Out</div>
+              <div className="summary-count summary-count-booked">
+                {projectCounts.booked}
+              </div>
+            </button>
           </div>
+        </div>
+      )}
 
-          {/* Floors as big boxes, each expandable */}
-          <div className="floors-container">
-            {floors.map((floor) => {
-              const isOpen = !!openFloors[floor.id];
+      {loading && <div className="inventory-loading">Loading inventory...</div>}
+
+      {!loading && error && <div className="inventory-error">{error}</div>}
+
+      {!loading && !error && !tree && (
+        <div className="inventory-empty">
+          Select a project to view inventory.
+        </div>
+      )}
+
+      {!loading && !error && tree && (
+        <div className="towers-list">
+          {tree.towers && tree.towers.length ? (
+            tree.towers.map((tower) => {
+              const towerCounts = computeTowerCounts(tower);
+              const floors = sortedFloors(tower);
+
               return (
-                <div key={floor.id} className="floor-card">
-                  <div
-                    className="floor-header"
-                    onClick={() => toggleFloor(floor.id)}
-                  >
-                    <div className="floor-title">
-                      Floor {floor.number || floor.id}
-                    </div>
-                    <div className="floor-meta">
-                      {floor.units?.length || 0} units
-                      <span className="floor-toggle-icon">
-                        {isOpen ? "▲" : "▼"}
-                      </span>
+                <div key={tower.id} className="tower-card-planning">
+                  {/* tower header (still total counts) */}
+                  <div className="tower-card-header">
+                    <div className="tower-badge">{getTowerBadge(tower)}</div>
+
+                    <div className="tower-summary-row">
+                      <div className="tower-summary-item">
+                        <div className="summary-label">Available</div>
+                        <div className="summary-count summary-count-available">
+                          {towerCounts.available}
+                        </div>
+                      </div>
+                      <div className="tower-summary-item">
+                        <div className="summary-label">Block</div>
+                        <div className="summary-count summary-count-blocked">
+                          {towerCounts.blocked}
+                        </div>
+                      </div>
+                      <div className="tower-summary-item">
+                        <div className="summary-label">Sold Out</div>
+                        <div className="summary-count summary-count-booked">
+                          {towerCounts.booked}
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  {isOpen && (
-                    <div className="unit-grid">
-                      {floor.units && floor.units.length ? (
-                        floor.units.map((unit) => {
-                          const inv = unit.inventory;
-                          const statusCls = getUnitStatusClass(unit);
+                  {/* floors */}
+                  <div className="tower-card-body">
+                    <div className="tower-section-heading">
+                      Floor &amp; Room
+                    </div>
 
-                          return (
-                            <div
-                              key={unit.id}
-                              className={`unit-chip ${statusCls} ${
-                                inv ? "unit-chip-has-inventory" : ""
-                              }`}
-                              onClick={() => handleUnitClick(unit.id)}
-                              role="button"
-                              tabIndex={0}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  handleUnitClick(unit.id);
-                                }
-                              }}
-                            >
-                              <div className="unit-no">
-                                {unit.unit_no || `Unit ${unit.id}`}
+                    {floors.length ? (
+                      floors.map((floor) => {
+                        const allUnits = floor.units || [];
+                        const filteredUnits = applyFilter(
+                          allUnits,
+                          statusFilter
+                        );
+
+                        // hide floor when filter active and no units
+                        if (
+                          statusFilter !== "ALL" &&
+                          filteredUnits.length === 0
+                        ) {
+                          return null;
+                        }
+
+                        const fCounts = computeCountsForUnits(filteredUnits);
+                        const floorLabel = getFloorLabel(floor);
+
+                        return (
+                          <div key={floor.id} className="tower-floor-block">
+                            {/* floor summary row */}
+                            <div className="floor-summary-bar">
+                              <div className="floor-badge">{floorLabel}</div>
+
+                              <div className="floor-summary-row">
+                                <div className="floor-summary-item">
+                                  <div className="summary-label">Available</div>
+                                  <div className="summary-count summary-count-available">
+                                    {fCounts.available}
+                                  </div>
+                                </div>
+                                <div className="floor-summary-item">
+                                  <div className="summary-label">Block</div>
+                                  <div className="summary-count summary-count-blocked">
+                                    {fCounts.blocked}
+                                  </div>
+                                </div>
+                                <div className="floor-summary-item">
+                                  <div className="summary-label">Sold Out</div>
+                                  <div className="summary-count summary-count-booked">
+                                    {fCounts.booked}
+                                  </div>
+                                </div>
                               </div>
-                              {inv && (
-                                <div className="unit-status-text">
-                                  {inv.availability_status}
+                            </div>
+
+                            {/* units */}
+                            <div className="tower-floor-units">
+                              {filteredUnits && filteredUnits.length ? (
+                                filteredUnits.map((unit) => {
+                                  const inv = unit.inventory;
+                                  const statusCls = getUnitStatusClass(unit);
+                                  const statusText = inv
+                                    ? getStatusLabelFromCode(
+                                        inv.availability_status
+                                      )
+                                    : "No Inv";
+
+                                  return (
+                                    <div
+                                      key={unit.id}
+                                      className={`unit-card ${statusCls} ${
+                                        inv ? "unit-card-has-inventory" : ""
+                                      }`}
+                                      onClick={() => handleUnitClick(unit.id)}
+                                      role="button"
+                                      tabIndex={0}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                          handleUnitClick(unit.id);
+                                        }
+                                      }}
+                                    >
+                                      <div className="unit-card-no">
+                                        {unit.unit_no || `Unit ${unit.id}`}
+                                      </div>
+                                      <div className="unit-card-status-pill">
+                                        {statusText}
+                                      </div>
+                                    </div>
+                                  );
+                                })
+                              ) : (
+                                <div className="empty-text">
+                                  No units matching selected filter.
                                 </div>
                               )}
-                              {!inv && (
-                                <div className="unit-status-text">No Inv</div>
-                              )}
                             </div>
-                          );
-                        })
-                      ) : (
-                        <div className="empty-text">
-                          No units configured on this floor.
-                        </div>
-                      )}
-                    </div>
-                  )}
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="empty-text">
+                        No floors found for this tower.
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
-            })}
-
-            {!floors.length && (
-              <div className="empty-text">
-                No floors found for the selected tower.
-              </div>
-            )}
-          </div>
+            })
+          ) : (
+            <div className="inventory-empty">
+              No towers found for this project.
+            </div>
+          )}
         </div>
-      </div>
+      )}
     </div>
   );
 };

@@ -11,6 +11,32 @@
   overflow: hidden;
 }
 
+
+.gst-field .gst-input-wrapper {
+  display: flex;
+  align-items: stretch;
+}
+
+.gst-field .gst-input {
+  flex: 1;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.gst-field .gst-mode-select {
+  width: 72px;
+  border-left: 0;
+  border-radius: 0 4px 4px 0;
+  font-size: 0.85rem;
+}
+
+.gst-field .gst-hint {
+  margin-top: 4px;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+
 .section-content {
   padding: 20px;
 }

@@ -31,10 +31,10 @@ const MailIcon = ({ size = 24 }) => (
 
 export default function Auth() {
   // Authentication logic from old code
-  const { login } = useAuth();
+const { login, user } = useAuth();
   const nav = useNavigate();
   const loc = useLocation();
-  const from = loc.state?.from || "/sales/projects";
+  const from = loc.state?.from || "/dashboard";
 
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({
@@ -53,6 +53,62 @@ export default function Auth() {
     setError('');
   };
 
+// const handleSubmit = async (e) => {
+//   e.preventDefault();
+//   setError("");
+//   setLoading(true);
+
+//   try {
+//     if (isLogin) {
+//       // 1) Normal login – this will set access/refresh tokens
+//       await login({
+//         username: formData.username,
+//         password: formData.password,
+//       });
+
+//       // 2) Immediately after successful login, fetch my-scope
+//       try {
+//         const scopeRes = await api.get("/client/my-scope/", {
+//           params: { include_units: true },
+//         });
+
+//         const scopeData = scopeRes.data || {};
+
+//         // 3) Store full scope in localStorage
+//         localStorage.setItem("MY_SCOPE", JSON.stringify(scopeData));
+
+//         // 4) (Optional but very useful) store first project id as active
+//         if (scopeData.projects && scopeData.projects.length > 0) {
+//           const firstProjectId = scopeData.projects[0].id;
+//           if (firstProjectId) {
+//             localStorage.setItem("ACTIVE_PROJECT_ID", String(firstProjectId));
+//             localStorage.setItem("PROJECT_ID", String(firstProjectId));
+//           }
+//         }
+//       } catch (scopeErr) {
+//         console.error("Failed to fetch /client/my-scope/:", scopeErr);
+//         // Don’t block login if this fails
+//       }
+
+//           const userRole = user?.role || "SALES";
+//       const userRole = user?.role || "SALES";
+
+//       if (userRole === "SALES") {
+//         nav("/leads", { replace: true });
+//       } else {
+//         nav(from, { replace: true });
+//       }
+//     } else {
+//       setError("Signup is currently disabled. Please login.");
+//     }
+//   } catch (err) {
+//     setError("Invalid username or password");
+//   } finally {
+//     setLoading(false);
+//   }
+// };
+
+
 const handleSubmit = async (e) => {
   e.preventDefault();
   setError("");
@@ -60,13 +116,16 @@ const handleSubmit = async (e) => {
 
   try {
     if (isLogin) {
-      // 1) Normal login – this will set access/refresh tokens
-      await login({
+      // 1) Call login and GET the response with user + tokens
+      const data = await login({
         username: formData.username,
         password: formData.password,
       });
 
-      // 2) Immediately after successful login, fetch my-scope
+      // 2) Extract role from login response
+      const userRole = data?.user?.role || "SALES";
+
+      // 3) Fetch my-scope (non-blocking for navigation)
       try {
         const scopeRes = await api.get("/client/my-scope/", {
           params: { include_units: true },
@@ -74,10 +133,8 @@ const handleSubmit = async (e) => {
 
         const scopeData = scopeRes.data || {};
 
-        // 3) Store full scope in localStorage
         localStorage.setItem("MY_SCOPE", JSON.stringify(scopeData));
 
-        // 4) (Optional but very useful) store first project id as active
         if (scopeData.projects && scopeData.projects.length > 0) {
           const firstProjectId = scopeData.projects[0].id;
           if (firstProjectId) {
@@ -87,16 +144,21 @@ const handleSubmit = async (e) => {
         }
       } catch (scopeErr) {
         console.error("Failed to fetch /client/my-scope/:", scopeErr);
-        // Don’t block login if this fails
+        // Don’t block login if scope fails
       }
 
-      // 5) Finally, navigate to previous page or default
-      nav(from, { replace: true });
+      // 4) Decide redirect based on ROLE from login response
+      if (userRole === "SALES") {
+        nav("/dashboard", { replace: true });
+      } else {
+        // for ADMIN or other roles, go to previous or default page
+        nav(from, { replace: true });
+      }
     } else {
-      // Signup disabled
       setError("Signup is currently disabled. Please login.");
     }
   } catch (err) {
+    console.error("Login failed:", err);
     setError("Invalid username or password");
   } finally {
     setLoading(false);

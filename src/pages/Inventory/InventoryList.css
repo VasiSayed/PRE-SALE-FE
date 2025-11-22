@@ -2,7 +2,6 @@
   padding: 18px;
 }
 
-/* Top toolbar: search + Add */
 .inventory-toolbar {
   display: flex;
   gap: 12px;

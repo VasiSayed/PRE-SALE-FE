@@ -1,16 +1,21 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { LeadSetupAPI, AdditionalInfoAPI, LeadStageAPI, SetupAPI } from "../../api/endpoints";
+import {
+  LeadSetupAPI,
+  AdditionalInfoAPI,
+  LeadStageAPI,
+  SetupAPI,
+} from "../../api/endpoints";
 import "./LeadProjectsList.css";
 
 export default function LeadProjectsList() {
   const navigate = useNavigate();
-  
+
   const [allData, setAllData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedProject, setSelectedProject] = useState("");
   const [projects, setProjects] = useState([]);
-  
+
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -31,12 +36,20 @@ export default function LeadProjectsList() {
       try {
         const scopeData = await SetupAPI.myScope({ include_units: false });
         const fetchedProjects = scopeData.projects || [];
-        
+
         fetchedProjects.forEach((project) => {
-          projectMap.set(project.id, project.name || project.project_name || `Project #${project.id}`);
+          projectMap.set(
+            project.id,
+            project.name || project.project_name || `Project #${project.id}`
+          );
         });
-        
-        setProjects(fetchedProjects.map(p => ({ id: p.id, name: p.name || p.project_name })));
+
+        setProjects(
+          fetchedProjects.map((p) => ({
+            id: p.id,
+            name: p.name || p.project_name,
+          }))
+        );
       } catch (err) {
         console.error("Error loading projects:", err);
       }
@@ -76,7 +89,8 @@ export default function LeadProjectsList() {
         return items.map((item) => ({
           id: item.id,
           name: item.name,
-          projectName: item.project_name || getProjectNameFromMap(item.project) || "-",
+          projectName:
+            item.project_name || getProjectNameFromMap(item.project) || "-",
           projectId: item.project,
           source: source,
           type: type,
@@ -88,13 +102,33 @@ export default function LeadProjectsList() {
 
       // Combine all data
       const combined = [
-        ...normalizeData(classificationsData, "Lead Classification", "Classification"),
+        ...normalizeData(
+          classificationsData,
+          "Lead Classification",
+          "Classification"
+        ),
         ...normalizeData(sourcesData, "Lead Source", "Source"),
         ...normalizeData(stagesData, "Lead Stage", "Stage"),
-        ...normalizeData(visitingHalfData, "Additional Info", "Visiting on behalf"),
-        ...normalizeData(familySizeData, "Additional Info", "Current Residence Type"),
-        ...normalizeData(residencyOwnershipData, "Additional Info", "Residence Ownership"),
-        ...normalizeData(possessionDesignedData, "Additional Info", "Possession Desired"),
+        ...normalizeData(
+          visitingHalfData,
+          "Additional Info",
+          "Visiting on behalf"
+        ),
+        ...normalizeData(
+          familySizeData,
+          "Additional Info",
+          "Current Residence Type"
+        ),
+        ...normalizeData(
+          residencyOwnershipData,
+          "Additional Info",
+          "Residence Ownership"
+        ),
+        ...normalizeData(
+          possessionDesignedData,
+          "Additional Info",
+          "Possession Desired"
+        ),
         ...normalizeData(occupationsData, "Additional Info", "Occupation"),
         ...normalizeData(designationsData, "Additional Info", "Designation"),
       ];
@@ -106,7 +140,6 @@ export default function LeadProjectsList() {
       });
 
       setAllData(combined);
-
     } catch (err) {
       console.error("Error loading lead setup data:", err);
     } finally {
@@ -115,11 +148,12 @@ export default function LeadProjectsList() {
   };
 
   // Filter data based on search
-  const filteredData = allData.filter((item) =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.projectName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.source.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.type.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredData = allData.filter(
+    (item) =>
+      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.projectName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.source.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.type.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   // Pagination
@@ -179,13 +213,18 @@ export default function LeadProjectsList() {
   };
 
   const handleView = (item) => {
-    alert(`View details:\n\nName: ${item.name}\nProject: ${item.projectName}\nSource: ${item.source}\nType: ${item.type}\nCreated By: ${item.createdBy}\nCreated Date: ${formatDate(item.createdDate)}`);
+    alert(
+      `View details:\n\nName: ${item.name}\nProject: ${
+        item.projectName
+      }\nSource: ${item.source}\nType: ${item.type}\nCreated By: ${
+        item.createdBy
+      }\nCreated Date: ${formatDate(item.createdDate)}`
+    );
   };
 
-const handleAdd = () => {
-  navigate("/lead-setup?open=classification");
-};
-
+  const handleAdd = () => {
+    navigate("/lead-setup?open=classification");
+  };
 
   const formatDate = (dateString) => {
     if (!dateString || dateString === "-") return "-";
@@ -247,7 +286,9 @@ const handleAdd = () => {
         {/* Table */}
         <div className="table-wrapper">
           {loading ? (
-            <div style={{ textAlign: "center", padding: "40px", color: "#6b7280" }}>
+            <div
+              style={{ textAlign: "center", padding: "40px", color: "#6b7280" }}
+            >
               Loading...
             </div>
           ) : (
@@ -300,7 +341,14 @@ const handleAdd = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="6" style={{ textAlign: "center", padding: "40px", color: "#6b7280" }}>
+                    <td
+                      colSpan="6"
+                      style={{
+                        textAlign: "center",
+                        padding: "40px",
+                        color: "#6b7280",
+                      }}
+                    >
                       No data found
                     </td>
                   </tr>

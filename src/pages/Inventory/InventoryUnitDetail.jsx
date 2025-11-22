@@ -182,7 +182,7 @@ const InventoryUnitDetail = () => {
             </div>
             <div>
               <div className="field-label">Unit Type</div>
-              <div className="field-value">{unit_type_name || "-"}</div>
+              <div className="field-value">{configuration_name || "-"}</div>
             </div>
             <div>
               <div className="field-label">Configuration</div>

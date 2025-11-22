@@ -690,13 +690,130 @@ const handleChange = (name, value) => {
     return payload;
   };
 
+  // const onSubmit = async (e) => {
+  //   e.preventDefault();
+  //   if (!validateRequired()) return;
+
+  //   const isRoundRobin = form.assign_to_id === ROUND_ROBIN_VALUE;
+
+  //   const normalized = buildPayload();
+
+  //   if (!normalized.project_id) {
+  //     showToast("Please select a project", "error");
+  //     return;
+  //   }
+
+  //   // Per your note:
+  //   //  - Round Robin ON  => round_robin: true, assign_to: []
+  //   //  - Round Robin OFF => round_robin: false, assign_to: <user_id|null>
+  //   const assignToValue = isRoundRobin
+  //     ? []
+  //     : normalized.assign_to_id || null;
+
+  //   // ✅ Backend ab sirf `project` expect karta hai
+  //   const leadPayload = {
+  //     project: normalized.project_id,
+
+  //     first_name: normalized.first_name || null,
+  //     last_name: normalized.last_name || null,
+
+  //     email: normalized.email,
+  //     mobile_number: normalized.mobile_number,
+  //     tel_res: normalized.tel_res,
+  //     tel_office: normalized.tel_office,
+
+  //     company: normalized.company,
+  //     budget: normalized.budget,
+  //     annual_income: normalized.annual_income,
+
+  //     // taxonomy
+  //     classification: normalized.lead_classification_id,
+  //     sub_classification: normalized.lead_subclass_id,
+  //     source: normalized.lead_source_id,
+  //     sub_source: normalized.lead_sub_source_id,
+  //     status: normalized.status_id,
+  //     sub_status: normalized.sub_status_id,
+  //     purpose: normalized.purpose_id,
+
+  //     // owners
+  //     current_owner: normalized.lead_owner_id || null,
+  //     // first_owner: normalized.lead_owner_id || null,  // if you want
+
+  //     // 🔹 CP / walking / round-robin
+  //     channel_partner: normalized.channel_partner_id || null,
+  //     unknown_channel_partner: normalized.channel_partner_id
+  //       ? null
+  //       : normalized.unknown_channel_partner || "",
+  //     walking: !!normalized.walking,
+  //     round_robin: isRoundRobin,
+
+  //     assign_to: assignToValue,
+
+  //     offering_types:
+  //       normalized.offering_type != null && normalized.offering_type !== ""
+  //         ? [normalized.offering_type]
+  //         : [],
+
+  //     address: {
+  //       flat_or_building: normalized.flat_no || "",
+  //       area: normalized.area || "",
+  //       pincode: normalized.pin_code || "",
+  //       city: normalized.city || "",
+  //       state: normalized.state || "",
+  //       country: normalized.country || "",
+  //       description: normalized.description || "",
+  //     },
+  //   };
+
+  //   const body = {
+  //     lead: leadPayload,
+  //     first_update: {
+  //       title: "Lead created",
+  //       info: `${normalized.first_name || ""} ${
+  //         normalized.last_name || ""
+  //       }`.trim(),
+  //     },
+  //   };
+
+  //   try {
+  //     const res = await api.post(URLS.salesLeadBundleCreate, body);
+  //     showToast("Lead saved successfully", "success");
+
+  //     if (typeof handleLeadSubmit === "function") {
+  //       handleLeadSubmit(res.data);
+  //     }
+
+  //     setForm(buildInitialFormState());
+  //     setMasters(null);
+  //     setChannelPartners([]);
+  //   } catch (err) {
+  //     console.error("Failed to save lead", err);
+
+  //     let msg = "Failed to save lead. Please check the data.";
+  //     const data = err?.response?.data;
+  //     if (data) {
+  //       if (typeof data === "string") msg = data;
+  //       else if (data.detail) msg = data.detail;
+  //       else if (data.lead && typeof data.lead === "object") {
+  //         const firstKey = Object.keys(data.lead)[0];
+  //         const firstVal = data.lead[firstKey];
+  //         msg = Array.isArray(firstVal) ? firstVal.join(" ") : String(firstVal);
+  //       }
+  //     }
+
+  //     showToast(msg, "error");
+  //   }
+  // };
+
+
   const onSubmit = async (e) => {
     e.preventDefault();
     if (!validateRequired()) return;
 
-    // IMPORTANT: check round robin from raw form value before normalization
+    // 1) Check Round Robin from raw form value (before normalization)
     const isRoundRobin = form.assign_to_id === ROUND_ROBIN_VALUE;
 
+    // 2) Normalize all form fields
     const normalized = buildPayload();
 
     if (!normalized.project_id) {
@@ -704,14 +821,7 @@ const handleChange = (name, value) => {
       return;
     }
 
-    // Per your note:
-    //  - Round Robin ON  => round_robin: true, assign_to: []
-    //  - Round Robin OFF => round_robin: false, assign_to: <user_id|null>
-    const assignToValue = isRoundRobin
-      ? []
-      : normalized.assign_to_id || null;
-
-    // ✅ Backend ab sirf `project` expect karta hai
+    // 3) Build lead payload for backend
     const leadPayload = {
       project: normalized.project_id,
 
@@ -738,9 +848,9 @@ const handleChange = (name, value) => {
 
       // owners
       current_owner: normalized.lead_owner_id || null,
-      // first_owner: normalized.lead_owner_id || null,  // if you want
+      // first_owner: normalized.lead_owner_id || null,  // if you decide to use
 
-      // 🔹 CP / walking / round-robin
+      // CP / walking / round-robin
       channel_partner: normalized.channel_partner_id || null,
       unknown_channel_partner: normalized.channel_partner_id
         ? null
@@ -748,8 +858,7 @@ const handleChange = (name, value) => {
       walking: !!normalized.walking,
       round_robin: isRoundRobin,
 
-      assign_to: assignToValue,
-
+      // offering types as array
       offering_types:
         normalized.offering_type != null && normalized.offering_type !== ""
           ? [normalized.offering_type]
@@ -766,6 +875,17 @@ const handleChange = (name, value) => {
       },
     };
 
+    // 4) Only send assign_to when NOT round-robin
+    //    Backend rule: either assign_to OR round_robin, not both.
+    if (
+      !isRoundRobin &&
+      normalized.assign_to_id != null &&
+      normalized.assign_to_id !== ""
+    ) {
+      leadPayload.assign_to = normalized.assign_to_id; // single user id
+    }
+    // If isRoundRobin === true => we don't set assign_to at all
+
     const body = {
       lead: leadPayload,
       first_update: {
@@ -776,35 +896,39 @@ const handleChange = (name, value) => {
       },
     };
 
-    try {
-      const res = await api.post(URLS.salesLeadBundleCreate, body);
-      showToast("Lead saved successfully", "success");
+try {
+  const res = await api.post(URLS.salesLeadBundleCreate, body);
+  console.log("✅ Lead create success", res.data); // <--- add this
 
-      if (typeof handleLeadSubmit === "function") {
-        handleLeadSubmit(res.data);
-      }
+  showToast("Lead saved successfully", "success");
 
-      setForm(buildInitialFormState());
-      setMasters(null);
-      setChannelPartners([]);
-    } catch (err) {
-      console.error("Failed to save lead", err);
+  if (typeof handleLeadSubmit === "function") {
+    handleLeadSubmit(res.data);
+  }
 
-      let msg = "Failed to save lead. Please check the data.";
-      const data = err?.response?.data;
-      if (data) {
-        if (typeof data === "string") msg = data;
-        else if (data.detail) msg = data.detail;
-        else if (data.lead && typeof data.lead === "object") {
-          const firstKey = Object.keys(data.lead)[0];
-          const firstVal = data.lead[firstKey];
-          msg = Array.isArray(firstVal) ? firstVal.join(" ") : String(firstVal);
-        }
-      }
+  setForm(buildInitialFormState());
+  setMasters(null);
+  setChannelPartners([]);
+} catch (err) {
+  console.error("Failed to save lead", err);
 
-      showToast(msg, "error");
+  let msg = "Failed to save lead. Please check the data.";
+  const data = err?.response?.data;
+  if (data) {
+    if (typeof data === "string") msg = data;
+    else if (data.detail) msg = data.detail;
+    else if (data.lead && typeof data.lead === "object") {
+      const firstKey = Object.keys(data.lead)[0];
+      const firstVal = data.lead[firstKey];
+      msg = Array.isArray(firstVal) ? firstVal.join(" ") : String(firstVal);
     }
+  }
+
+  showToast(msg, "error");
+}
   };
+
+
 
   const handleCancel = () => {
     setForm(buildInitialFormState());

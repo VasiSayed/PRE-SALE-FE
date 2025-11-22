@@ -1,0 +1,111 @@
+/* src/pages/CostSheet/CostSheetTemplateCreate.css */
+
+.costsheet-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.costsheet-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.costsheet-section {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px 16px 20px;
+  background: #ffffff;
+  margin-bottom: 18px;
+}
+
+.costsheet-section-title-row {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.costsheet-section-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.costsheet-section-title.text-center {
+  text-align: center;
+}
+
+.costsheet-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* smaller upload for logo */
+.upload-box-sm {
+  padding: 10px 12px;
+}
+
+/* Project Authorization (Associated Project) */
+
+.project-toggle-list {
+  background: #f3f4f6;
+  border-radius: 8px;
+  padding: 16px 20px;
+}
+
+.project-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.project-toggle-label {
+  font-size: 14px;
+  color: #374151;
+}
+
+.project-toggle-empty {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+/* iOS-style switch */
+
+.toggle-switch {
+  width: 46px;
+  height: 24px;
+  border-radius: 999px;
+  border: none;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  background: #102a54;
+  cursor: pointer;
+  outline: none;
+  position: relative;
+  transition: background 0.2s ease;
+}
+
+.toggle-switch .toggle-knob {
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.35);
+  transform: translateX(22px); /* knob on right by default */
+  transition: transform 0.2s ease;
+}
+
+/* OFF state */
+.toggle-switch:not(.on) {
+  background: #d1d5db;
+}
+
+.toggle-switch:not(.on) .toggle-knob {
+  transform: translateX(0px);
+}
