@@ -207,7 +207,7 @@ export default function SiteVisitList() {
               <th>Project</th>
               <th>Latest Visit</th>
               <th>Status</th>
-              <th>Total Visits Secudel</th>
+              <th>Total Visits schedule </th>
             </tr>
           </thead>
 
