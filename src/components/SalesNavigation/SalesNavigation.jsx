@@ -111,12 +111,12 @@ export default function SalesNavigation() {
           route: "/documents",
           section: "pre-sales",
         },
-        {
-          id: "Communication",
-          label: "Communication",
-          route: "/channel-partners/chat",
-          section: "pre-sales",
-        },
+        // {
+        //   id: "Communication",
+        //   label: "Communication",
+        //   route: "/channel-partners/chat",
+        //   section: "pre-sales",
+        // },
       ];
     }
 

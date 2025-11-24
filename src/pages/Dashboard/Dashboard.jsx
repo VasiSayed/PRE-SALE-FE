@@ -29,15 +29,15 @@ function getDashboardUrl(role) {
 export default function Dashboard() {
   const { user } = useAuth();
 
+
   // Date filter
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [isDateOpen, setIsDateOpen] = useState(false);
-
-  // Scope & metrics
   const [scope, setScope] = useState(null);
   const [selectedProjectIds, setSelectedProjectIds] = useState([]);
   const [metrics, setMetrics] = useState(null);
+  const isSalesMetrics = !!metrics?.summary;
 
   const [loadingScope, setLoadingScope] = useState(true);
   const [loadingMetrics, setLoadingMetrics] = useState(false);
@@ -144,17 +144,42 @@ export default function Dashboard() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // ---------------- Derived values from metrics ----------------
+  // Total leads should mean:
+  // - SALES: user's active leads (summary.my_active_leads)
+  // - ADMIN: total in current period, from by_source / total_leads / new_leads
   const totalLeads = useMemo(() => {
-    if (!metrics?.leads) return 0;
-    if (typeof metrics.leads.total_leads === "number") {
+    if (!metrics) return 0;
+
+    if (isSalesMetrics) {
+      // SALES response
+      return metrics.summary?.my_active_leads ?? 0;
+    }
+
+    // ADMIN response
+    if (typeof metrics.leads?.total_leads === "number") {
       return metrics.leads.total_leads;
     }
-    const src = metrics.leads.by_source || {};
-    return Object.values(src).reduce((acc, v) => acc + (v || 0), 0);
-  }, [metrics]);
 
-  const newLeadsToday = metrics?.leads?.new_leads ?? 0;
+    // sum of by_source if available
+    const src = metrics.leads?.by_source || {};
+    const totalFromSource = Object.values(src).reduce(
+      (acc, v) => acc + (v || 0),
+      0
+    );
+    if (totalFromSource) return totalFromSource;
+
+    // last fallback: sum of by_stage
+    const stages = metrics.leads?.by_stage || {};
+    return Object.values(stages).reduce((acc, v) => acc + (v || 0), 0);
+  }, [metrics, isSalesMetrics]);
+
+  // New leads:
+  // - SALES: my_new_leads (today from backend)
+  // - ADMIN: new_leads in selected period
+  const newLeadsToday =
+    (isSalesMetrics
+      ? metrics?.summary?.my_new_leads
+      : metrics?.leads?.new_leads) ?? 0;
 
   const leadSourceMap = metrics?.leads?.by_source || {};
   const leadSourceEntries = Object.entries(leadSourceMap);
@@ -177,11 +202,15 @@ export default function Dashboard() {
   const tasksCounts = useMemo(() => {
     const sv = metrics?.site_visits || {};
     const last = sv.last_period || {};
+    const f = metrics?.followups || {}; // only in SALES JSON
+
     return {
       completed: last.COMPLETED || 0,
       upcoming: sv.upcoming || 0,
-      dueToday: last.DUE_TODAY || 0,
-      overdue: last.OVERDUE || 0,
+      // SALES: followups.today / followups.overdue
+      // ADMIN: no followups -> 0
+      dueToday: f.today || 0,
+      overdue: f.overdue || 0,
     };
   }, [metrics]);
 
@@ -386,7 +415,9 @@ export default function Dashboard() {
                   <div className="lead-overview-metric">
                     <div className="metric-label">New leads</div>
                     <div className="metric-value">{newLeadsToday}</div>
-                    <div className="metric-subtext">added today</div>
+                    <div className="metric-subtext">
+                      {isSalesMetrics ? "added today" : "in selected period"}
+                    </div>
                   </div>
                   <div className="lead-overview-metric">
                     <div className="metric-label">Lead quality score</div>
@@ -508,15 +539,23 @@ export default function Dashboard() {
                   <div className="summary-item">
                     <div className="summary-label">Bookings</div>
                     <div className="summary-value">
-                      {metrics?.bookings?.count ?? 0}
+                      {/* SALES: my_bookings_count, ADMIN: count */}
+                      {metrics?.bookings?.my_bookings_count ??
+                        metrics?.bookings?.count ??
+                        0}
                     </div>
                   </div>
                   <div className="summary-item">
                     <div className="summary-label">Agreement value</div>
                     <div className="summary-value">
-                      ₹{metrics?.bookings?.total_agreement_value ?? 0}
+                      {/* SALES: my_bookings_value, ADMIN: total_agreement_value */}
+                      ₹
+                      {metrics?.bookings?.my_bookings_value ??
+                        metrics?.bookings?.total_agreement_value ??
+                        0}
                     </div>
                   </div>
+
                   <div className="summary-item">
                     <div className="summary-label">Cost sheets</div>
                     <div className="summary-value">
