@@ -63,27 +63,22 @@ const ProfileIcon = ({ className = "", size = 20 }) => (
   </svg>
 );
 
-const SearchIcon = ({ className = "", size = 20 }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    width={size}
-    height={size}
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-    aria-hidden="true"
-    style={{ color: "white" }}
-  >
-    <circle cx="11" cy="11" r="8" />
-    <path d="m21 21-4.35-4.35" />
-  </svg>
-);
+// 🔹 SearchIcon is no longer needed – you can delete it safely
 
 function Navbar({ currentUser, onLogout, showLogout = true }) {
+  // ⭐ helper to pretty-print roles like "SUPER_ADMIN" -> "Super Admin"
+  const formatLabel = (val) => {
+    if (!val) return "";
+    return val
+      .toLowerCase()
+      .split("_")
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ");
+  };
+
+  // ⭐ Role & username
+  const roleLabel = formatLabel(currentUser?.role);
+  const username = currentUser?.username || currentUser?.email || "";
 
   return (
     <nav
@@ -124,12 +119,22 @@ function Navbar({ currentUser, onLogout, showLogout = true }) {
 
       {/* Right Section */}
       <div className="ms-auto d-flex align-items-center gap-3">
-        <SearchIcon className="icon" />
+        {/* ⭐ Neat user block */}
+        {currentUser && (
+          <div className="nav-user-block me-2">
+            {roleLabel && <div className="nav-user-role">{roleLabel}</div>}
+            {username && <div className="nav-user-name">{username}</div>}
+          </div>
+        )}
+
         <BellIcon className="icon" />
+
         <Link to="/setup" aria-label="Open Setup">
           <GearIcon className="icon" />
         </Link>
+
         <ProfileIcon className="icon" />
+
         {showLogout && (
           <button onClick={onLogout} className="logout-btn" title="Logout">
             Logout

@@ -61,6 +61,28 @@
   }
 }
 
+.nav-user-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.1;
+}
+
+.nav-user-role {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #ffffff;
+  opacity: 0.85;
+  text-transform: none; 
+}
+
+.nav-user-name {
+  font-size: 0.75rem;
+  color: #ffffff;
+  opacity: 0.8;
+}
+
+
 .custom-navbar .ms-auto {
   margin-left: auto;
   display: flex;

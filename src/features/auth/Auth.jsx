@@ -175,8 +175,7 @@ const handleSubmit = async (e) => {
   return (
     <div className="auth-page">
       {/* Reusable Navbar Component */}
-      <Navbar showLogout={false} />
-
+      <Navbar showLogout={false} currentUser={user} />
 
       {/* Auth Container */}
       <div className="auth-container">
@@ -189,7 +188,9 @@ const handleSubmit = async (e) => {
               </div>
               <h1 className="auth-title">SHREE RAM KRUSHNA DEVELOPERS</h1>
               <p className="auth-subtitle">
-                {isLogin ? 'Welcome back! Please login to your account.' : 'Create your account to get started.'}
+                {isLogin
+                  ? "Welcome back! Please login to your account."
+                  : "Create your account to get started."}
               </p>
             </div>
 
@@ -213,14 +214,18 @@ const handleSubmit = async (e) => {
               )}
 
               <div className="form-group">
-                <label className="form-label">{isLogin ? 'Username' : 'Email Address'}</label>
+                <label className="form-label">
+                  {isLogin ? "Username" : "Email Address"}
+                </label>
                 <div className="input-wrapper">
                   <MailIcon size={20} />
                   <input
                     type="text"
                     name="username"
                     className="form-input"
-                    placeholder={isLogin ? 'Enter your username' : 'Enter your email'}
+                    placeholder={
+                      isLogin ? "Enter your username" : "Enter your email"
+                    }
                     value={formData.username}
                     onChange={handleInputChange}
                     autoFocus
@@ -253,12 +258,20 @@ const handleSubmit = async (e) => {
                     <input type="checkbox" />
                     <span>Remember me</span>
                   </label>
-                  <a href="#" className="forgot-password">Forgot Password?</a>
+                  <a href="#" className="forgot-password">
+                    Forgot Password?
+                  </a>
                 </div>
               )}
 
               <button type="submit" className="submit-btn" disabled={loading}>
-                {loading ? (isLogin ? 'Signing in...' : 'Signing up...') : (isLogin ? 'Login' : 'Sign Up')}
+                {loading
+                  ? isLogin
+                    ? "Signing in..."
+                    : "Signing up..."
+                  : isLogin
+                  ? "Login"
+                  : "Sign Up"}
               </button>
             </form>
 
@@ -266,7 +279,11 @@ const handleSubmit = async (e) => {
             <div className="auth-toggle">
               <p>
                 {/* {isLogin ? "Don't have an account?" : 'Already have an account?'} */}
-                <button type="button" onClick={toggleMode} className="toggle-btn">
+                <button
+                  type="button"
+                  onClick={toggleMode}
+                  className="toggle-btn"
+                >
                   {/* {isLogin ? 'Sign Up' : 'Login'} */}
                 </button>
               </p>

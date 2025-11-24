@@ -1,0 +1,217 @@
+:root {
+  --cp-primary: #19376d;
+  --cp-bg: #f4f6fb;
+  --cp-card-bg: #ffffff;
+  --cp-border-soft: #e2e6f2;
+  --cp-text-main: #1a1a1a;
+  --cp-text-muted: #7a8095;
+}
+
+.cp-profile-page {
+  background: var(--cp-bg);
+  min-height: calc(100vh - 80px);
+  padding: 16px 24px 32px;
+  box-sizing: border-box;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+.cp-profile-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.cp-back-btn {
+  border-radius: 999px;
+  border: 1px solid var(--cp-border-soft);
+  padding: 6px 14px;
+  background: #ffffff;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--cp-primary);
+}
+
+.cp-profile-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--cp-text-main);
+}
+
+/* LAYOUT */
+
+.cp-profile-layout {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 24px;
+}
+
+/* LEFT COLUMN */
+
+.cp-profile-left {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.cp-profile-avatar {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background: var(--cp-primary);
+  margin-bottom: 8px;
+}
+
+.cp-profile-basic {
+  margin-bottom: 8px;
+}
+
+.cp-profile-name {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--cp-text-main);
+}
+
+.cp-profile-company {
+  font-size: 14px;
+  color: var(--cp-text-muted);
+}
+
+/* CARDS */
+
+.cp-card {
+  background: var(--cp-card-bg);
+  border-radius: 16px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.05);
+  padding: 16px 18px;
+}
+
+.cp-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.cp-card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--cp-text-main);
+}
+
+/* CONTACT CARD */
+
+.cp-contact-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.cp-contact-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--cp-text-main);
+  margin-bottom: 6px;
+}
+
+.cp-contact-icon {
+  width: 22px;
+  text-align: center;
+  color: var(--cp-primary);
+}
+
+/* NOTES CARD */
+
+.cp-notes-text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--cp-text-main);
+}
+
+/* ACTIVITIES */
+
+.cp-activities-card {
+  margin-top: 18px;
+}
+
+.cp-activities-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cp-activity-item {
+  border-radius: 12px;
+  border: 1px solid var(--cp-border-soft);
+  background: #fafbff;
+  padding: 6px 10px;
+}
+
+.cp-activity-summary {
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  padding: 4px 2px;
+}
+
+.cp-activity-type {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--cp-primary);
+}
+
+.cp-activity-datetime {
+  font-size: 12px;
+  color: var(--cp-text-muted);
+}
+
+.cp-activity-text {
+  margin: 6px 0 4px;
+  font-size: 13px;
+  color: var(--cp-text-main);
+  line-height: 1.4;
+}
+
+/* RIGHT COLUMN */
+
+.cp-profile-right {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* RESPONSIVE */
+
+@media (max-width: 992px) {
+  .cp-profile-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .cp-profile-left {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .cp-profile-avatar {
+    margin-right: 12px;
+  }
+
+  .cp-profile-left .cp-card {
+    flex: 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .cp-profile-left {
+    flex-direction: column;
+  }
+
+  .cp-profile-page {
+    padding: 12px 16px 24px;
+  }
+}

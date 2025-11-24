@@ -5,21 +5,17 @@ import { Outlet } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 export default function MasterLayout() {
-  const { logout } = useAuth();
-  
+  const { logout, user } = useAuth(); 
+
   return (
-    <div style={{ 
-      display: 'flex', 
-      flexDirection: 'column', 
-      minHeight: '100vh' 
-    }}>
-      <Navbar onLogout={logout} />
+    <div
+      style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}
+    >
+      <Navbar currentUser={user} onLogout={logout} /> {/* ✅ */}
       <SalesNavigation />
-      
       <main style={{ flex: 1 }}>
         <Outlet />
       </main>
-      
       <Footer />
     </div>
   );
