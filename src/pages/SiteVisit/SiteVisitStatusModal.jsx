@@ -10,7 +10,7 @@ const SiteVisitStatusModal = ({ id, currentStatus, onClose, onUpdated }) => {
   
   const updateStatus = async () => {
     try {
-      await axiosInstance.patch(`/site-visits/${id}/update-status/`, {
+      await axiosInstance.patch(`/sales/site-visits/${id}/update-status/`, {
         status,
         cancelled_reason: reason,
       });

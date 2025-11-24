@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axiosInstance from "../../api/axiosInstance";
+import SearchBar from "../../common/SearchBar";
 import "./SiteVisitList.css";
 
 function debounce(fn, delay) {
@@ -25,7 +26,6 @@ export default function SiteVisitList() {
   const [endDate, setEndDate] = useState("");
 
   const [modalOpen, setModalOpen] = useState(false);
-
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [count, setCount] = useState(0);
@@ -42,24 +42,26 @@ export default function SiteVisitList() {
         page: opts.page ?? page,
       };
 
-      const r = await axiosInstance.get("/sales/site-visits/", { params });
+      const r = await axiosInstance.get("/sales/site-visits/summary/", {
+        params,
+      });
       const data = r.data;
 
       const items = Array.isArray(data) ? data : data.results ?? [];
-
       setRows(items);
       setCount(Array.isArray(data) ? items.length : data.count ?? items.length);
 
-      // Build project list from response
-      const seen = new Set();
-      const projList = [];
-      items.forEach((v) => {
-        if (v.project && !seen.has(v.project.id)) {
-          seen.add(v.project.id);
-          projList.push(v.project);
+      // Extract unique projects
+      const projectMap = new Map();
+      items.forEach((item) => {
+        if (item.project && !projectMap.has(item.project)) {
+          projectMap.set(item.project, {
+            id: item.project,
+            name: item.project,
+          });
         }
       });
-      setProjects(projList);
+      setProjects(Array.from(projectMap.values()));
     } catch (err) {
       console.error(err);
     } finally {
@@ -97,7 +99,6 @@ export default function SiteVisitList() {
     { value: "NO_SHOW", label: "No Show" },
   ];
 
-  // Reset Filters
   const resetFilters = () => {
     setStatus("");
     setProject("");
@@ -127,35 +128,65 @@ export default function SiteVisitList() {
     });
   };
 
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "SCHEDULED":
+        return "#3b82f6";
+      case "COMPLETED":
+        return "#059669";
+      case "CANCELLED":
+        return "#dc2626";
+      case "NO_SHOW":
+        return "#f59e0b";
+      default:
+        return "#6b7280";
+    }
+  };
+
   return (
     <div className="projects-page">
+      {/* Header
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">🏢 Site Visits</h1>
+          <p className="page-subtitle">Manage and track all site visits</p>
+        </div>
+        <button
+          className="btn-primary"
+          onClick={() => navigate("/sales/lead/site-visit/create")}
+        >
+          + New Site Visit
+        </button>
+      </div> */}
+
       {/* Toolbar */}
       <div className="projects-toolbar">
-        {/* Search */}
-        <div className="search-wrap">
-          <svg width="22" height="22" viewBox="0 0 24 24">
-            <path
-              d="M21 21l-4.3-4.3M10 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16z"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            />
-          </svg>
-          <input
-            className="search-input"
-            placeholder="Search visitor, mobile, project…"
-            value={q}
-            onChange={(e) => {
-              setQ(e.target.value);
-              debouncedSearch(e.target.value);
-            }}
-          />
-        </div>
+        <SearchBar
+          value={q}
+          onChange={(e) => {
+            setQ(e.target.value);
+            debouncedSearch(e.target.value);
+          }}
+          placeholder="Search by lead name, mobile, project..."
+        />
 
-        {/* FILTER Icon */}
         <button className="filter-btn" onClick={() => setModalOpen(true)}>
           <i className="fa fa-filter" /> Filters
         </button>
+      </div>
+
+      {/* Stats */}
+      <div className="stats-row">
+        <div className="stat-card">
+          <div className="stat-label">Total Leads</div>
+          <div className="stat-value">{count}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Total Visits</div>
+          <div className="stat-value">
+            {rows.reduce((sum, r) => sum + (r.total_visits || 0), 0)}
+          </div>
+        </div>
       </div>
 
       {/* Pagination Info */}
@@ -170,63 +201,98 @@ export default function SiteVisitList() {
         <table className="data-table">
           <thead>
             <tr>
-              <th style={{ width: 120 }}>Actions</th>
-              <th>Visitor</th>
+              <th style={{ width: 100 }}>Actions</th>
+              <th>Lead Name</th>
               <th>Mobile</th>
               <th>Project</th>
-              <th>Unit</th>
-              <th>Expected Visit</th>
+              <th>Latest Visit</th>
               <th>Status</th>
+              <th>Total Visits Secudel</th>
             </tr>
           </thead>
 
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={7}>Loading…</td>
+                <td
+                  colSpan={7}
+                  style={{ textAlign: "center", padding: "40px" }}
+                >
+                  <div className="loading-spinner"></div>
+                  <div style={{ marginTop: "12px", color: "#6b7280" }}>
+                    Loading...
+                  </div>
+                </td>
               </tr>
             ) : rows.length ? (
               rows.map((v) => (
-                <tr key={v.id}>
+                <tr key={v.lead_id}>
                   <td className="row-actions">
                     <button
-                      className="icon-btn"
-                      title="View"
-                      onClick={() => navigate(`/sales/lead/site-visit/${v.id}`)}
+                      className="icon-btn icon-btn-view"
+                      title="View All Visits"
+                      onClick={() =>
+                        navigate(`/sales/lead/site-visit/by-lead/${v.lead_id}`)
+                      }
                     >
                       <i className="fa fa-eye" />
                     </button>
-                    <button
-                      className="icon-btn"
-                      title="Edit"
-                      onClick={() =>
-                        navigate(`/sales/lead/site-visit/${v.id}/edit`)
-                      }
-                    >
-                      <i className="fa fa-edit" />
-                    </button>
                   </td>
-
-                  <td>{v.member_name || v.lead?.full_name}</td>
-                  <td>{v.member_mobile_number || v.lead?.mobile_number}</td>
-                  <td>{v.project?.name}</td>
 
                   <td>
-                    {v.inventory
-                      ? `${v.inventory.tower_name} / ${v.inventory.floor_number} / ${v.inventory.unit_no}`
-                      : "-"}
+                    <div className="lead-name">{v.lead_name}</div>
                   </td>
-
-                  <td>{formatDT(v.scheduled_at)}</td>
-
-                  <td className={`status-badge status-${v.status}`}>
-                    {v.status}
+                  <td>
+                    <div className="mobile-number">📱 {v.mobile}</div>
+                  </td>
+                  <td>
+                    <div className="project-name">{v.project}</div>
+                  </td>
+                  <td>{formatDT(v.latest_scheduled_at)}</td>
+                  <td>
+                    <span
+                      className="status-badge"
+                      style={{
+                        backgroundColor: `${getStatusColor(v.latest_status)}20`,
+                        color: getStatusColor(v.latest_status),
+                      }}
+                    >
+                      {v.latest_status}
+                    </span>
+                  </td>
+                  <td>
+                    <span className="visits-count">{v.total_visits}</span>
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={7}>No site visits found</td>
+                <td
+                  colSpan={7}
+                  style={{ textAlign: "center", padding: "40px" }}
+                >
+                  <div style={{ fontSize: "48px", marginBottom: "12px" }}>
+                    📭
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "16px",
+                      fontWeight: "600",
+                      color: "#374151",
+                    }}
+                  >
+                    No site visits found
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "14px",
+                      color: "#6b7280",
+                      marginTop: "4px",
+                    }}
+                  >
+                    Try adjusting your filters or search query
+                  </div>
+                </td>
               </tr>
             )}
           </tbody>
@@ -258,65 +324,71 @@ export default function SiteVisitList() {
         </button>
       </div>
 
-      {/* ------------------ FILTER MODAL ------------------ */}
+      {/* Filter Modal */}
       {modalOpen && (
         <div className="filter-modal-overlay">
           <div className="filter-modal">
-            <h3>Filters</h3>
+            <div className="filter-modal-header">
+              <h3>🔍 Filters</h3>
+              <button
+                className="filter-close"
+                onClick={() => setModalOpen(false)}
+              >
+                ✕
+              </button>
+            </div>
 
-            {/* Status */}
-            <label className="filter-label">Status</label>
-            <select
-              className="filter-select"
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-            >
-              {statusOptions.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
+            <div className="filter-body">
+              <label className="filter-label">Status</label>
+              <select
+                className="filter-select"
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+              >
+                {statusOptions.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
 
-            {/* Project */}
-            <label className="filter-label">Project</label>
-            <select
-              className="filter-select"
-              value={project}
-              onChange={(e) => setProject(e.target.value)}
-            >
-              <option value="">All Projects</option>
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+              <label className="filter-label">Project</label>
+              <select
+                className="filter-select"
+                value={project}
+                onChange={(e) => setProject(e.target.value)}
+              >
+                <option value="">All Projects</option>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.name}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
 
-            {/* Date Range */}
-            <label className="filter-label">Start Date</label>
-            <input
-              type="date"
-              className="filter-input"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-            />
+              <label className="filter-label">Start Date</label>
+              <input
+                type="date"
+                className="filter-input"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
 
-            <label className="filter-label">End Date</label>
-            <input
-              type="date"
-              className="filter-input"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-            />
+              <label className="filter-label">End Date</label>
+              <input
+                type="date"
+                className="filter-input"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+              />
+            </div>
 
-            {/* Buttons */}
             <div className="filter-actions">
               <button className="btn-secondary" onClick={resetFilters}>
                 Reset
               </button>
               <button className="btn-primary" onClick={applyFilters}>
-                Apply
+                Apply Filters
               </button>
             </div>
           </div>

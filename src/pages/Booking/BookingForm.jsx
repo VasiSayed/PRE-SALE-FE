@@ -1,14 +1,44 @@
-// src/pages/BookingForm.jsx
 import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import axiosInstance from "../../api/axiosInstance";
 import "./BookingForm.css";
 import projectImage from "../../assets/project.webp";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 
 const BOOK_API_PREFIX = "/book";
 
-/** Collapsible section component */
+// ✅ ADD ALL THESE FUNCTIONS HERE (BEFORE Section component)
+// Validation functions
+const validatePAN = (pan) => {
+  const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+  return panRegex.test(pan);
+};
+
+const validateAadhar = (aadhar) => {
+  const aadharRegex = /^[0-9]{12}$/;
+  return aadharRegex.test(aadhar.replace(/\s/g, ""));
+};
+
+const validateEmail = (email) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
+const validatePhone = (phone) => {
+  const phoneRegex = /^[0-9]{10}$/;
+  return phoneRegex.test(phone.replace(/[^0-9]/g, ""));
+};
+
+// Get today's date in YYYY-MM-DD format
+const getTodayDate = () => {
+  const today = new Date();
+  return today.toISOString().split("T")[0];
+};
+
+
+
 const Section = ({ id, title, open, onToggle, children }) => (
   <div className="bf-section">
     <button
@@ -25,11 +55,13 @@ const Section = ({ id, title, open, onToggle, children }) => (
 
 const BookingForm = () => {
   const rootRef = useRef(null);
-
+  // --------- Discount (in Flat Information) ----------
+  const [discountPercent, setDiscountPercent] = useState("");
+  const [discountAmount, setDiscountAmount] = useState("");
   const [searchParams] = useSearchParams();
   const leadIdFromUrl =
     searchParams.get("lead_id") || searchParams.get("lead") || null;
-
+  const [primaryDob, setPrimaryDob] = useState("");
   const projectIdFromUrl =
     searchParams.get("project_id") || searchParams.get("project");
 
@@ -52,8 +84,6 @@ const BookingForm = () => {
   const [section] = useState("pre");
   const [activeItem] = useState("booking-form");
 
-
-
   const [openSections, setOpenSections] = useState({
     applicantNames: true,
     contactDetails: true,
@@ -63,11 +93,53 @@ const BookingForm = () => {
     taxDetails: true,
     applicantKyc: true,
     costSummary: true,
-    taxesStatutory: true, // ADD THIS
+    taxesStatutory: true,
     paymentSchedule: true,
     funding: true,
     advanceDeposit: true,
+    applicantSummary: true,
   });
+
+  const handleFileChange = (key) => (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    setFiles((prev) => ({ ...prev, [key]: file }));
+  };
+
+  // ✅ ADD THESE 4 NEW FUNCTIONS
+  // PAN validation with toast
+  const handlePrimaryPanChange = (value) => {
+    setPrimaryPanNo(value.toUpperCase());
+    if (value.length === 10 && !validatePAN(value)) {
+      toast.error("Invalid PAN format. Expected: ABCDE1234F");
+    }
+  };
+
+  // Aadhar validation with toast
+  const handlePrimaryAadharChange = (value) => {
+    const cleaned = value.replace(/\s/g, "");
+    setPrimaryAadharNo(cleaned);
+    if (cleaned.length === 12 && !validateAadhar(cleaned)) {
+      toast.error("Invalid Aadhar format. Must be 12 digits.");
+    }
+  };
+
+  // Email validation
+  const handleEmailChange = (value) => {
+    setEmail1(value);
+    if (value && !validateEmail(value)) {
+      toast.warn("Please enter a valid email address");
+    }
+  };
+
+  // Phone validation
+  const handlePhoneChange = (value) => {
+    const cleaned = value.replace(/[^0-9]/g, "");
+    setPhone1(cleaned);
+    if (cleaned.length === 10 && !validatePhone(cleaned)) {
+      toast.error("Invalid phone number. Must be 10 digits.");
+    }
+  };
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -79,7 +151,7 @@ const BookingForm = () => {
 
   // --------- Top booking info ----------
   const [formRefNo, setFormRefNo] = useState("");
-  const [bookingDate, setBookingDate] = useState("");
+  const [bookingDate, setBookingDate] = useState(getTodayDate()); // ✅ Auto-set today
   const [office, setOffice] = useState("");
 
   // --------- Primary applicant ----------
@@ -261,7 +333,7 @@ const BookingForm = () => {
 
   // --------- Additional applicants (dynamic, UI-only for now) ----------
   const [additionalApplicants, setAdditionalApplicants] = useState([
-    { relation: "", dob: "", aadhar: "" },
+    { full_name: "", relation: "", dob: "", aadhar: "", pan: "" },
   ]);
 
   // --------- All upload files ----------
@@ -290,11 +362,11 @@ const BookingForm = () => {
     kycAadhar: null,
   });
 
-  const handleFileChange = (key) => (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-    setFiles((prev) => ({ ...prev, [key]: file }));
-  };
+  // const handleFileChange = (key) => (e) => {
+  //   const file = e.target.files && e.target.files[0];
+  //   if (!file) return;
+  //   setFiles((prev) => ({ ...prev, [key]: file }));
+  // };
 
   const totalAdvance =
     Number(bookingAmount || 0) + Number(otherCharges || 0) || "";
@@ -543,7 +615,7 @@ const BookingForm = () => {
   const handleAddAdditionalApplicant = () => {
     setAdditionalApplicants((prev) => [
       ...prev,
-      { relation: "", dob: "", aadhar: "" },
+      { full_name: "", relation: "", dob: "", aadhar: "", pan: "" }, // ✅ Include all fields
     ]);
   };
 
@@ -587,15 +659,15 @@ const BookingForm = () => {
   // ---------- KYC request create ----------
   const handleSendKycRequest = async () => {
     if (!selectedUnitId) {
-      alert("Please select a unit before sending KYC request.");
+      toast.error("Please select a unit before sending KYC request.");
       return;
     }
     if (!project?.id) {
-      alert("Project is missing – cannot create KYC request.");
+      toast.error("Project is missing – cannot create KYC request.");
       return;
     }
     if (!kycDealAmount || Number(kycDealAmount) <= 0) {
-      alert("Please enter a valid deal amount for KYC.");
+      toast.error("Please enter a valid deal amount for KYC.");
       return;
     }
 
@@ -701,29 +773,75 @@ const BookingForm = () => {
       setCarpetSqft("");
       setBalconySqft("");
       setAgreementValue("");
+      setAgreementValueWords("");
       return;
     }
 
     const inv = selectedUnit.inventory || {};
 
+    // Auto-fill area fields
     const sb =
       inv.saleable_sqft ||
       inv.builtup_sqft ||
       inv.rera_area_sqft ||
-      selectedUnit.agreement_value ||
+      selectedUnit.saleable_sqft ||
       "";
     const ca = inv.carpet_sqft || "";
-    const agr =
+    const ba = inv.balcony_sqft || "";
+
+    setSuperBuiltupSqft(sb || "");
+    setCarpetSqft(ca || "");
+    setBalconySqft(ba || "");
+
+    // Calculate agreement value with discount
+    const baseAgr =
       inv.total_cost ||
       inv.agreement_value ||
       selectedUnit.agreement_value ||
       "";
 
-    setSuperBuiltupSqft(sb || "");
-    setCarpetSqft(ca || "");
-    setAgreementValue(agr || "");
-  }, [selectedUnit]);
+    if (baseAgr) {
+      const baseAmount = Number(baseAgr);
+      const discount = Number(discountAmount) || 0;
+      const finalAmount = baseAmount - discount;
 
+      setAgreementValue(finalAmount);
+      setAgreementValueWords(numberToWords(Math.floor(finalAmount)));
+    } else {
+      setAgreementValue("");
+      setAgreementValueWords("");
+    }
+  }, [selectedUnit, discountAmount]);
+
+  // Auto-generate agreement value in words
+  useEffect(() => {
+    if (agreementValue) {
+      const words = numberToWords(Math.floor(Number(agreementValue)));
+      setAgreementValueWords(words);
+    } else {
+      setAgreementValueWords("");
+    }
+  }, [agreementValue]);
+
+  // Calculate discount amount from percentage or vice versa
+  useEffect(() => {
+    if (!selectedUnit) return;
+
+    const inv = selectedUnit.inventory || {};
+    const basePrice = Number(
+      inv.total_cost || inv.agreement_value || selectedUnit.agreement_value || 0
+    );
+
+    if (discountPercent && !discountAmount) {
+      // Calculate amount from percentage
+      const calculatedAmount = (basePrice * Number(discountPercent)) / 100;
+      setDiscountAmount(calculatedAmount.toFixed(2));
+    } else if (discountAmount && !discountPercent) {
+      // Calculate percentage from amount
+      const calculatedPercent = (Number(discountAmount) / basePrice) * 100;
+      setDiscountPercent(calculatedPercent.toFixed(2));
+    }
+  }, [discountPercent, discountAmount, selectedUnit]);
   // ---------- Payment plan helpers ----------
   const selectedPaymentPlan = paymentPlans.find(
     (p) => String(p.id) === String(selectedPaymentPlanId)
@@ -759,221 +877,493 @@ const BookingForm = () => {
     0
   );
 
+  // Helper function to convert number to words (Indian format)
+  const numberToWords = (num) => {
+    if (!num || num === 0) return "Zero Rupees Only";
+
+    const ones = [
+      "",
+      "One",
+      "Two",
+      "Three",
+      "Four",
+      "Five",
+      "Six",
+      "Seven",
+      "Eight",
+      "Nine",
+    ];
+    const tens = [
+      "",
+      "",
+      "Twenty",
+      "Thirty",
+      "Forty",
+      "Fifty",
+      "Sixty",
+      "Seventy",
+      "Eighty",
+      "Ninety",
+    ];
+
+    const teens = [
+      "Ten",
+      "Eleven",
+      "Twelve",
+      "Thirteen",
+      "Fourteen",
+      "Fifteen",
+      "Sixteen",
+      "Seventeen",
+      "Eighteen",
+      "Nineteen",
+    ];
+
+    const convertLessThanThousand = (n) => {
+      if (n === 0) return "";
+      if (n < 10) return ones[n];
+      if (n < 20) return teens[n - 10];
+      if (n < 100)
+        return (
+          tens[Math.floor(n / 10)] + (n % 10 !== 0 ? " " + ones[n % 10] : "")
+        );
+      return (
+        ones[Math.floor(n / 100)] +
+        " Hundred" +
+        (n % 100 !== 0 ? " " + convertLessThanThousand(n % 100) : "")
+      );
+    };
+
+    const crore = Math.floor(num / 10000000);
+    const lakh = Math.floor((num % 10000000) / 100000);
+    const thousand = Math.floor((num % 100000) / 1000);
+    const remainder = num % 1000;
+
+    let result = "";
+    if (crore > 0) result += convertLessThanThousand(crore) + " Crore ";
+    if (lakh > 0) result += convertLessThanThousand(lakh) + " Lakh ";
+    if (thousand > 0)
+      result += convertLessThanThousand(thousand) + " Thousand ";
+    if (remainder > 0) result += convertLessThanThousand(remainder);
+
+    return result.trim() + " Rupees Only";
+  };
+
+
+  // ✅ ADD THIS ENTIRE BLOCK
+// Calculate all applicants (including primary)
+const allApplicants = useMemo(() => {
+  const applicants = [
+    {
+      sequence: 1,
+      title: primaryTitle,
+      full_name: primaryFullName,
+      dob: primaryDob,
+      pan: primaryPanNo,
+      aadhar: primaryAadharNo,
+      email: email1,
+      phone: phone1,
+      isPrimary: true,
+    },
+  ];
+
+  additionalApplicants.forEach((app, idx) => {
+    if (app.full_name && app.full_name.trim()) {
+      applicants.push({
+        sequence: idx + 2,
+        title: "Mr.",
+        full_name: app.full_name,
+        relation: app.relation,
+        dob: app.dob,
+        pan: app.pan,
+        aadhar: app.aadhar,
+        isPrimary: false,
+      });
+    }
+  });
+
+  return applicants;
+}, [
+  primaryTitle,
+  primaryFullName,
+  primaryDob,
+  primaryPanNo,
+  primaryAadharNo,
+  email1,
+  phone1,
+  additionalApplicants,
+]);
+
+
+
   // ---------- Save Booking ----------
   const handleSaveBooking = async () => {
-    if (!selectedUnitId) {
-      alert("Please select a tower & flat (unit) before saving.");
-      return;
-    }
+    // ---------- VALIDATIONS ----------
+if (!selectedUnitId) {
+  toast.error("Please select a tower & flat (unit) before saving.");
+  return;
+}
+
+  if (!primaryPanNo || !validatePAN(primaryPanNo)) {
+    toast.error("Please enter a valid PAN number for primary applicant.");
+    return;
+  }
+  if (!primaryAadharNo || !validateAadhar(primaryAadharNo)) {
+    toast.error("Please enter a valid Aadhar number for primary applicant.");
+    return;
+  }
+  if (email1 && !validateEmail(email1)) {
+    toast.error("Please enter a valid email address.");
+    return;
+  }
+  if (phone1 && !validatePhone(phone1)) {
+    toast.error("Please enter a valid 10-digit phone number.");
+    return;
+  }
+  if (!bookingDate) {
+    toast.error("Please select Booking Date.");
+    return;
+  }
+  if (!agreementValue) {
+    toast.error("Please enter Agreement Value.");
+    return;
+  }
+  if (paymentPlanType === "MASTER" && !selectedPaymentPlanId) {
+    toast.error("Please select a Payment Plan.");
+    return;
+  }
+  if (paymentPlanType === "CUSTOM" && customTotalPercentage !== 100) {
+    toast.error("Custom payment plan slabs must total 100%.");
+    return;
+  }
+
+
+
     if (!primaryFullName) {
-      alert("Please enter Primary Applicant full name.");
+      toast.error("Please enter Primary Applicant full name.");
       return;
     }
     if (!bookingDate) {
-      alert("Please select Booking Date.");
+      toast.error("Please select Booking Date.");
       return;
     }
     if (!agreementValue) {
-      alert("Please enter Agreement Value.");
+      toast.error("Please enter Agreement Value.");
       return;
     }
-    if (
-      paymentPlanType === "MASTER" &&
-      (!selectedPaymentPlanId || selectedPaymentPlanId === "")
-    ) {
-      alert("Please select a Payment Plan.");
+    if (paymentPlanType === "MASTER" && !selectedPaymentPlanId) {
+      toast.error("Please select a Payment Plan.");
       return;
     }
     if (paymentPlanType === "CUSTOM" && customTotalPercentage !== 100) {
-      alert("Custom payment plan slabs must total 100%.");
+      toast.error("Custom payment plan slabs must total 100%.");
       return;
     }
 
-    // SALES users must have a lead (from URL)
+      for (let i = 0; i < additionalApplicants.length; i++) {
+        const app = additionalApplicants[i];
+        if (app.full_name && app.full_name.trim()) {
+          if (app.pan && !validatePAN(app.pan)) {
+            toast.error(`Invalid PAN for applicant ${i + 2}: ${app.full_name}`);
+            return;
+          }
+          if (app.aadhar && !validateAadhar(app.aadhar)) {
+            toast.error(
+              `Invalid Aadhar for applicant ${i + 2}: ${app.full_name}`
+            );
+            return;
+          }
+        }
+      }
+
+    // Sales user constraint
     if (currentUser?.role === "SALES" && !leadId) {
-      alert(
-        "For SALES users, Booking must be linked to a Lead. Please open Booking from the Lead screen (lead_id required)."
-      );
+      toast.error("SALES user must link a lead. Open booking via Lead screen.");
       return;
     }
 
-    // 🔹 HARD GATE: If KYC is required, ensure APPROVED before booking
+    // KYC validation
     if (requiresKyc === "YES") {
       if (!kycRequestId) {
-        alert("Please send KYC request and wait for approval before booking.");
+        toast.error(
+          "Please generate KYC and wait for approval before booking."
+        );
         return;
       }
       if (kycRequestStatus !== "APPROVED") {
         alert(
-          `KYC is ${
-            kycRequestStatus || "PENDING"
-          }. Booking can be created only after KYC is APPROVED.`
+          `KYC is ${kycRequestStatus}. Booking allowed only after APPROVED.`
         );
         return;
       }
     }
 
     setSaving(true);
+    toast.info("Submitting booking...");
 
     try {
       const fd = new FormData();
 
-      // Primary IDs
+      // ==================================================
+      // BASIC INFO
+      // ==================================================
       fd.append("unit_id", selectedUnitId);
-      if (leadId) {
-        fd.append("sales_lead_id", String(leadId));
-      }
+      if (leadId) fd.append("sales_lead_id", String(leadId));
 
-      // Top info
       fd.append("form_ref_no", formRefNo || "");
       fd.append("booking_date", bookingDate || "");
       fd.append("office_address", office || "");
 
-      // Primary applicant snapshot on Booking
-      fd.append("primary_title", primaryTitle || "");
+      // ==================================================
+      // PRIMARY APPLICANT SNAPSHOT (Booking model)
+      // ==================================================
+      fd.append("primary_title", primaryTitle || "Mr.");
       fd.append("primary_full_name", primaryFullName || "");
       fd.append("primary_email", email1 || "");
       fd.append("primary_mobile_number", phone1 || "");
       fd.append("email_2", "");
       fd.append("phone_2", "");
 
-      // Address & profile
+      // ==================================================
+      // ADDRESSES
+      // ==================================================
       fd.append("permanent_address", permanentAddress || "");
       fd.append("correspondence_address", correspondenceAddress || "");
-      fd.append("preferred_correspondence", preferredCorrespondence);
+      fd.append("preferred_correspondence", preferredCorrespondence || "");
       fd.append("residential_status", residentialStatus || "");
 
-      // Flat info
+      // ==================================================
+      // FLAT INFO
+      // ==================================================
       fd.append("super_builtup_sqft", superBuiltupSqft || "");
       fd.append("carpet_sqft", carpetSqft || "");
       fd.append("balcony_sqft", balconySqft || "");
       fd.append("agreement_value", agreementValue || "");
       fd.append("agreement_value_words", agreementValueWords || "");
-      fd.append("agreement_done", agreementDone ? "true" : "false");
 
-      fd.append(
-        "parking_required",
-        parkingRequired === "YES" ? "true" : "false"
-      );
+      fd.append("agreement_done", agreementDone);
+      fd.append("parking_required", parkingRequired === "YES");
+
       fd.append("parking_details", parkingDetails || "");
       fd.append("parking_number", parkingNumber || "");
 
-      // Tax
+      // ==================================================
+      // TAXES & DISCOUNTS
+      // ==================================================
       fd.append("gst_no", gstNo || "");
+      fd.append("discount_percent", discountPercent || "0");
+      fd.append("discount_amount", discountAmount || "0");
 
-      // Additional charges (NEW)
       fd.append("additional_charges", JSON.stringify(additionalCharges));
       fd.append("additional_charges_total", additionalChargesTotal.toFixed(2));
       fd.append("amount_before_taxes", amountBeforeTaxes.toFixed(2));
 
-      // Cost Summary fields with checkbox states (NEW - ENHANCED)
+      // ==================================================
+      // COST TEMPLATE
+      // ==================================================
       if (costTemplate) {
         fd.append("gst_percent", costTemplate.gst_percent || "0");
-        fd.append("gst_enabled", gstEnabled ? "true" : "false");
+        fd.append("gst_enabled", gstEnabled);
         fd.append("gst_amount", gstAmount.toFixed(2));
 
         fd.append("stamp_duty_percent", costTemplate.stamp_duty_percent || "0");
-        fd.append("stamp_duty_enabled", stampDutyEnabled ? "true" : "false");
+        fd.append("stamp_duty_enabled", stampDutyEnabled);
         fd.append("stamp_duty_amount", stampDutyAmount.toFixed(2));
 
         fd.append(
           "registration_amount",
           costTemplate.registration_amount || "0"
         );
-        fd.append(
-          "registration_enabled",
-          registrationEnabled ? "true" : "false"
-        );
-
+        fd.append("registration_enabled", registrationEnabled);
         fd.append("legal_fee_amount", costTemplate.legal_fee_amount || "0");
-        fd.append("legal_fee_enabled", legalFeeEnabled ? "true" : "false");
+        fd.append("legal_fee_enabled", legalFeeEnabled);
       }
 
-      // Offer (NEW)
-      if (selectedOfferId) {
-        fd.append("offer_id", selectedOfferId);
-      }
+      // ==================================================
+      // OFFER / TOTALS
+      // ==================================================
+      if (selectedOfferId) fd.append("offer_id", selectedOfferId);
       fd.append("offer_discount", offerDiscountValue.toFixed(2));
       fd.append("total_taxes", totalTaxes.toFixed(2));
       fd.append("final_amount", finalAmount.toFixed(2));
 
-      // Payment / KYC
+      // ==================================================
+      // PAYMENT PLAN
+      // ==================================================
       fd.append("payment_plan_type", paymentPlanType);
 
-      // If KYC gating is ON and request exists, attach KYC request id for backend validation
-      if (requiresKyc === "YES" && kycRequestId) {
+      if (requiresKyc === "YES" && kycRequestId)
         fd.append("kyc_request_id", String(kycRequestId));
-      }
 
-      if (paymentPlanType === "MASTER" && selectedPaymentPlanId) {
+      if (paymentPlanType === "MASTER" && selectedPaymentPlanId)
         fd.append("payment_plan_id", selectedPaymentPlanId);
-      }
 
       if (paymentPlanType === "CUSTOM") {
-        const customPlan = {
-          name: customPlanName || "",
-          slabs: customSlabs.map((s, idx) => ({
-            order: idx + 1,
-            name: s.name,
-            percentage: Number(s.percentage || 0),
-            days: s.days === "" ? null : Number(s.days),
-          })),
-        };
-        fd.append("custom_payment_plan", JSON.stringify(customPlan));
+        fd.append(
+          "custom_payment_plan",
+          JSON.stringify({
+            name: customPlanName || "",
+            slabs: customSlabs.map((s, idx) => ({
+              order_index: idx + 1,
+              name: s.name,
+              percentage: Number(s.percentage || 0),
+              days: s.days === "" ? null : Number(s.days),
+            })),
+          })
+        );
       }
 
-      // Funding / advance
+      // ==================================================
+      // FUNDING
+      // ==================================================
       fd.append("loan_required", loanRequired === "YES" ? "true" : "false");
       fd.append("loan_bank_name", "");
       fd.append("loan_amount_expected", "");
       fd.append("booking_amount", bookingAmount || "0");
       fd.append("other_charges", otherCharges || "0");
 
-      // Extra info for primary applicant (for BookingApplicant creation in backend)
-      fd.append("primary_pan_no", primaryPanNo || "");
-      fd.append("primary_aadhar_no", primaryAadharNo || "");
+      // ==================================================
+      // MAIN PHOTO
+      // ==================================================
+      if (photoFile) fd.append("photo", photoFile);
 
-      // main photo
-      if (photoFile) {
-        fd.append("photo", photoFile);
+      // ==================================================
+      // APPLICANTS — BRACKET NOTATION (FIXED)
+      // ==================================================
+
+      // PRIMARY APPLICANT (index 0)
+      fd.append("applicants[0][is_primary]", true);
+      fd.append("applicants[0][sequence]", "1");
+      fd.append("applicants[0][title]", primaryTitle || "Mr.");
+      fd.append("applicants[0][full_name]", primaryFullName || "");
+      fd.append("applicants[0][relation]", "");
+      if (primaryDob) {
+        fd.append("applicants[0][date_of_birth]", primaryDob);
       }
+      fd.append("applicants[0][email]", email1 || "");
+      fd.append("applicants[0][mobile_number]", phone1 || "");
+      fd.append("applicants[0][pan_no]", primaryPanNo || "");
+      fd.append("applicants[0][aadhar_no]", primaryAadharNo || "");
 
-      // all other files: PAN/Aadhar etc
-      Object.entries(files).forEach(([key, file]) => {
-        if (file) {
-          fd.append(key, file);
+      if (files.primaryPanFront)
+        fd.append("applicants[0][pan_front]", files.primaryPanFront);
+      if (files.primaryPanBack)
+        fd.append("applicants[0][pan_back]", files.primaryPanBack);
+      if (files.primaryAadharFront)
+        fd.append("applicants[0][aadhar_front]", files.primaryAadharFront);
+      if (files.primaryAadharBack)
+        fd.append("applicants[0][aadhar_back]", files.primaryAadharBack);
+
+      // ADDITIONAL APPLICANTS
+      let applicantIndex = 1;
+
+      additionalApplicants.forEach((app, idx) => {
+        if (app.full_name && app.full_name.trim()) {
+          fd.append(`applicants[${applicantIndex}][is_primary]`, "false");
+          fd.append(
+            `applicants[${applicantIndex}][sequence]`,
+            String(applicantIndex + 1)
+          );
+          fd.append(`applicants[${applicantIndex}][title]`, "Mr.");
+          fd.append(
+            `applicants[${applicantIndex}][full_name]`,
+            app.full_name.trim()
+          );
+          fd.append(
+            `applicants[${applicantIndex}][relation]`,
+            app.relation || ""
+          );
+          if (app.dob && app.dob.trim()) {
+            fd.append(`applicants[${applicantIndex}][date_of_birth]`, app.dob);
+          }
+          fd.append(`applicants[${applicantIndex}][email]`, "");
+          fd.append(`applicants[${applicantIndex}][mobile_number]`, "");
+          fd.append(`applicants[${applicantIndex}][pan_no]`, app.pan || "");
+          fd.append(
+            `applicants[${applicantIndex}][aadhar_no]`,
+            app.aadhar || ""
+          );
+
+          // files
+          const filePrefix = ["second", "third", "fourth"][idx];
+
+          if (files[`${filePrefix}PanFront`])
+            fd.append(
+              `applicants[${applicantIndex}][pan_front]`,
+              files[`${filePrefix}PanFront`]
+            );
+          if (files[`${filePrefix}PanBack`])
+            fd.append(
+              `applicants[${applicantIndex}][pan_back]`,
+              files[`${filePrefix}PanBack`]
+            );
+          if (files[`${filePrefix}AadharFront`])
+            fd.append(
+              `applicants[${applicantIndex}][aadhar_front]`,
+              files[`${filePrefix}AadharFront`]
+            );
+          if (files[`${filePrefix}AadharBack`])
+            fd.append(
+              `applicants[${applicantIndex}][aadhar_back]`,
+              files[`${filePrefix}AadharBack`]
+            );
+
+          applicantIndex++;
         }
       });
 
-      // Additional applicants
-      fd.append(
-        "additional_applicants",
-        JSON.stringify(additionalApplicants || [])
-      );
+      // ==================================================
+      // ATTACHMENTS — BRACKET NOTATION (FIXED)
+      // ==================================================
+      let attachmentIndex = 0;
 
+      if (files.kycAadhar) {
+        fd.append(`attachments[${attachmentIndex}][label]`, "KYC Aadhar");
+        fd.append(`attachments[${attachmentIndex}][doc_type]`, "AADHAR");
+        fd.append(`attachments[${attachmentIndex}][file]`, files.kycAadhar);
+        attachmentIndex++;
+      }
+
+      if (files.kycPan) {
+        fd.append(`attachments[${attachmentIndex}][label]`, "KYC PAN");
+        fd.append(`attachments[${attachmentIndex}][doc_type]`, "PAN");
+        fd.append(`attachments[${attachmentIndex}][file]`, files.kycPan);
+        attachmentIndex++;
+      }
+
+      // ==================================================
+      // DEBUG LOGGING
+      // ==================================================
+      console.log("=== BOOKING SUBMISSION ===");
+      for (let pair of fd.entries()) {
+        if (pair[1] instanceof File)
+          console.log(pair[0], "→ FILE:", pair[1].name);
+        else console.log(pair[0], "→", pair[1]);
+      }
+
+      // ==================================================
+      // SUBMIT
+      // ==================================================
       const res = await axiosInstance.post(`${BOOK_API_PREFIX}/bookings/`, fd, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      console.log("Booking created:", res.data);
-      alert("Booking saved successfully.");
-      // TODO: reset form if needed
+    toast.success("Booking saved successfully! 🎉"); // ✅ REPLACE alert
+    console.log("BOOKING CREATED:", res.data);
     } catch (err) {
-      console.error("Failed to save booking:", err);
-      if (err?.response?.data) {
-        alert(
-          "Failed to save booking.\n" +
-            JSON.stringify(err.response.data, null, 2)
-        );
-      } else {
-        alert(
-          "Failed to save booking. Please check console / Network tab for details."
-        );
-      }
+    console.error("❌ Booking save failed:", err);
+    const errorMsg =
+      err?.response?.data?.message ||
+      err?.response?.data?.error ||
+      err?.message ||
+      "Unknown error occurred";
+    toast.error(`Booking Failed: ${errorMsg}`); // ✅ REPLACE alert
+  
     } finally {
       setSaving(false);
     }
   };
+
   return (
     <div className="setup-page">
       <div className="setup-container">
@@ -1165,7 +1555,10 @@ const BookingForm = () => {
                       className="bf-input"
                       type="text"
                       value={primaryPanNo}
-                      onChange={(e) => setPrimaryPanNo(e.target.value)}
+                      onChange={(e) => handlePrimaryPanChange(e.target.value)}
+                      maxLength={10}
+                      placeholder="ABCDE1234F"
+                      style={{ textTransform: "uppercase" }}
                     />
                   </div>
 
@@ -1230,7 +1623,11 @@ const BookingForm = () => {
                       className="bf-input"
                       type="text"
                       value={primaryAadharNo}
-                      onChange={(e) => setPrimaryAadharNo(e.target.value)}
+                      onChange={(e) =>
+                        handlePrimaryAadharChange(e.target.value)
+                      }
+                      maxLength={12}
+                      placeholder="123456789012"
                     />
                   </div>
 
@@ -1294,53 +1691,97 @@ const BookingForm = () => {
               >
                 <div className="bf-subcard">
                   {additionalApplicants.map((app, idx) => (
-                    <div className="bf-row" key={idx}>
-                      <div className="bf-col">
-                        <label className="bf-label">Relation</label>
-                        <input
-                          className="bf-input"
-                          type="text"
-                          placeholder="Spouse"
-                          value={app.relation}
-                          onChange={(e) =>
-                            handleAdditionalApplicantChange(
-                              idx,
-                              "relation",
-                              e.target.value
-                            )
-                          }
-                        />
+                    <div
+                      key={idx}
+                      style={{
+                        marginBottom: "24px",
+                        paddingBottom: "24px",
+                        borderBottom: "1px solid #e5e7eb",
+                      }}
+                    >
+                      <div className="bf-row">
+                        <div className="bf-col">
+                          <label className="bf-label">Full Name</label>
+                          <input
+                            className="bf-input"
+                            type="text"
+                            placeholder="Priya Kumar"
+                            value={app.full_name || ""}
+                            onChange={(e) =>
+                              handleAdditionalApplicantChange(
+                                idx,
+                                "full_name",
+                                e.target.value
+                              )
+                            }
+                          />
+                        </div>
+                        <div className="bf-col">
+                          <label className="bf-label">Relation</label>
+                          <input
+                            className="bf-input"
+                            type="text"
+                            placeholder="Spouse"
+                            value={app.relation}
+                            onChange={(e) =>
+                              handleAdditionalApplicantChange(
+                                idx,
+                                "relation",
+                                e.target.value
+                              )
+                            }
+                          />
+                        </div>
+                        <div className="bf-col">
+                          <label className="bf-label">Date of Birth</label>
+                          <input
+                            className="bf-input"
+                            type="date"
+                            max={getTodayDate()}
+                            value={app.dob}
+                            onChange={(e) =>
+                              handleAdditionalApplicantChange(
+                                idx,
+                                "dob",
+                                e.target.value
+                              )
+                            }
+                          />
+                        </div>
                       </div>
-                      <div className="bf-col">
-                        <label className="bf-label">Date of Birth</label>
-                        <input
-                          className="bf-input"
-                          type="date"
-                          value={app.dob}
-                          onChange={(e) =>
-                            handleAdditionalApplicantChange(
-                              idx,
-                              "dob",
-                              e.target.value
-                            )
-                          }
-                        />
-                      </div>
-                      <div className="bf-col">
-                        <label className="bf-label">Aadhar Number</label>
-                        <input
-                          className="bf-input"
-                          type="text"
-                          placeholder="XXXX XXXX 1234"
-                          value={app.aadhar}
-                          onChange={(e) =>
-                            handleAdditionalApplicantChange(
-                              idx,
-                              "aadhar",
-                              e.target.value
-                            )
-                          }
-                        />
+                      <div className="bf-row">
+                        <div className="bf-col">
+                          <label className="bf-label">Aadhar Number</label>
+                          <input
+                            className="bf-input"
+                            type="text"
+                            placeholder="XXXX XXXX 1234"
+                            value={app.aadhar}
+                            onChange={(e) =>
+                              handleAdditionalApplicantChange(
+                                idx,
+                                "aadhar",
+                                e.target.value
+                              )
+                            }
+                          />
+                        </div>
+                        <div className="bf-col">
+                          <label className="bf-label">PAN Number</label>
+                          <input
+                            className="bf-input"
+                            type="text"
+                            placeholder="ABCDE1234F"
+                            value={app.pan || ""}
+                            onChange={(e) =>
+                              handleAdditionalApplicantChange(
+                                idx,
+                                "pan",
+                                e.target.value
+                              )
+                            }
+                          />
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -1353,6 +1794,10 @@ const BookingForm = () => {
                     Add Additional Applicant
                   </button>
                 </div>
+
+                {/* Rest of the file upload sections remain the same */}
+
+                {/* Rest of the file upload sections remain the same */}
 
                 {/* Second Applicant uploads */}
                 <div className="bf-row bf-row-upload-compact">
@@ -1592,7 +2037,7 @@ const BookingForm = () => {
                       type="email"
                       placeholder="contact@example.com"
                       value={email1}
-                      onChange={(e) => setEmail1(e.target.value)}
+                      onChange={(e) => handleEmailChange(e.target.value)}
                     />
                   </div>
                   <div className="bf-col">
@@ -1600,9 +2045,10 @@ const BookingForm = () => {
                     <input
                       className="bf-input"
                       type="tel"
-                      placeholder="+91 9876543210"
+                      placeholder="9876543210"
                       value={phone1}
-                      onChange={(e) => setPhone1(e.target.value)}
+                      onChange={(e) => handlePhoneChange(e.target.value)}
+                      maxLength={10}
                     />
                   </div>
                 </div>
@@ -1744,7 +2190,7 @@ const BookingForm = () => {
                     </div>
                   </div>
 
-                  {/* Flat / Unit dropdown (custom) */}
+                  {/* Flat / Unit dropdown (custom) - ENHANCED */}
                   <div className="bf-col">
                     <label className="bf-label">Flat / Unit</label>
                     <div className="bf-dropdown">
@@ -1770,28 +2216,234 @@ const BookingForm = () => {
 
                       {unitOpen && selectedTowerId && (
                         <div className="bf-dropdown-menu">
-                          {towerUnits.map((u) => (
-                            <button
-                              key={u.id}
-                              type="button"
-                              className="bf-dropdown-item"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                setSelectedUnitId(String(u.id));
-                                setUnitOpen(false);
-                              }}
-                            >
-                              {u.unit_no}
-                              {u.floor_number
-                                ? ` (Floor ${u.floor_number})`
-                                : ""}
-                            </button>
-                          ))}
+                          {towerUnits.map((u) => {
+                            // ✅ Determine unit status
+                            const unitStatus = u.status || "NOT_RELEASED";
+                            const inventoryStatus =
+                              u.inventory?.availability_status ||
+                              u.inventory?.unit_status;
+
+                            // Check if unit is BOOKED or BLOCKED
+                            const isBooked =
+                              unitStatus === "BOOKED" ||
+                              inventoryStatus === "BOOKED";
+                            const isBlocked =
+                              unitStatus === "BLOCKED" ||
+                              inventoryStatus === "BLOCKED" ||
+                              inventoryStatus === "BLOCKED_BY_ADMIN";
+                            const isAvailable =
+                              !isBooked &&
+                              !isBlocked &&
+                              (unitStatus === "RELEASED" ||
+                                inventoryStatus === "AVAILABLE");
+
+                            // Determine background color
+                            let bgColor = "#ffffff"; // default white
+                            let textColor = "#374151"; // default dark gray
+                            let cursor = "pointer";
+                            let opacity = 1;
+
+                            if (isBooked) {
+                              bgColor = "#fee2e2"; // red-100
+                              textColor = "#991b1b"; // red-800
+                              cursor = "not-allowed";
+                              opacity = 0.6;
+                            } else if (isBlocked) {
+                              bgColor = "#fef3c7"; // yellow-100
+                              textColor = "#92400e"; // yellow-800
+                              cursor = "not-allowed";
+                              opacity = 0.6;
+                            } else if (!isAvailable) {
+                              bgColor = "#f3f4f6"; // gray-100
+                              textColor = "#6b7280"; // gray-500
+                              cursor = "not-allowed";
+                              opacity = 0.6;
+                            }
+
+                            return (
+                              <button
+                                key={u.id}
+                                type="button"
+                                className="bf-dropdown-item"
+                                disabled={!isAvailable}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+
+                                  // Prevent selection if not available
+                                  if (!isAvailable) {
+                                    if (isBooked) {
+                                      toast.error(
+                                        `Unit ${u.unit_no} is already BOOKED`
+                                      );
+                                    } else if (isBlocked) {
+                                      toast.warn(
+                                        `Unit ${u.unit_no} is BLOCKED`
+                                      );
+                                    } else {
+                                      toast.warn(
+                                        `Unit ${u.unit_no} is not available for booking`
+                                      );
+                                    }
+                                    return;
+                                  }
+
+                                  setSelectedUnitId(String(u.id));
+                                  setUnitOpen(false);
+                                }}
+                                style={{
+                                  backgroundColor: bgColor,
+                                  color: textColor,
+                                  cursor: cursor,
+                                  opacity: opacity,
+                                  fontWeight:
+                                    isBooked || isBlocked ? "600" : "400",
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  alignItems: "center",
+                                }}
+                              >
+                                <span>
+                                  {u.unit_no}
+                                  {u.floor_number
+                                    ? ` (Floor ${u.floor_number})`
+                                    : ""}
+                                </span>
+                                {isBooked && (
+                                  <span
+                                    style={{
+                                      fontSize: "11px",
+                                      padding: "2px 6px",
+                                      backgroundColor: "#dc2626",
+                                      color: "white",
+                                      borderRadius: "4px",
+                                      fontWeight: "600",
+                                    }}
+                                  >
+                                    BOOKED
+                                  </span>
+                                )}
+                                {isBlocked && (
+                                  <span
+                                    style={{
+                                      fontSize: "11px",
+                                      padding: "2px 6px",
+                                      backgroundColor: "#f59e0b",
+                                      color: "white",
+                                      borderRadius: "4px",
+                                      fontWeight: "600",
+                                    }}
+                                  >
+                                    BLOCKED
+                                  </span>
+                                )}
+                                {!isAvailable && !isBooked && !isBlocked && (
+                                  <span
+                                    style={{
+                                      fontSize: "11px",
+                                      padding: "2px 6px",
+                                      backgroundColor: "#6b7280",
+                                      color: "white",
+                                      borderRadius: "4px",
+                                      fontWeight: "600",
+                                    }}
+                                  >
+                                    NOT AVAILABLE
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
                   </div>
+
+                  {/* ✅ ADD THIS LEGEND */}
+                  {selectedTowerId && (
+                    <div
+                      style={{
+                        marginTop: "8px",
+                        display: "flex",
+                        gap: "12px",
+                        fontSize: "12px",
+                        color: "#6b7280",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "4px",
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: "12px",
+                            height: "12px",
+                            backgroundColor: "#fee2e2",
+                            border: "1px solid #991b1b",
+                            borderRadius: "2px",
+                          }}
+                        />
+                        <span>Booked</span>
+                      </div>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "4px",
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: "12px",
+                            height: "12px",
+                            backgroundColor: "#fef3c7",
+                            border: "1px solid #92400e",
+                            borderRadius: "2px",
+                          }}
+                        />
+                        <span>Blocked</span>
+                      </div>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "4px",
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: "12px",
+                            height: "12px",
+                            backgroundColor: "#f3f4f6",
+                            border: "1px solid #6b7280",
+                            borderRadius: "2px",
+                          }}
+                        />
+                        <span>Not Available</span>
+                      </div>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "4px",
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: "12px",
+                            height: "12px",
+                            backgroundColor: "#ffffff",
+                            border: "1px solid #059669",
+                            borderRadius: "2px",
+                          }}
+                        />
+                        <span>Available</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="bf-row">
@@ -1826,6 +2478,37 @@ const BookingForm = () => {
                   </div>
                 </div>
 
+                {/* Discount Row */}
+                <div className="bf-row">
+                  <div className="bf-col">
+                    <label className="bf-label">Discount (%)</label>
+                    <input
+                      className="bf-input"
+                      type="number"
+                      value={discountPercent}
+                      onChange={(e) => {
+                        setDiscountPercent(e.target.value);
+                        setDiscountAmount(""); // Clear amount when % changes
+                      }}
+                      placeholder="e.g., 5"
+                    />
+                  </div>
+                  <div className="bf-col">
+                    <label className="bf-label">Discount Amount</label>
+                    <input
+                      className="bf-input"
+                      type="number"
+                      value={discountAmount}
+                      onChange={(e) => {
+                        setDiscountAmount(e.target.value);
+                        setDiscountPercent(""); // Clear % when amount changes
+                      }}
+                      placeholder="e.g., 50000"
+                    />
+                  </div>
+                </div>
+
+                {/* Agreement Value Row */}
                 <div className="bf-row">
                   <div className="bf-col">
                     <label className="bf-label">
@@ -1833,10 +2516,10 @@ const BookingForm = () => {
                       <span className="bf-required">*</span>
                     </label>
                     <input
-                      className="bf-input"
+                      className="bf-input bf-input-readonly"
                       type="number"
                       value={agreementValue}
-                      onChange={(e) => setAgreementValue(e.target.value)}
+                      readOnly
                     />
                   </div>
                   <div className="bf-col">
@@ -1873,29 +2556,34 @@ const BookingForm = () => {
                       value={parkingRequired}
                       onChange={(e) => setParkingRequired(e.target.value)}
                     >
-                      <option value="YES">Yes</option>
                       <option value="NO">No</option>
+                      <option value="YES">Yes</option>
                     </select>
                   </div>
-                  <div className="bf-col">
-                    <label className="bf-label">Parking Details</label>
-                    <input
-                      className="bf-input"
-                      type="text"
-                      value={parkingDetails}
-                      onChange={(e) => setParkingDetails(e.target.value)}
-                      placeholder="Parking Details"
-                    />
-                  </div>
-                  <div className="bf-col">
-                    <label className="bf-label">Parking Number</label>
-                    <input
-                      className="bf-input"
-                      type="text"
-                      value={parkingNumber}
-                      onChange={(e) => setParkingNumber(e.target.value)}
-                    />
-                  </div>
+                  {parkingRequired === "YES" && (
+                    <>
+                      <div className="bf-col">
+                        <label className="bf-label">Parking Details</label>
+                        <input
+                          className="bf-input"
+                          type="text"
+                          value={parkingDetails}
+                          onChange={(e) => setParkingDetails(e.target.value)}
+                          placeholder="Covered/Open, Type"
+                        />
+                      </div>
+                      <div className="bf-col">
+                        <label className="bf-label">Parking Number</label>
+                        <input
+                          className="bf-input"
+                          type="text"
+                          value={parkingNumber}
+                          onChange={(e) => setParkingNumber(e.target.value)}
+                          placeholder="P-123"
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
               </Section>
 
@@ -2511,21 +3199,69 @@ const BookingForm = () => {
                         {selectedPaymentPlan.total_percentage}%)
                       </div>
                     </div>
-                    <div className="bf-plan-table">
-                      <div className="bf-plan-header">
-                        <span>#</span>
-                        <span>Name</span>
-                        <span>%</span>
-                        <span>Days</span>
+
+                    {/* Same grid format as custom plan */}
+                    <div style={{ marginTop: "16px" }}>
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "2fr 1fr 1fr 1fr",
+                          gap: "12px",
+                          marginBottom: "8px",
+                          fontWeight: "600",
+                          fontSize: "13px",
+                          color: "#6b7280",
+                        }}
+                      >
+                        <div>Installment Name</div>
+                        <div>Percentage</div>
+                        <div>Amount</div>
+                        <div>Due Date (Days)</div>
                       </div>
+
                       {selectedPaymentPlan.slabs.map((slab) => (
-                        <div key={slab.id} className="bf-plan-row">
-                          <span>{slab.order_index}</span>
-                          <span>{slab.name}</span>
-                          <span>{slab.percentage}</span>
-                          <span>{slab.days ?? "-"}</span>
+                        <div
+                          key={slab.id}
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "2fr 1fr 1fr 1fr",
+                            gap: "12px",
+                            marginBottom: "12px",
+                            alignItems: "center",
+                            padding: "8px",
+                            backgroundColor: "#f9fafb",
+                            borderRadius: "4px",
+                          }}
+                        >
+                          <div style={{ fontSize: "14px" }}>{slab.name}</div>
+                          <div style={{ fontSize: "14px", fontWeight: "500" }}>
+                            {slab.percentage}%
+                          </div>
+                          <div style={{ fontSize: "14px", fontWeight: "500" }}>
+                            ₹
+                            {(
+                              (Number(agreementValue || 0) * slab.percentage) /
+                              100
+                            ).toFixed(2)}
+                          </div>
+                          <div style={{ fontSize: "14px" }}>
+                            {slab.days !== null ? `${slab.days} days` : "-"}
+                          </div>
                         </div>
                       ))}
+
+                      <div
+                        style={{
+                          marginTop: "12px",
+                          padding: "8px",
+                          backgroundColor: "#f0fdf4",
+                          borderRadius: "4px",
+                          fontSize: "14px",
+                          fontWeight: "600",
+                        }}
+                      >
+                        Total: {selectedPaymentPlan.total_percentage}%
+                      </div>
                     </div>
                   </div>
                 )}
@@ -2733,9 +3469,6 @@ const BookingForm = () => {
                       onChange={(e) => setOtherCharges(e.target.value)}
                     />
                   </div>
-                </div>
-
-                <div className="bf-row">
                   <div className="bf-col">
                     <label className="bf-label">Total Advance</label>
                     <input
@@ -2745,6 +3478,222 @@ const BookingForm = () => {
                       readOnly
                     />
                   </div>
+                </div>
+              </Section>
+
+              {/* Applicant Summary */}
+              <Section
+                id="applicantSummary"
+                title={`Applicant Summary (${allApplicants.length} Total)`}
+                open={openSections.applicantSummary}
+                onToggle={toggleSection}
+              >
+                <div className="bf-subcard">
+                  {allApplicants.map((applicant, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        marginBottom: "20px",
+                        padding: "16px",
+                        backgroundColor: applicant.isPrimary
+                          ? "#f0f9ff"
+                          : "#f9fafb",
+                        borderRadius: "8px",
+                        border: applicant.isPrimary
+                          ? "2px solid #3b82f6"
+                          : "1px solid #e5e7eb",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          marginBottom: "12px",
+                        }}
+                      >
+                        <h4
+                          style={{
+                            margin: 0,
+                            fontSize: "16px",
+                            fontWeight: "600",
+                            color: applicant.isPrimary ? "#1e40af" : "#374151",
+                          }}
+                        >
+                          {applicant.isPrimary ? "🔑 " : ""}
+                          Applicant #{applicant.sequence}: {applicant.title}{" "}
+                          {applicant.full_name}
+                        </h4>
+                        {applicant.isPrimary && (
+                          <span
+                            style={{
+                              padding: "4px 12px",
+                              backgroundColor: "#3b82f6",
+                              color: "white",
+                              borderRadius: "12px",
+                              fontSize: "12px",
+                              fontWeight: "600",
+                            }}
+                          >
+                            PRIMARY
+                          </span>
+                        )}
+                      </div>
+
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "repeat(2, 1fr)",
+                          gap: "12px",
+                        }}
+                      >
+                        {applicant.relation && (
+                          <div>
+                            <strong
+                              style={{ fontSize: "12px", color: "#6b7280" }}
+                            >
+                              Relation:
+                            </strong>
+                            <div style={{ fontSize: "14px" }}>
+                              {applicant.relation}
+                            </div>
+                          </div>
+                        )}
+                        {applicant.dob && (
+                          <div>
+                            <strong
+                              style={{ fontSize: "12px", color: "#6b7280" }}
+                            >
+                              Date of Birth:
+                            </strong>
+                            <div style={{ fontSize: "14px" }}>
+                              {applicant.dob}
+                            </div>
+                          </div>
+                        )}
+                        <div>
+                          <strong
+                            style={{ fontSize: "12px", color: "#6b7280" }}
+                          >
+                            PAN Number:
+                          </strong>
+                          <div
+                            style={{
+                              fontSize: "14px",
+                              fontFamily: "monospace",
+                              color: applicant.pan ? "#059669" : "#9ca3af",
+                            }}
+                          >
+                            {applicant.pan || "Not provided"}
+                          </div>
+                        </div>
+                        <div>
+                          <strong
+                            style={{ fontSize: "12px", color: "#6b7280" }}
+                          >
+                            Aadhar Number:
+                          </strong>
+                          <div
+                            style={{
+                              fontSize: "14px",
+                              fontFamily: "monospace",
+                              color: applicant.aadhar ? "#059669" : "#9ca3af",
+                            }}
+                          >
+                            {applicant.aadhar
+                              ? `XXXX XXXX ${applicant.aadhar.slice(-4)}`
+                              : "Not provided"}
+                          </div>
+                        </div>
+                        {applicant.email && (
+                          <div>
+                            <strong
+                              style={{ fontSize: "12px", color: "#6b7280" }}
+                            >
+                              Email:
+                            </strong>
+                            <div style={{ fontSize: "14px" }}>
+                              {applicant.email}
+                            </div>
+                          </div>
+                        )}
+                        {applicant.phone && (
+                          <div>
+                            <strong
+                              style={{ fontSize: "12px", color: "#6b7280" }}
+                            >
+                              Phone:
+                            </strong>
+                            <div style={{ fontSize: "14px" }}>
+                              {applicant.phone}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Show uploaded documents */}
+                      <div
+                        style={{
+                          marginTop: "12px",
+                          paddingTop: "12px",
+                          borderTop: "1px solid #e5e7eb",
+                        }}
+                      >
+                        <strong style={{ fontSize: "12px", color: "#6b7280" }}>
+                          Documents Uploaded:
+                        </strong>
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "8px",
+                            marginTop: "6px",
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          {(() => {
+                            const docs = [];
+                            const prefix = [
+                              "primary",
+                              "second",
+                              "third",
+                              "fourth",
+                            ][idx];
+                            if (files[`${prefix}PanFront`])
+                              docs.push("PAN Front");
+                            if (files[`${prefix}PanBack`])
+                              docs.push("PAN Back");
+                            if (files[`${prefix}AadharFront`])
+                              docs.push("Aadhar Front");
+                            if (files[`${prefix}AadharBack`])
+                              docs.push("Aadhar Back");
+
+                            return docs.length > 0 ? (
+                              docs.map((doc, i) => (
+                                <span
+                                  key={i}
+                                  style={{
+                                    padding: "4px 8px",
+                                    backgroundColor: "#d1fae5",
+                                    color: "#065f46",
+                                    borderRadius: "6px",
+                                    fontSize: "12px",
+                                  }}
+                                >
+                                  ✓ {doc}
+                                </span>
+                              ))
+                            ) : (
+                              <span
+                                style={{ fontSize: "12px", color: "#9ca3af" }}
+                              >
+                                No documents uploaded
+                              </span>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </Section>
 
@@ -2825,4 +3774,4 @@ const BookingForm = () => {
   );
 };
 
-export default BookingForm;
+export default BookingForm

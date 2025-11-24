@@ -115,13 +115,13 @@ const MyBookings = () => {
               />
             )}
 
-            <button
+            {/* <button
               type="button"
               className="booking-add-btn"
               onClick={handleAddClick}
             >
               Add
-            </button>
+            </button> */}
           </div>
 
           <div className="booking-header-right">

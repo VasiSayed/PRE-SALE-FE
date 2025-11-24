@@ -257,6 +257,12 @@ export default function SalesNavigation() {
           section: "pre-sales",
         },
         {
+          id: "Documents",
+          label: "Documents",
+          route: "/documents",
+          section: "pre-sales",
+        },
+        {
           id: "quotation",
           label: "Quotation",
           route: "/costsheet",
