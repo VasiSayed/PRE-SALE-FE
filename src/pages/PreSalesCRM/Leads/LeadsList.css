@@ -12,6 +12,25 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+/* optional, just to keep naming clean */
+.list-header-left {
+  flex: 1;
+}
+
+.list-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+
 /* Header */
 .list-header {
   padding: 20px;

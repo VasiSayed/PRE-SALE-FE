@@ -30,6 +30,7 @@ import ChannelPartnerPage from "./pages/ChannelPartner/ChannelPartnerPage";
 import ChannelPartnerRegistration from "./pages/ChannelPartner/ChannelPartnerRegistration";
 import BookingForm from "./pages/Booking/BookingForm";
 import LeadAdditionalInfoPage from "./pages/LeadSetup/LeadAdditionalInfoPage";
+import OppurnityList from "./pages/Sales/OppurnityList";
 import CostSheetTemplateCreate from "./pages/CostSheet/CostSheetTemplateCreate";
 import CostSheetCreate from "./pages/CostSheet/CostSheetCreate";
 import CostSheetList from "./pages/CostSheet/CostSheetList";
@@ -136,7 +137,6 @@ export default function App() {
                 path="/channel-partners/:partnerId/profile"
                 element={<ChannelPartnerProfile />}
               />
-              
 
               <Route
                 path="/channel-partner-add"
@@ -164,6 +164,12 @@ export default function App() {
               <Route
                 path="/costsheet/templates"
                 element={<CostSheetTemplatesList />}
+              />
+              <Route
+                path="/sales/opportunities"
+                element={
+                    <OppurnityList />
+                }
               />
               <Route
                 path="/costsheet/templates/:id"

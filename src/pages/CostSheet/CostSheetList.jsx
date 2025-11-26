@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axiosInstance from "../../api/axiosInstance";
+import SearchBar from "../../common/SearchBar";
+
 // import "./CostSheetList.css";
 
 function debounce(fn, delay) {
@@ -78,6 +80,14 @@ export default function CostSheetList() {
     []
   );
 
+
+  
+  const handleSearchChange = (value) => {
+    setQ(value);
+    debouncedFetchList(value);
+  };
+
+
   useEffect(() => {
     fetchList({ page: 1 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -89,7 +99,14 @@ export default function CostSheetList() {
     <div className="templates-page">
       {/* Toolbar */}
       <div className="templates-toolbar">
-        <div className="search-wrap">
+        
+        <SearchBar
+          value={q}
+          onChange={handleSearchChange}
+          placeholder="Search quotations…"
+        />
+
+        {/* <div className="search-wrap">
           <svg width="22" height="22" viewBox="0 0 24 24">
             <path
               d="M21 21l-4.3-4.3M10 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16z"
@@ -108,7 +125,7 @@ export default function CostSheetList() {
               debouncedFetchList(value);
             }}
           />
-        </div>
+        </div> */}
 
         {/* <button
           className="btn-primary"

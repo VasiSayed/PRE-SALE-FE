@@ -1,15 +1,15 @@
 import React from "react";
-import "./SearchBar.css";
+// import "./SearchBar.css"; // optional if you later want separate CSS
 
-const SearchBar = ({
+export default function SearchBar({
   value,
   onChange,
   placeholder = "Search...",
-  className = "",
-}) => {
+  wrapperClassName = "",
+}) {
   return (
-    <div className={`search-bar-wrapper ${className}`}>
-      <svg className="search-icon" width="20" height="20" viewBox="0 0 24 24">
+    <div className={`search-wrap ${wrapperClassName}`}>
+      <svg width="22" height="22" viewBox="0 0 24 24">
         <path
           d="M21 21l-4.3-4.3M10 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16z"
           fill="none"
@@ -18,23 +18,11 @@ const SearchBar = ({
         />
       </svg>
       <input
-        type="text"
         className="search-input"
         placeholder={placeholder}
         value={value}
-        onChange={onChange}
+        onChange={(e) => onChange(e.target.value)}
       />
-      {value && (
-        <button
-          className="search-clear"
-          onClick={() => onChange({ target: { value: "" } })}
-          title="Clear search"
-        >
-          ✕
-        </button>
-      )}
     </div>
   );
-};
-
-export default SearchBar;
+}

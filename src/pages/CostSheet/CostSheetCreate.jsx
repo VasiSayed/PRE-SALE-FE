@@ -215,7 +215,6 @@ const CostSheetCreate = () => {
         setLoading(true);
         setInitError("");
 
-
         // ---- Lead init ----
         const initRes = await api.get(`/costsheet/lead/${leadId}/init/`);
         const data = initRes.data;
@@ -246,23 +245,92 @@ const CostSheetCreate = () => {
         }
 
         // ---- Inventory (nested tower -> floor -> inventories) ----
-        const invRes = await api.get("/costsheet/available-inventory/", {
+        // ---- Booking Setup (tower -> floor -> units/inventory) ----
+        const bookingRes = await api.get("/client/booking-setup/", {
           params: {
             project_id: data.project.id,
-            lead_id: data.lead.id,
           },
         });
 
-        const invData = invRes.data;
-        const towersList = invData.results || [];
+        const bookingData = bookingRes.data || {};
+        const towersFromApi = bookingData.towers || [];
+
+        /**
+         * Transform booking-setup structure:
+         * towers[id,name,floors[id,number,units[unit + inventory]]]
+         *  -> towers[tower_id,tower_name,floors[floor_id,floor_number,inventories[]]]
+         * Keep ALL units that have inventory.
+         * Mark which ones are AVAILABLE vs BOOKED.
+         */
+        const towersList = towersFromApi
+          .map((tower) => {
+            const floors = (tower.floors || [])
+              .map((floor) => {
+                const inventories = (floor.units || [])
+                  // sirf woh units jinka inventory object hai
+                  .filter((u) => !!u.inventory)
+                  .map((u) => {
+                    const inv = u.inventory;
+
+                    const isBooked =
+                      u.status === "BOOKED" ||
+                      inv.availability_status === "BOOKED" ||
+                      inv.unit_status === "BOOKED";
+
+                    const isAvailable = inv.availability_status === "AVAILABLE";
+
+                    return {
+                      // primary key we POST as inventory_id
+                      inventory_id: inv.id,
+                      unit_id: u.id,
+
+                      unit_no: u.unit_no,
+                      configuration:
+                        inv.configuration_name || inv.unit_type_name || "",
+
+                      rera_area_sqft: inv.rera_area_sqft,
+                      saleable_sqft: inv.saleable_sqft,
+                      carpet_sqft: inv.carpet_sqft,
+
+                      agreement_value: inv.agreement_value || u.agreement_value,
+                      rate_psf: inv.rate_psf,
+                      base_price_psf: inv.base_price_psf,
+                      total_cost: inv.total_cost,
+
+                      // new flags
+                      isBooked,
+                      isAvailable,
+                      unit_status: u.status,
+                      inventory_status: inv.availability_status,
+                    };
+                  });
+
+                return {
+                  floor_id: floor.id,
+                  floor_number: floor.number,
+                  inventories,
+                };
+              })
+              // floors jisme koi unit with inventory hi nahi, unko hata do
+              .filter((f) => (f.inventories || []).length > 0);
+
+            return {
+              tower_id: tower.id,
+              tower_name: tower.name,
+              floors,
+            };
+          })
+          // towers jisme koi floor nahi (with inventories)
+          .filter((t) => (t.floors || []).length > 0);
+
         setTowers(towersList);
 
-        // Flatten inventory lookup map
-        const map = {};
+        // Flatten inventory lookup map (keyed by inventory_id)
+        const invMap = {};
         towersList.forEach((t) => {
           (t.floors || []).forEach((f) => {
             (f.inventories || []).forEach((inv) => {
-              map[String(inv.inventory_id)] = {
+              invMap[String(inv.inventory_id)] = {
                 ...inv,
                 tower_id: t.tower_id,
                 tower_name: t.tower_name,
@@ -272,7 +340,12 @@ const CostSheetCreate = () => {
             });
           });
         });
-        setInventoryMap(map);
+        setInventoryMap(invMap);
+
+        // optional: payment plans from booking-setup
+        if (bookingData.payment_plans) {
+          setPaymentPlans(bookingData.payment_plans);
+        }
       } catch (err) {
         console.error(err);
         setInitError("Failed to load cost sheet init data.");
@@ -462,6 +535,17 @@ const CostSheetCreate = () => {
       toast.error("Please select an inventory/unit.");
       return;
     }
+
+      const selectedInv = inventoryMap[String(selectedInventoryId)];
+      if (selectedInv && selectedInv.isBooked) {
+        toast.error("This unit is already booked. Please choose another unit.");
+        return;
+      }
+
+      if (!quotationNo.trim()) {
+        toast.error("Quotation number is required.");
+        return;
+      }
 
     
  if (!quotationNo.trim()) {
@@ -795,11 +879,22 @@ const CostSheetCreate = () => {
                 onChange={handleInventoryChange}
               >
                 <option value="">Select Unit</option>
-                {inventories.map((inv) => (
-                  <option key={inv.inventory_id} value={inv.inventory_id}>
-                    {inv.unit_no} ({inv.configuration})
-                  </option>
-                ))}
+                {inventories.map((inv) => {
+                  const isBooked = inv.isBooked;
+                  const isAvailable = inv.isAvailable;
+
+                  return (
+                    <option
+                      key={inv.inventory_id}
+                      value={inv.inventory_id}
+                      disabled={!isAvailable} // ❌ not selectable if not available
+                      style={isBooked ? { color: "red" } : undefined} // 🔴 red if booked
+                    >
+                      {inv.unit_no} ({inv.configuration})
+                      {isBooked ? " - BOOKED" : ""}
+                    </option>
+                  );
+                })}
               </select>
             </div>
           </div>

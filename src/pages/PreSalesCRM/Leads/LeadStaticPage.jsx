@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useSearchParams, useNavigate, useParams } from "react-router-dom";
-import api from "../../../api/axiosInstance";
+import api, { BASE_URL } from "../../../api/axiosInstance";
 import { toast } from "react-hot-toast";
 import "./LeadStaticPage.css";
 
@@ -20,11 +20,23 @@ const LeadStaticPage = () => {
   // ---- lookups from /client/setup-bundle/ ----
   const [lookups, setLookups] = useState(null);
   const [loadingLookups, setLoadingLookups] = useState(false);
-
+  const [leadDocuments, setLeadDocuments] = useState(null);
   // ---- CP dropdown ----
   const [cpOptions, setCpOptions] = useState([]);
   const [cpLoading, setCpLoading] = useState(false);
   const [cpSelected, setCpSelected] = useState("");
+
+
+  const toTitleCase = (value) => {
+  if (!value) return "";
+  return value
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+};
+
 
   // ---- right-side tabs ----
   const [activeTab, setActiveTab] = useState("activity");
@@ -32,6 +44,7 @@ const LeadStaticPage = () => {
   // ---- activity (updates) ----
   const [showActivityForm, setShowActivityForm] = useState(false);
   const [activityForm, setActivityForm] = useState({
+    update_type: "FOLLOW_UP",
     title: "",
     info: "",
     event_date: nowForInput(),
@@ -44,13 +57,20 @@ const LeadStaticPage = () => {
   const [docModalOpen, setDocModalOpen] = useState(false);
   const [pendingFile, setPendingFile] = useState(null);
   const [docTitle, setDocTitle] = useState("");
-
+  const [leadDocs, setLeadDocs] = useState(null);
   // ---- stage change modal ----
   const [stageModal, setStageModal] = useState({
     open: false,
     stage: null,
   });
   const [savingStage, setSavingStage] = useState(false);
+
+  const [leadStatusModalOpen, setLeadStatusModalOpen] = useState(false);
+  const [leadStatusForm, setLeadStatusForm] = useState({
+    status: "",
+    sub_status: "",
+    comment: "",
+  });
 
   // ---- collapsible sections ----
   const [collapsedSections, setCollapsedSections] = useState({
@@ -62,10 +82,19 @@ const LeadStaticPage = () => {
     address: false,
   });
 
-  // ---- bottom extra info forms ----
   const [cpInfoForm, setCpInfoForm] = useState({
     referral_code: "",
   });
+
+
+
+  // ---- Lead status change ----
+  const [statusForm, setStatusForm] = useState({
+    status: "",
+    sub_status: "",
+    comment: "",
+  });
+  const [savingLeadStatus, setSavingLeadStatus] = useState(false);
 
   const [personalForm, setPersonalForm] = useState({
     date_of_birth: "",
@@ -92,6 +121,8 @@ const LeadStaticPage = () => {
     office_pincode: "",
     designation: "",
   });
+
+  const subStatusName = lead?.sub_status_name || "";
 
   const [addressForm, setAddressForm] = useState({
     flat_or_building: "",
@@ -147,9 +178,6 @@ const LeadStaticPage = () => {
     stage_at_time: "",
   });
 
-  // ====================== EFFECTS ======================
-
-  // 8) Load comments when Comment tab active
   useEffect(() => {
     if (activeTab !== "comment" || !leadId) return;
 
@@ -232,11 +260,12 @@ const LeadStaticPage = () => {
     setLoadingLookups(true);
     api
       .get("/client/setup-bundle/", {
-        params: { project_id: lead.project },
+        params: { project_id: lead.project, lead_id: lead.id },
       })
       .then((res) => {
         const data = res.data || {};
         setLookups(data.lookups || {});
+        setLeadDocs(data.lead_documents || null); // 👈 NEW
       })
       .catch((err) => {
         console.error("Failed to load setup bundle", err);
@@ -260,7 +289,7 @@ const LeadStaticPage = () => {
 
     const cp = lead.cp_info || {};
     setCpInfoForm({
-      referral_code: cp.referral_code || "",
+      referral_code: lead.cp_referral_code || cp.referral_code || "",
     });
 
     const p = lead.personal_info || {};
@@ -435,15 +464,94 @@ const LeadStaticPage = () => {
 
   // ====================== DERIVED DATA ======================
 
-  const fullName =
-    lead?.full_name ||
-    [lead?.first_name, lead?.last_name].filter(Boolean).join(" ") ||
-    "-";
+  const leadStatusOptions = React.useMemo(() => {
+    if (!lookups?.lead_statuses || !lead?.project) return [];
+    return lookups.lead_statuses
+      .filter((s) => s.project_id === lead.project)
+      .map((s) => ({ value: s.id, label: s.name }));
+  }, [lookups, lead]);
 
+  const leadSubStatusOptions = React.useMemo(() => {
+    if (!lookups?.lead_sub_statuses || !leadStatusForm.status) return [];
+    return lookups.lead_sub_statuses
+      .filter((ss) => ss.status_id === leadStatusForm.status)
+      .map((ss) => ({ value: ss.id, label: ss.name }));
+  }, [lookups, leadStatusForm.status]);
+
+  const handleStatusFormChange = (field, value) => {
+    setStatusForm((prev) => ({
+      ...prev,
+      [field]: value,
+      ...(field === "status" ? { sub_status: "" } : {}),
+    }));
+  };
+
+  const handleLeadStatusSave = async () => {
+    if (!lead) return;
+    if (!statusForm.status) {
+      toast.error("Please select a status.");
+      return;
+    }
+
+    setSavingLeadStatus(true);
+    try {
+      const payload = {
+        status_id: statusForm.status,
+        sub_status_id: statusForm.sub_status || null,
+        comment: statusForm.comment || "",
+      };
+
+      const res = await api.post(
+        `/sales/sales-leads/${lead.id}/change-status/`,
+        payload
+      );
+
+      setLead((prev) => ({
+        ...prev,
+        status: statusForm.status,
+        sub_status: statusForm.sub_status || null,
+        status_name: res.data?.status || prev.status_name,
+        sub_status_name: res.data?.sub_status || prev.sub_status_name,
+      }));
+
+      toast.success("Lead status updated");
+    } catch (err) {
+      console.error("Failed to update lead status", err);
+      toast.error("Failed to update lead status");
+    } finally {
+      setSavingLeadStatus(false);
+    }
+  };
+const rawFullName =
+  lead?.full_name ||
+  [lead?.first_name, lead?.last_name].filter(Boolean).join(" ") ||
+  lead?.name ||
+  "";
+
+const displayFullName = toTitleCase(rawFullName) || "Lead Name";
+
+const rawStatusName =
+  lead?.status_name || lead?.status_display || lead?.status || "";
+
+const displayStatusName = rawStatusName
+  ? toTitleCase(rawStatusName.replace(/_/g, " "))
+  : "-";
+
+  const statusName = rawStatusName
+    ? rawStatusName
+        .toString()
+        .toLowerCase()
+        .split(/[\s_-]+/)
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(" ")
+    : "-";
   const ownerName = lead?.current_owner_name || "-";
   const mobile = lead?.mobile_number || "-";
   const email = lead?.email || "-";
-  const statusName = lead?.status_name || "-";
+
+  // raw name from API (can be CLOSED_WON, closed_won, etc.)
+
+
 
   const stages = lead?.lead_stages || [];
   const stageHistory = lead?.stage_history || [];
@@ -457,6 +565,61 @@ const LeadStaticPage = () => {
 
   const documents = lead?.documents || [];
   const inventoryDocs = lead?.project_inventory_docs || [];
+
+const bookingId = leadDocs?.booking?.id || null;
+const quotationId = leadDocs?.quotation?.id || null;
+
+const bookingGeneratePdfUrl = bookingId
+  ? `${BASE_URL}book/bookings/${bookingId}/generate-pdf/`
+  : null;
+
+const quotationGeneratePdfUrl = quotationId
+  ? `${BASE_URL}costsheet/cost-sheets/${quotationId}/generate-pdf/`
+  : null;
+
+
+  const handleViewQuotationPdf = async () => {
+  if (!quotationId) {
+    toast.error("Quotation not created yet");
+    return;
+  }
+  try {
+    const res = await api.post(
+      `/costsheet/cost-sheets/${quotationId}/generate-pdf/`
+    );
+    const pdfUrl = res.data?.pdf_url;
+    if (!pdfUrl) {
+      toast.error("PDF URL missing");
+      return;
+    }
+    window.open(pdfUrl, "_blank", "noopener,noreferrer");
+  } catch (err) {
+    console.error("Failed to generate quotation PDF", err);
+    toast.error("Failed to generate quotation PDF");
+  }
+};
+
+const handleViewBookingPdf = async () => {
+  if (!bookingId) {
+    toast.error("Booking not created yet");
+    return;
+  }
+  try {
+    const res = await api.post(
+      `/book/bookings/${bookingId}/generate-pdf/`
+    );
+    const pdfUrl = res.data?.pdf_url;
+    if (!pdfUrl) {
+      toast.error("PDF URL missing");
+      return;
+    }
+    window.open(pdfUrl, "_blank", "noopener,noreferrer");
+  } catch (err) {
+    console.error("Failed to generate booking PDF", err);
+    toast.error("Failed to generate booking PDF");
+  }
+};
+
 
   const channelPartner = lead?.channel_partner_detail || null;
   const channelPartnerLabel = lead?.channel_partner_name || "-";
@@ -484,6 +647,8 @@ const LeadStaticPage = () => {
     return Number.isNaN(n) ? null : n;
   };
 
+  
+
   const lookupOptions = (key) => {
     if (!lookups || !lookups[key]) return [];
     return lookups[key].map((item) => ({
@@ -502,44 +667,53 @@ const LeadStaticPage = () => {
     setActivityForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleCreateActivity = async () => {
-    if (!lead) return;
-    if (!activityForm.title && !activityForm.info) {
-      toast.error("Please enter title or info");
-      return;
-    }
+const handleCreateActivity = async () => {
+  if (!lead) return;
 
-    setSavingActivity(true);
-    try {
-      const payload = {
-        sales_lead: lead.id,
-        title: activityForm.title || "Activity",
-        info: activityForm.info || "",
-        event_date: activityForm.event_date || null,
-      };
+  if (!activityForm.update_type) {
+    toast.error("Please select activity type");
+    return;
+  }
 
-      const res = await api.post("/sales/sales-lead-updates/", payload);
-      const newUpdate = res.data;
+  if (!activityForm.title && !activityForm.info) {
+    toast.error("Please enter title or info");
+    return;
+  }
 
-      setLead((prev) => ({
-        ...prev,
-        updates: [newUpdate, ...(prev?.updates || [])],
-      }));
+  setSavingActivity(true);
+  try {
+    const payload = {
+      sales_lead: lead.id,
+      update_type: activityForm.update_type, // 👈 important
+      title: activityForm.title || "Activity",
+      info: activityForm.info || "",
+      event_date: activityForm.event_date || null,
+    };
 
-      setActivityForm({
-        title: "",
-        info: "",
-        event_date: nowForInput(),
-      });
-      setShowActivityForm(false);
-      toast.success("Activity saved");
-    } catch (err) {
-      console.error("Failed to create update", err);
-      toast.error("Failed to save activity");
-    } finally {
-      setSavingActivity(false);
-    }
-  };
+    const res = await api.post("/sales/sales-lead-updates/", payload);
+    const newUpdate = res.data;
+
+    setLead((prev) => ({
+      ...prev,
+      updates: [newUpdate, ...(prev?.updates || [])],
+    }));
+
+    setActivityForm({
+      update_type: "FOLLOW_UP",
+      title: "",
+      info: "",
+      event_date: nowForInput(),
+    });
+    setShowActivityForm(false);
+    toast.success("Activity saved");
+  } catch (err) {
+    console.error("Failed to create update", err);
+    toast.error("Failed to save activity");
+  } finally {
+    setSavingActivity(false);
+  }
+};
+
 
   const handleAddDocClick = () => {
     if (fileInputRef.current) {
@@ -613,17 +787,62 @@ const LeadStaticPage = () => {
     navigate(`/inventory-planning/?project_id=${projectId}`);
   };
 
-const handleBookFlatClick = () => {
+const handleOpenLeadStatusModal = () => {
   if (!lead) return;
-  const projectId = lead.project;
-  if (!projectId) {
-    console.warn("No project id on lead", lead);
-    toast.error("Project is not linked for this lead.");
-    return;
-  }
-  navigate(`/booking/form/?project_id=${projectId}&lead_id=${lead.id}`);
+  setLeadStatusForm({
+    status: lead.status || "",
+    sub_status: lead.sub_status || "",
+    comment: "",
+  });
+  setLeadStatusModalOpen(true);
 };
 
+const handleSaveLeadStatus = async () => {
+  if (!lead) return;
+  if (!leadStatusForm.status) {
+    toast.error("Please select a status.");
+    return;
+  }
+
+  setSavingLeadStatus(true);
+  try {
+    const payload = {
+      status_id: Number(leadStatusForm.status),
+      // sirf tab bhejo jab sub_status select hua ho
+      ...(leadStatusForm.sub_status
+        ? { sub_status_id: Number(leadStatusForm.sub_status) }
+        : {}),
+      comment: leadStatusForm.comment || "",
+    };
+
+    await api.post(`/sales/sales-leads/${lead.id}/change-status/`, payload);
+
+    const resLead = await api.get(`/sales/sales-leads/${lead.id}/`, {
+      params: { include_all_stage: true },
+    });
+    setLead(resLead.data);
+
+    toast.success("Lead status updated");
+    setLeadStatusModalOpen(false);
+  } catch (err) {
+    console.error("Failed to update lead status", err);
+    toast.error("Failed to update lead status");
+  } finally {
+    setSavingLeadStatus(false);
+  }
+};
+
+
+  const handleBookFlatClick = () => {
+    if (!lead) return;
+    const projectId = lead.project;
+    if (!projectId) {
+      console.warn("No project id on lead", lead);
+      toast.error("Project is not linked for this lead.");
+      return;
+    }
+    navigate(`/booking/form/?project_id=${projectId}&lead_id=${lead.id}`);
+  };
 
   const handleQuotationClick = () => {
     if (!lead) return;
@@ -678,6 +897,13 @@ const handleBookFlatClick = () => {
         event_date: new Date().toISOString(),
         notes: "",
       };
+
+      setStatusForm((prev) => ({
+        ...prev,
+        status: lead.status || "",
+        sub_status: lead.sub_status || "",
+        // keep existing comment if user already typed something
+      }));
 
       const res = await api.post("/sales/sales-lead-stages/", payload);
       const newHistory = res.data;
@@ -938,8 +1164,6 @@ const handleBookFlatClick = () => {
     }
   };
 
-  // ====================== RENDER ======================
-
   if (loading) {
     return <div className="lead-page">Loading lead...</div>;
   }
@@ -963,58 +1187,131 @@ const handleBookFlatClick = () => {
     );
   }
 
+  // -------- MAIN RENDER --------
   return (
     <div className="lead-page">
-      {/* TOP HEADER */}
+      {/* ===== HEADER (same layout as CRM) ===== */}
       <div className="lead-header">
+        {/* LEFT: Lead name + basic info */}
         <div className="lead-header-left">
-          <div className="lead-title">{fullName}</div>
+          {/* Lead Name – centered only in this box */}
+          <h1 className="lead-title">{displayFullName}</h1>
 
+          {/* Owner / Mobile / Email grid */}
           <div className="lead-header-grid">
             <div className="field-compact">
               <label>Lead Owner:</label>
-              <input value={ownerName} readOnly />
+              <input
+                type="text"
+                value={lead?.current_owner_name || lead?.owner || ""}
+                readOnly
+              />
             </div>
+
             <div className="field-compact">
               <label>Mobile:</label>
-              <input value={mobile} readOnly />
+              <input
+                type="text"
+                value={lead?.mobile_number || lead?.phone || ""}
+                readOnly
+              />
             </div>
+
             <div className="field-compact">
               <label>Email:</label>
-              <input value={email} readOnly />
+              <input type="text" value={lead?.email || ""} readOnly />
             </div>
+
             <div className="field-compact">
               <label>Lead Status:</label>
-              <input value={statusName} readOnly />
+              <input
+                type="text"
+                value={displayStatusName}
+                readOnly
+                onClick={handleOpenLeadStatusModal}
+                style={{ cursor: "pointer" }}
+              />
             </div>
           </div>
+
+          {/* Lead status chip – uses name, not id */}
+          {/* <div className="lead-status-chip-row">
+            <span className="lead-status-label">Status:</span>
+            <button
+              type="button"
+              className="lead-status-chip"
+              onClick={handleOpenLeadStatusModal} // 👈 yeh add karo
+            >
+              {displayStatusName}
+            </button>
+          </div> */}
         </div>
 
+        {/* RIGHT: Action buttons (Inventory / Book Flat / Payments / etc.) */}
         <div className="lead-header-right">
           <div className="action-row-top">
-            <button className="card-btn" onClick={handleInventoryClick}>
+            <button
+              type="button"
+              className="card-btn"
+              onClick={handleInventoryClick}
+            >
               Inventory
             </button>
-            <button className="card-btn" onClick={handleBookFlatClick}>
+
+            <button
+              type="button"
+              className="card-btn"
+              onClick={handleBookFlatClick}
+            >
               Book Flat
             </button>
-            <button className="card-btn">Payments</button>
-            <button className="card-btn">Payment Link</button>
-            <button className="card-btn" onClick={handleQuotationClick}>
-              Quotation
+
+            <button
+              type="button"
+              className="card-btn"
+              onClick={handleQuotationClick}
+            >
+              Payments
             </button>
-            <button className="card-btn" onClick={handleSiteVisitClick}>
-              Site Visit
+
+            <button
+              type="button"
+              className="card-btn"
+              onClick={handleQuotationClick}
+            >
+              Payment Link
             </button>
           </div>
+
           <div className="action-row-bottom">
-            <button className="card-btn small">Send Feedback</button>
-            <button className="card-btn small">Save</button>
+            <button
+              type="button"
+              className="card-btn small"
+              onClick={handleQuotationClick}
+            >
+              Quotation
+            </button>
+
+            <button
+              type="button"
+              className="card-btn small"
+              onClick={handleSiteVisitClick}
+            >
+              Site Visit
+            </button>
+
+            <button
+              type="button"
+              className="card-btn small"
+              onClick={handleQuotationClick}
+            >
+              Send Feedback
+            </button>
           </div>
         </div>
       </div>
 
-      {/* STAGE BAR */}
+      {/* ===== STAGE BAR – same as before ===== */}
       <div className="lead-stages">
         {stages.length === 0 && (
           <div className="stage-item">
@@ -1229,6 +1526,7 @@ const handleBookFlatClick = () => {
                   onClick={() => {
                     setShowActivityForm(true);
                     setActivityForm({
+                      update_type: "FOLLOW_UP",
                       title: "",
                       info: "",
                       event_date: nowForInput(),
@@ -1252,18 +1550,19 @@ const handleBookFlatClick = () => {
                   <div className="field-full">
                     <label>Activity Type</label>
                     <select
-                      value={activityForm.update_type}
+                      value={activityForm.update_type || ""}
                       onChange={(e) =>
                         handleActivityChange("update_type", e.target.value)
                       }
                     >
+                      <option value="">Select type</option>
                       <option value="FOLLOW_UP">Follow Up</option>
                       <option value="REMINDER">Reminder</option>
                       <option value="NOTE">Note</option>
-                      <option value="WHATSAPP">WhatsApp</option>
+                      <option value="WHATSAPP">WhatsApp Message</option>
                       <option value="EMAIL">Email</option>
                       <option value="STATUS_CHANGE">Status Change</option>
-                      <option value="CALL">Call</option>
+                      <option value="CALL">Call Log</option>
                       <option value="OTHER">Other</option>
                     </select>
                   </div>
@@ -1634,8 +1933,6 @@ const handleBookFlatClick = () => {
         </div>
       </div>
 
-      {/* BOTTOM SECTIONS */}
-
       {/* CP Information */}
       <div className="section dashed-top">
         <div
@@ -1652,13 +1949,10 @@ const handleBookFlatClick = () => {
               <div className="field-full">
                 <label>Referral Code</label>
                 <input
-                  value={cpInfoForm.referral_code}
-                  onChange={(e) =>
-                    setCpInfoForm((prev) => ({
-                      ...prev,
-                      referral_code: e.target.value,
-                    }))
+                  value={
+                    cpInfoForm.referral_code || lead.cp_referral_code || ""
                   }
+                  readOnly
                 />
               </div>
 
@@ -1746,25 +2040,57 @@ const handleBookFlatClick = () => {
         </div>
         {!collapsedSections.proposal && (
           <div className="section-body">
-            <label>Attachment:</label>
-            <div className="proposal-upload-row">
-              <input
-                type="file"
-                multiple
-                onChange={(e) => {
-                  const files = Array.from(e.target.files || []);
-                  setProposalFiles(files);
-                }}
-              />
-              {proposalFiles.length > 0 && (
-                <div className="proposal-file-list">
-                  {proposalFiles.map((f) => (
-                    <div key={f.name} className="proposal-file-item">
-                      {f.name}
-                    </div>
-                  ))}
+            {/* View PDFs only */}
+            <div className="proposal-files">
+              {quotationId && (
+                <div className="proposal-file-group">
+                  <div className="proposal-file-title">Quotation</div>
+                  <button
+                    type="button"
+                    className="btn-primary proposal-view-btn"
+                    onClick={handleViewQuotationPdf}
+                  >
+                    View Quotation PDF
+                  </button>
                 </div>
               )}
+
+              {bookingId && (
+                <div className="proposal-file-group">
+                  <div className="proposal-file-title">Booking Form</div>
+                  <button
+                    type="button"
+                    className="btn-primary proposal-view-btn"
+                    onClick={handleViewBookingPdf}
+                  >
+                    View Booking PDF
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Upload extra proposal docs – same as before */}
+            <div className="proposal-attachment">
+              <label>Attachment:</label>
+              <div className="proposal-upload-row">
+                <input
+                  type="file"
+                  multiple
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files || []);
+                    setProposalFiles(files);
+                  }}
+                />
+                {proposalFiles.length > 0 && (
+                  <div className="proposal-file-list">
+                    {proposalFiles.map((f) => (
+                      <div key={f.name} className="proposal-file-item">
+                        {f.name}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -2412,6 +2738,98 @@ const handleBookFlatClick = () => {
                 disabled={savingStage}
               >
                 {savingStage ? "Updating..." : "Yes, move"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {leadStatusModalOpen && (
+        <div className="modal-backdrop">
+          <div className="modal">
+            <div className="modal-title">Change Lead Status</div>
+            <div className="modal-body">
+              {/* STATUS SELECT */}
+              <div className="field-full">
+                <label>Status</label>
+                <select
+                  value={leadStatusForm.status || ""}
+                  onChange={(e) =>
+                    setLeadStatusForm((prev) => ({
+                      ...prev,
+                      status: e.target.value ? Number(e.target.value) : "",
+                      // status change hote hi purana sub_status clear karo
+                      sub_status: "",
+                    }))
+                  }
+                >
+                  <option value="">Select status</option>
+                  {leadStatusOptions.map((s) => (
+                    <option key={s.value} value={s.value}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* SUB STATUS SELECT – sirf ek rakho, duplicate waala hata do */}
+              <div className="field-full">
+                <label>Sub Status</label>
+                <select
+                  value={leadStatusForm.sub_status || ""}
+                  onChange={(e) =>
+                    setLeadStatusForm((prev) => ({
+                      ...prev,
+                      sub_status: e.target.value ? Number(e.target.value) : "",
+                    }))
+                  }
+                  disabled={!leadStatusForm.status}
+                >
+                  <option value="">
+                    {leadStatusForm.status
+                      ? "Select sub status"
+                      : "Select status first"}
+                  </option>
+                  {leadSubStatusOptions.map((ss) => (
+                    <option key={ss.value} value={ss.value}>
+                      {ss.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="field-full">
+                <label>Note</label>
+                <textarea
+                  className="input-plain tall"
+                  placeholder="Write a note for this status change (optional)"
+                  value={leadStatusForm.comment}
+                  onChange={(e) =>
+                    setLeadStatusForm((prev) => ({
+                      ...prev,
+                      comment: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="modal-actions">
+              <button
+                className="btn-secondary"
+                type="button"
+                onClick={() => setLeadStatusModalOpen(false)}
+                disabled={savingLeadStatus}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn-primary"
+                type="button"
+                onClick={handleSaveLeadStatus}
+                disabled={savingLeadStatus || !leadStatusForm.status}
+              >
+                {savingLeadStatus ? "Updating..." : "Save"}
               </button>
             </div>
           </div>

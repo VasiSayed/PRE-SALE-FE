@@ -74,9 +74,58 @@ export default function SiteVisitList() {
     []
   );
 
-  useEffect(() => {
-    fetchList({ page: 1 });
-  }, []);
+    useEffect(() => {
+      const loadScopeAndFetch = async () => {
+        try {
+          const res = await axiosInstance.get("/client/my-scope/");
+          const data = res.data || {};
+
+          // Projects extract karne ka generic logic (shape kuch bhi ho)
+          let scopeProjects = [];
+
+          if (Array.isArray(data.projects)) {
+            scopeProjects = data.projects.map((p) => ({
+              id: p.id ?? p.project_id,
+              name:
+                p.name ?? p.project_name ?? `Project #${p.id || p.project_id}`,
+            }));
+          } else if (Array.isArray(data.accesses)) {
+            // fallback if your scope response has `accesses`
+            scopeProjects = data.accesses.map((a) => ({
+              id: a.project_id,
+              name: a.project_name,
+            }));
+          }
+
+          // Sirf valid ids rakho
+          scopeProjects = scopeProjects.filter((p) => p.id);
+          setProjects(scopeProjects);
+
+          if (scopeProjects.length > 0) {
+            // ✅ Auto-select first project (even if multiple)
+            const defaultProjectId = String(scopeProjects[0].id);
+            setProject(defaultProjectId);
+
+            // summary API ko project id ke saath call karo
+            fetchList({
+              page: 1,
+              project: defaultProjectId,
+            });
+          } else {
+            // no projects → simple fetch
+            fetchList({ page: 1 });
+          }
+        } catch (err) {
+          console.error("Failed to load my-scope", err);
+          // fallback without project filter
+          fetchList({ page: 1 });
+        }
+      };
+
+      loadScopeAndFetch();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
 
   const totalPages = Math.max(1, Math.ceil(count / 10));
 
@@ -116,6 +165,7 @@ export default function SiteVisitList() {
     });
   };
 
+  
   const applyFilters = () => {
     setModalOpen(false);
     fetchList({
@@ -360,7 +410,7 @@ export default function SiteVisitList() {
               >
                 <option value="">All Projects</option>
                 {projects.map((p) => (
-                  <option key={p.id} value={p.name}>
+                  <option key={p.id} value={p.id}>
                     {p.name}
                   </option>
                 ))}

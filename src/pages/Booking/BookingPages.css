@@ -288,3 +288,308 @@
 .booking-btn-secondary:hover {
   background: #f3f6fb;
 }
+
+
+/* Card overall */
+.booking-detail-card {
+  max-width: 820px;
+  margin: 12px auto;
+  padding: 14px 16px;
+  border-radius: 8px;
+  border: 1px solid #e2e5ec;
+  background: #ffffff;
+  font-size: 12px;
+}
+
+/* Header */
+.booking-detail-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.booking-detail-header-left {
+  flex: 1;
+}
+
+.booking-detail-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.booking-detail-property {
+  font-size: 12px;
+  color: #4b5563;
+  margin-top: 2px;
+}
+
+.booking-detail-code {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.booking-detail-project-tag {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 12px;
+  border: 1px solid #d1d5db;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.booking-detail-header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.booking-status-chip-main {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  border: none;
+  background-color: #102a54;
+  color: white;
+}
+
+.booking-detail-amount {
+  font-weight: 600;
+  font-size: 14px;
+  color: #111827;
+}
+
+.rupee-symbol {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+/* Sections */
+.booking-section {
+  margin-top: 10px;
+}
+
+.booking-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 4px;
+}
+
+.booking-section-body {
+  background-color: #f9fafb;
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.booking-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 12px;
+}
+
+.booking-field {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.booking-field-label {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.booking-field-value {
+  font-size: 12px;
+  color: #111827;
+  word-break: break-word;
+}
+
+.booking-field-full {
+  grid-column: 1 / -1;
+}
+
+/* Banner (subtle) */
+.booking-banner {
+  padding: 8px 10px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.booking-banner-warning {
+  background-color: #fffdf5;
+  border: 1px solid #facc6b;
+  color: #92400e;
+}
+
+.booking-banner-title {
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+/* Draft note bottom */
+.booking-draft-note-bottom {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  background-color: #fffdf5;
+  border: 1px dashed #facc6b;
+  color: #92400e;
+}
+
+/* Buttons */
+.booking-detail-footer {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.booking-btn-primary,
+.booking-btn-secondary {
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 12px;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.booking-btn-primary {
+  background-color: #102a54;
+  color: #ffffff;
+  border-color: #102a54;
+}
+
+.booking-btn-secondary {
+  background-color: #ffffff;
+  color: #374151;
+  border-color: #d1d5db;
+}
+
+.booking-btn-link {
+  font-size: 11px;
+  text-decoration: underline;
+  color: #1f2937;
+}
+
+/* Applicants */
+.booking-applicants-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.booking-applicant-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 8px 10px;
+  background-color: #ffffff;
+}
+
+.booking-applicant-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+
+.booking-applicant-role {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+
+.booking-applicant-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.booking-applicant-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 12px;
+}
+
+.booking-applicant-docs {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+}
+
+.booking-link {
+  font-size: 11px;
+  text-decoration: underline;
+}
+
+/* Attachments */
+.booking-attachments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.booking-attachment-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  background-color: #ffffff;
+}
+
+.booking-attachment-label {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.booking-attachment-type {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: #9ca3af;
+  margin-top: 2px;
+}
+
+.booking-attachment-action a {
+  font-size: 11px;
+}
+
+/* Download button small */
+.booking-download-btn {
+  margin-top: 2px;
+}
+
+/* PRINT: sirf booking card print ho */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  #booking-detail-print-wrap,
+  #booking-detail-print-wrap * {
+    visibility: visible;
+  }
+
+  #booking-detail-print-wrap {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    max-width: 100%;
+    border-radius: 0;
+  }
+
+  .booking-detail-footer,
+  .booking-download-btn {
+    display: none !important;
+  }
+}
+

@@ -1082,21 +1082,14 @@ if (!selectedUnitId) {
       return;
     }
 
-    // KYC validation
-    if (requiresKyc === "YES") {
-      if (!kycRequestId) {
-        toast.error(
-          "Please generate KYC and wait for approval before booking."
-        );
-        return;
-      }
-      if (kycRequestStatus !== "APPROVED") {
-        alert(
-          `KYC is ${kycRequestStatus}. Booking allowed only after APPROVED.`
-        );
-        return;
-      }
-    }
+if (requiresKyc === "YES") {
+  if (!kycRequestId) {
+    toast.error("Please send KYC request before saving booking.");
+    return;
+  }
+}
+
+
 
     setSaving(true);
     toast.info("Submitting booking...");
@@ -3102,9 +3095,8 @@ if (!selectedUnitId) {
                       <div className="bf-kyc-box">
                         <div className="bf-row">
                           <div className="bf-col">
-                            <label className="bf-label">
-                              Deal Amount for KYC
-                            </label>
+                            <label className="bf-label">KYC</label>
+                            {/* Agar sirf "KYC" chahiye label, toh upar text ko "KYC" kar do */}
                             <input
                               className="bf-input"
                               type="number"
@@ -3123,44 +3115,13 @@ if (!selectedUnitId) {
                               onClick={handleSendKycRequest}
                               disabled={!selectedUnitId || !kycDealAmount}
                             >
-                              {kycRequestId
-                                ? "Resend / Update KYC Request"
-                                : "Send KYC Request to Admin"}
+                              Send KYC Request
                             </button>
                           </div>
                         </div>
 
-                        {kycRequestId && (
-                          <div className="bf-kyc-status-chip">
-                            <div className="bf-kyc-status-main">
-                              <span>
-                                KYC Request ID: <strong>{kycRequestId}</strong>
-                              </span>
-                              <span
-                                className={`bf-kyc-badge bf-kyc-${(
-                                  kycRequestStatus || "PENDING"
-                                ).toLowerCase()}`}
-                              >
-                                Status: {kycRequestStatus || "PENDING"}
-                              </span>
-                            </div>
-
-                            <div className="bf-kyc-status-actions">
-                              <button
-                                type="button"
-                                className="bf-btn-icon"
-                                title="Refresh KYC Status"
-                                onClick={handleRefreshKycStatus}
-                              >
-                                ⟳
-                              </button>
-                              <small>
-                                Booking can be created only after KYC is{" "}
-                                <strong>APPROVED</strong>.
-                              </small>
-                            </div>
-                          </div>
-                        )}
+                        {/* No status / ID / refresh / "only after APPROVED" message.
+                            Admin jab approve karega to booking backend side se confirm ho sakti hai. */}
                       </div>
                     )}
                   </div>

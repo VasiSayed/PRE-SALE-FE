@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { LeadAPI } from "../../../api/endpoints";
+import SearchBar from "../../../common/SearchBar";
 import "./LeadsList.css";
 
 function debounce(fn, delay) {
@@ -27,40 +28,76 @@ export default function LeadsList() {
     project: "",
   });
 
-  const fetchList = async (opts = {}) => {
-    setLoading(true);
-    try {
-      const params = { 
-        search: opts.q ?? q, 
-        page: opts.page ?? page,
-        status: opts.status ?? filters.status,
-        source: opts.source ?? filters.source,
-        project: opts.project ?? filters.project,
-      };
+  const [modalOpen, setModalOpen] = useState(false);
 
-      const data = await LeadAPI.list(params);
+  const statusOptions = [
+    { value: "", label: "All Status" },
+    { value: "new", label: "New" },
+    { value: "contacted", label: "Contacted" },
+    { value: "qualified", label: "Qualified" },
+    { value: "converted", label: "Converted" },
+    { value: "lost", label: "Lost" },
+  ];
 
-      const items = Array.isArray(data) ? data : data.results ?? [];
-      setRows(items);
-      setCount(Array.isArray(data) ? items.length : data.count ?? items.length);
-    } catch (e) {
-      console.error("Failed to load leads", e);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // ---------- 1) Stable fetchList using useCallback ----------
+  const fetchList = useCallback(
+    async (opts = {}) => {
+      setLoading(true);
+      try {
+        const searchParam =
+          typeof opts.q === "string" ? opts.q : q || undefined;
+        const pageParam =
+          typeof opts.page === "number" && opts.page > 0
+            ? opts.page
+            : page || 1;
 
-  const debouncedSearch = useMemo(
-    () => debounce((val) => fetchList({ q: val, page: 1 }), 350),
-    []
+        const params = {
+          search: searchParam,
+          page: pageParam,
+          status: opts.status ?? filters.status,
+          source: opts.source ?? filters.source,
+          project: opts.project ?? filters.project,
+        };
+
+        const data = await LeadAPI.list(params);
+
+        const items = Array.isArray(data) ? data : data.results ?? [];
+        setRows(items);
+        setCount(
+          Array.isArray(data) ? items.length : data.count ?? items.length
+        );
+      } catch (e) {
+        console.error("Failed to load leads", e);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [q, page, filters]
   );
 
+  // ---------- 2) Debounced search that uses latest fetchList ----------
+  const debouncedSearch = useMemo(
+    () =>
+      debounce((val) => {
+        // always search from page 1 when typing
+        fetchList({ q: val, page: 1 });
+      }, 350),
+    [fetchList]
+  );
+
+  // ---------- 3) Initial load ----------
   useEffect(() => {
     fetchList({ page: 1 });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchList]);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(count / 10)), [count]);
+
+  // ---------- 4) SearchBar handler ----------
+  const handleSearchChange = (value) => {
+    setQ(value);
+    setPage(1);
+    debouncedSearch(value);
+  };
 
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this lead?")) {
@@ -77,12 +114,40 @@ export default function LeadsList() {
     }
   };
 
+  const resetFilters = () => {
+    const cleared = { status: "", source: "", project: "" };
+    setFilters(cleared);
+    setQ("");
+    setPage(1);
+    setModalOpen(false);
+
+    // page 1 + no filters
+    fetchList({ ...cleared, q: "", page: 1 });
+  };
+
+  const applyFilters = () => {
+    setPage(1);
+    setModalOpen(false);
+
+    // current filters + current search
+    fetchList({
+      status: filters.status,
+      source: filters.source,
+      project: filters.project,
+      q,
+      page: 1,
+    });
+  };
+
   const getStatusBadgeClass = (status) => {
     const statusLower = (status || "").toLowerCase();
-    if (statusLower.includes("new") || statusLower.includes("fresh")) return "badge-new";
-    if (statusLower.includes("contact") || statusLower.includes("working")) return "badge-contacted";
+    if (statusLower.includes("new") || statusLower.includes("fresh"))
+      return "badge-new";
+    if (statusLower.includes("contact") || statusLower.includes("working"))
+      return "badge-contacted";
     if (statusLower.includes("qualified")) return "badge-qualified";
-    if (statusLower.includes("won") || statusLower.includes("converted")) return "badge-converted";
+    if (statusLower.includes("won") || statusLower.includes("converted"))
+      return "badge-converted";
     if (statusLower.includes("lost")) return "badge-lost";
     return "badge-default";
   };
@@ -92,74 +157,32 @@ export default function LeadsList() {
       <div className="leads-list-container">
         {/* Header */}
         <div className="list-header">
-          <div className="search-section">
-            <div className="search-box">
-              <span className="search-icon">🔍</span>
-              <input
-                type="text"
-                placeholder="Search leads by name, email, phone..."
-                value={q}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setQ(value);
-                  debouncedSearch(value);
-                }}
-                className="search-input"
-              />
-            </div>
-
-            {/* Filters */}
-            <select
-              className="filter-select"
-              value={filters.status}
-              onChange={(e) => {
-                const newFilters = { ...filters, status: e.target.value };
-                setFilters(newFilters);
-                fetchList({ ...newFilters, page: 1 });
-              }}
-            >
-              <option value="">All Status</option>
-              <option value="new">New</option>
-              <option value="contacted">Contacted</option>
-              <option value="qualified">Qualified</option>
-              <option value="converted">Converted</option>
-              <option value="lost">Lost</option>
-            </select>
-
-            <button className="btn-add" onClick={() => navigate("/leads/new")}>
-              Add Lead
-            </button>
+          {/* LEFT: Search */}
+          <div className="list-header-left">
+            <SearchBar
+              value={q}
+              onChange={handleSearchChange}
+              placeholder="Search leads by name, email, phone..."
+              wrapperClassName="search-box"
+            />
           </div>
 
-          <div className="pagination-info">
-            {count > 0 ? (
-              <>
-                {(page - 1) * 10 + 1}-{Math.min(page * 10, count)} of {count}
-              </>
-            ) : (
-              "No results"
-            )}
+          {/* RIGHT: Filters + Add Lead */}
+          <div className="list-header-right">
             <button
-              className="pagination-btn"
-              onClick={() => {
-                const newPage = page - 1;
-                setPage(newPage);
-                fetchList({ page: newPage });
-              }}
-              disabled={page === 1}
+              type="button"
+              className="filter-btn"
+              onClick={() => setModalOpen(true)}
             >
-              ❮
+              <i className="fa fa-filter" /> Filters
             </button>
+
             <button
-              className="pagination-btn"
-              onClick={() => {
-                const newPage = page + 1;
-                setPage(newPage);
-                fetchList({ page: newPage });
-              }}
-              disabled={page >= totalPages}
+              className="btn-add"
+              style={{ backgroundColor: "#19376D", borderColor: "#19376D" }}
+              onClick={() => navigate("/leads/new")}
             >
-              ❯
+              Add Lead
             </button>
           </div>
         </div>
@@ -187,10 +210,13 @@ export default function LeadsList() {
               <tbody>
                 {rows.length > 0 ? (
                   rows.map((lead) => {
-                    const leadId = lead.lead_code || lead.code || `L-${lead.id}`;
+                    const leadId =
+                      lead.lead_code || lead.code || `L-${lead.id}`;
                     const leadName =
                       lead.lead_name ||
-                      [lead.first_name, lead.last_name].filter(Boolean).join(" ") ||
+                      [lead.first_name, lead.last_name]
+                        .filter(Boolean)
+                        .join(" ") ||
                       "-";
                     const contact =
                       lead.mobile_number ||
@@ -203,9 +229,9 @@ export default function LeadsList() {
                       lead.lead_source_name ||
                       lead.source?.name ||
                       "-";
-                    const project = 
-                      lead.project_name || 
-                      lead.project?.name || 
+                    const project =
+                      lead.project_name ||
+                      lead.project?.name ||
                       lead.project_lead?.project?.name ||
                       "-";
                     const budget =
@@ -257,7 +283,11 @@ export default function LeadsList() {
                         <td>{project}</td>
                         <td>{budget}</td>
                         <td>
-                          <span className={`status-badge ${getStatusBadgeClass(status)}`}>
+                          <span
+                            className={`status-badge ${getStatusBadgeClass(
+                              status
+                            )}`}
+                          >
                             {status}
                           </span>
                         </td>
@@ -276,7 +306,97 @@ export default function LeadsList() {
             </table>
           )}
         </div>
+
+        {/* Pagination BELOW table */}
+        <div className="pagination-info">
+          {count > 0 ? (
+            <>
+              {(page - 1) * 10 + 1}-{Math.min(page * 10, count)} of {count}
+            </>
+          ) : (
+            "No results"
+          )}
+          <button
+            className="pagination-btn"
+            onClick={() => {
+              const newPage = page - 1;
+              setPage(newPage);
+              fetchList({ page: newPage });
+            }}
+            disabled={page === 1}
+          >
+            ❮
+          </button>
+          <button
+            className="pagination-btn"
+            onClick={() => {
+              const newPage = page + 1;
+              setPage(newPage);
+              fetchList({ page: newPage });
+            }}
+            disabled={page >= totalPages}
+          >
+            ❯
+          </button>
+        </div>
       </div>
+
+      {/* Filter Modal */}
+      {modalOpen && (
+        <div className="filter-modal-overlay">
+          <div className="filter-modal">
+            <div className="filter-modal-header">
+              <h3>🔍 Filters</h3>
+              <button
+                className="filter-close"
+                onClick={() => setModalOpen(false)}
+                type="button"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="filter-body">
+              <label className="filter-label">Status</label>
+              <select
+                className="filter-select"
+                value={filters.status}
+                onChange={(e) =>
+                  setFilters((prev) => ({
+                    ...prev,
+                    status: e.target.value,
+                  }))
+                }
+              >
+                {statusOptions.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+
+              {/* future me yaha Source / Project bhi add kar sakte hain */}
+            </div>
+
+            <div className="filter-actions">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={resetFilters}
+              >
+                Reset
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={applyFilters}
+              >
+                Apply Filters
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { SetupAPI, URLS } from "../../../api/endpoints";
 import api from "../../../api/axiosInstance";
 import { showToast } from "../../../utils/toast";
+import "./SaleAddLead.css"; // 👈 add this (or change to your CSS file name)
 
 const SECTION_KEY = "lead_setup";
 const SECTION_TITLE = "Lead Setup";
@@ -33,7 +34,7 @@ const FIELDS = [
     name: "email",
     label: "Email",
     type: "text",
-    required: false,
+    required: true, // ✅ email now mandatory
     span: 1,
     parse: "identity",
   },
@@ -150,7 +151,7 @@ const FIELDS = [
     parse: "number",
     options: [],
   },
-  // 🔹 Channel Partner dropdown (based on source/sub-source)
+  // Channel Partner dropdown (based on source/sub-source)
   {
     section: "lead",
     name: "channel_partner_id",
@@ -161,7 +162,7 @@ const FIELDS = [
     parse: "number",
     options: [],
   },
-  // 🔹 Unknown CP text box
+  // Unknown CP text box
   {
     section: "lead",
     name: "unknown_channel_partner",
@@ -362,6 +363,16 @@ const normalizeScalarValue = (value, field) => {
 const SaleAddLead = ({ handleLeadSubmit }) => {
   const [form, setForm] = useState(buildInitialFormState);
 
+  // OTP state
+  const [emailOtpSending, setEmailOtpSending] = useState(false);
+  const [emailOtpVerifying, setEmailOtpVerifying] = useState(false);
+  const [emailOtpCode, setEmailOtpCode] = useState("");
+  const [emailVerified, setEmailVerified] = useState(false);
+
+  // Modal + pending body for save
+  const [showEmailOtpModal, setShowEmailOtpModal] = useState(false);
+  const [pendingSaveBody, setPendingSaveBody] = useState(null);
+
   // collapsible groups
   const [openGroups, setOpenGroups] = useState({
     lead: true,
@@ -372,7 +383,7 @@ const SaleAddLead = ({ handleLeadSubmit }) => {
   const [projects, setProjects] = useState([]);
   const [masters, setMasters] = useState(null);
   const [loadingMasters, setLoadingMasters] = useState(false);
-const [cpSearch, setCpSearch] = useState("");
+  const [cpSearch, setCpSearch] = useState("");
   const [channelPartners, setChannelPartners] = useState([]);
   const [loadingCP, setLoadingCP] = useState(false);
 
@@ -410,82 +421,192 @@ const [cpSearch, setCpSearch] = useState("");
   }, [form.project_id]);
 
   // ------- when source / sub-source changes, fetch Channel Partners -------
-useEffect(() => {
-  const sourceId = form.lead_source_id;
-  const subSourceId = form.lead_sub_source_id;
+  useEffect(() => {
+    const sourceId = form.lead_source_id;
+    const subSourceId = form.lead_sub_source_id;
 
-  // no source selected => clear
-  if (!sourceId) {
-    setChannelPartners([]);
-    return;
-  }
-
-  setLoadingCP(true);
-
-  // path-style URL: /api/channel/partners/by-source/{source_id}/
-  const url = `${URLS.channelPartnersBySource}${sourceId}/`;
-
-  const config = subSourceId ? { params: { sub_source_id: subSourceId } } : {};
-
-  api
-    .get(url, config)
-    .then((res) => {
-      const data = res.data;
-      let list = [];
-
-      if (Array.isArray(data)) {
-        // in case backend ever returns plain list
-        list = data;
-      } else if (Array.isArray(data.results)) {
-        // DRF paginated response
-        list = data.results;
-      } else {
-        list = [];
-      }
-
-      setChannelPartners(list);
-    })
-    .catch((err) => {
-      console.error("Failed to load channel partners", err);
+    // no source selected => clear
+    if (!sourceId) {
       setChannelPartners([]);
-      showToast("Failed to load channel partners", "error");
-    })
-    .finally(() => setLoadingCP(false));
-}, [form.lead_source_id, form.lead_sub_source_id]);
+      return;
+    }
+
+    setLoadingCP(true);
+
+    const url = `${URLS.channelPartnersBySource}${sourceId}/`;
+    const config = subSourceId
+      ? { params: { sub_source_id: subSourceId } }
+      : {};
+
+    api
+      .get(url, config)
+      .then((res) => {
+        const data = res.data;
+        let list = [];
+
+        if (Array.isArray(data)) {
+          list = data;
+        } else if (Array.isArray(data.results)) {
+          list = data.results;
+        } else {
+          list = [];
+        }
+
+        setChannelPartners(list);
+      })
+      .catch((err) => {
+        console.error("Failed to load channel partners", err);
+        setChannelPartners([]);
+        showToast("Failed to load channel partners", "error");
+      })
+      .finally(() => setLoadingCP(false));
+  }, [form.lead_source_id, form.lead_sub_source_id]);
 
   const toggleGroup = (groupKey) => {
     setOpenGroups((prev) => ({ ...prev, [groupKey]: !prev[groupKey] }));
   };
 
-const handleChange = (name, value) => {
-  setForm((prev) => {
-    const next = { ...prev, [name]: value };
+  const handleChange = (name, value) => {
+    setForm((prev) => {
+      const next = { ...prev, [name]: value };
 
-    // When main source changes: reset sub-source + CP (but NOT assign_to)
-    if (name === "lead_source_id") {
-      next.lead_sub_source_id = "";
-      next.channel_partner_id = "";
-      setCpSearch(""); // <-- NEW
-    }
-
-    if (name === "lead_sub_source_id") {
-      next.channel_partner_id = "";
-      setCpSearch(""); // <-- NEW
-    }
-
-    // When Assign To is changed, update internal round_robin flag
-    if (name === "assign_to_id") {
-      if (value === ROUND_ROBIN_VALUE) {
-        next.round_robin = true;
-      } else {
-        next.round_robin = false;
+      // Email change => OTP reset
+      if (name === "email") {
+        setEmailVerified(false);
+        setEmailOtpCode("");
       }
+
+      // When main source changes: reset sub-source + CP
+      if (name === "lead_source_id") {
+        next.lead_sub_source_id = "";
+        next.channel_partner_id = "";
+        setCpSearch("");
+      }
+
+      if (name === "lead_sub_source_id") {
+        next.channel_partner_id = "";
+        setCpSearch("");
+      }
+
+      // assign_to → round robin state
+      if (name === "assign_to_id") {
+        if (value === ROUND_ROBIN_VALUE) {
+          next.round_robin = true;
+        } else {
+          next.round_robin = false;
+        }
+      }
+
+      return next;
+    });
+  };
+
+  const handleSendEmailOtp = async () => {
+    const email = (form.email || "").trim();
+    if (!email) {
+      showToast("Please enter email first.", "error");
+      return;
     }
 
-    return next;
-  });
-};
+    setEmailVerified(false);
+    setEmailOtpCode("");
+    setEmailOtpSending(true);
 
+    try {
+      await api.post("/sales/sales-leads/email-otp/start/", { email });
+      showToast("OTP sent to email.", "success");
+    } catch (err) {
+      console.error("Failed to send email OTP", err);
+      let msg = "Failed to send OTP.";
+      const data = err?.response?.data;
+      if (data?.detail) msg = data.detail;
+      if (data?.email)
+        msg = Array.isArray(data.email)
+          ? data.email.join(" ")
+          : String(data.email);
+      showToast(msg, "error");
+    } finally {
+      setEmailOtpSending(false);
+    }
+  };
+
+  const saveLead = async (body) => {
+    try {
+      const res = await api.post(URLS.salesLeadBundleCreate, body);
+      console.log("✅ Lead create success", res.data);
+
+      showToast("Lead saved successfully", "success");
+
+      if (typeof handleLeadSubmit === "function") {
+        handleLeadSubmit(res.data);
+      }
+
+      setForm(buildInitialFormState());
+      setMasters(null);
+      setChannelPartners([]);
+      setEmailVerified(false);
+      setEmailOtpCode("");
+    } catch (err) {
+      console.error("Failed to save lead", err);
+
+      let msg = "Failed to save lead. Please check the data.";
+      const data = err?.response?.data;
+      if (data) {
+        if (typeof data === "string") msg = data;
+        else if (data.detail) msg = data.detail;
+        else if (data.lead && typeof data.lead === "object") {
+          const firstKey = Object.keys(data.lead)[0];
+          const firstVal = data.lead[firstKey];
+          msg = Array.isArray(firstVal) ? firstVal.join(" ") : String(firstVal);
+        }
+      }
+
+      showToast(msg, "error");
+      throw err;
+    }
+  };
+
+  const handleVerifyOtpAndSave = async () => {
+    const email = (form.email || "").trim();
+    const otp = (emailOtpCode || "").trim();
+
+    if (!email) {
+      showToast("Please enter email first.", "error");
+      return;
+    }
+    if (!otp) {
+      showToast("Please enter OTP.", "error");
+      return;
+    }
+
+    setEmailOtpVerifying(true);
+    try {
+      const res = await api.post("/sales/sales-leads/email-otp/verify/", {
+        email,
+        otp,
+      });
+
+      showToast(res.data?.detail || "Email verified.", "success");
+      setEmailVerified(true);
+
+      if (pendingSaveBody) {
+        await saveLead(pendingSaveBody);
+        setPendingSaveBody(null);
+        setShowEmailOtpModal(false);
+      } else {
+        setShowEmailOtpModal(false);
+      }
+    } catch (err) {
+      console.error("Failed to verify email OTP", err);
+      setEmailVerified(false);
+      let msg = "Failed to verify OTP.";
+      const data = err?.response?.data;
+      if (data?.detail) msg = data.detail;
+      showToast(msg, "error");
+    } finally {
+      setEmailOtpVerifying(false);
+    }
+  };
 
   const isFieldHidden = (field) =>
     evaluateExpression(field.hiddenWhen, {
@@ -567,14 +688,12 @@ const handleChange = (name, value) => {
         return toOptions(masters.offering_types);
 
       case "lead_owner_id":
-        // Owner = normal assign_users list
         return (masters.assign_users || []).map((u) => ({
           value: u.id,
           label: u.name || u.username,
         }));
 
       case "assign_to_id": {
-        // Assign To = ONLY users + special "Round Robin" option
         const userOptions = (masters.assign_users || []).map((u) => ({
           value: u.id,
           label: u.name || u.username,
@@ -586,7 +705,6 @@ const handleChange = (name, value) => {
       }
 
       case "channel_partner_id": {
-        // Channel Partner dropdown: based on channelPartners API
         const term = (cpSearch || "").toLowerCase();
 
         let opts = (channelPartners || []).map((cp) => {
@@ -690,130 +808,11 @@ const handleChange = (name, value) => {
     return payload;
   };
 
-  // const onSubmit = async (e) => {
-  //   e.preventDefault();
-  //   if (!validateRequired()) return;
-
-  //   const isRoundRobin = form.assign_to_id === ROUND_ROBIN_VALUE;
-
-  //   const normalized = buildPayload();
-
-  //   if (!normalized.project_id) {
-  //     showToast("Please select a project", "error");
-  //     return;
-  //   }
-
-  //   // Per your note:
-  //   //  - Round Robin ON  => round_robin: true, assign_to: []
-  //   //  - Round Robin OFF => round_robin: false, assign_to: <user_id|null>
-  //   const assignToValue = isRoundRobin
-  //     ? []
-  //     : normalized.assign_to_id || null;
-
-  //   // ✅ Backend ab sirf `project` expect karta hai
-  //   const leadPayload = {
-  //     project: normalized.project_id,
-
-  //     first_name: normalized.first_name || null,
-  //     last_name: normalized.last_name || null,
-
-  //     email: normalized.email,
-  //     mobile_number: normalized.mobile_number,
-  //     tel_res: normalized.tel_res,
-  //     tel_office: normalized.tel_office,
-
-  //     company: normalized.company,
-  //     budget: normalized.budget,
-  //     annual_income: normalized.annual_income,
-
-  //     // taxonomy
-  //     classification: normalized.lead_classification_id,
-  //     sub_classification: normalized.lead_subclass_id,
-  //     source: normalized.lead_source_id,
-  //     sub_source: normalized.lead_sub_source_id,
-  //     status: normalized.status_id,
-  //     sub_status: normalized.sub_status_id,
-  //     purpose: normalized.purpose_id,
-
-  //     // owners
-  //     current_owner: normalized.lead_owner_id || null,
-  //     // first_owner: normalized.lead_owner_id || null,  // if you want
-
-  //     // 🔹 CP / walking / round-robin
-  //     channel_partner: normalized.channel_partner_id || null,
-  //     unknown_channel_partner: normalized.channel_partner_id
-  //       ? null
-  //       : normalized.unknown_channel_partner || "",
-  //     walking: !!normalized.walking,
-  //     round_robin: isRoundRobin,
-
-  //     assign_to: assignToValue,
-
-  //     offering_types:
-  //       normalized.offering_type != null && normalized.offering_type !== ""
-  //         ? [normalized.offering_type]
-  //         : [],
-
-  //     address: {
-  //       flat_or_building: normalized.flat_no || "",
-  //       area: normalized.area || "",
-  //       pincode: normalized.pin_code || "",
-  //       city: normalized.city || "",
-  //       state: normalized.state || "",
-  //       country: normalized.country || "",
-  //       description: normalized.description || "",
-  //     },
-  //   };
-
-  //   const body = {
-  //     lead: leadPayload,
-  //     first_update: {
-  //       title: "Lead created",
-  //       info: `${normalized.first_name || ""} ${
-  //         normalized.last_name || ""
-  //       }`.trim(),
-  //     },
-  //   };
-
-  //   try {
-  //     const res = await api.post(URLS.salesLeadBundleCreate, body);
-  //     showToast("Lead saved successfully", "success");
-
-  //     if (typeof handleLeadSubmit === "function") {
-  //       handleLeadSubmit(res.data);
-  //     }
-
-  //     setForm(buildInitialFormState());
-  //     setMasters(null);
-  //     setChannelPartners([]);
-  //   } catch (err) {
-  //     console.error("Failed to save lead", err);
-
-  //     let msg = "Failed to save lead. Please check the data.";
-  //     const data = err?.response?.data;
-  //     if (data) {
-  //       if (typeof data === "string") msg = data;
-  //       else if (data.detail) msg = data.detail;
-  //       else if (data.lead && typeof data.lead === "object") {
-  //         const firstKey = Object.keys(data.lead)[0];
-  //         const firstVal = data.lead[firstKey];
-  //         msg = Array.isArray(firstVal) ? firstVal.join(" ") : String(firstVal);
-  //       }
-  //     }
-
-  //     showToast(msg, "error");
-  //   }
-  // };
-
-
   const onSubmit = async (e) => {
     e.preventDefault();
     if (!validateRequired()) return;
 
-    // 1) Check Round Robin from raw form value (before normalization)
     const isRoundRobin = form.assign_to_id === ROUND_ROBIN_VALUE;
-
-    // 2) Normalize all form fields
     const normalized = buildPayload();
 
     if (!normalized.project_id) {
@@ -821,7 +820,6 @@ const handleChange = (name, value) => {
       return;
     }
 
-    // 3) Build lead payload for backend
     const leadPayload = {
       project: normalized.project_id,
 
@@ -837,7 +835,6 @@ const handleChange = (name, value) => {
       budget: normalized.budget,
       annual_income: normalized.annual_income,
 
-      // taxonomy
       classification: normalized.lead_classification_id,
       sub_classification: normalized.lead_subclass_id,
       source: normalized.lead_source_id,
@@ -846,11 +843,8 @@ const handleChange = (name, value) => {
       sub_status: normalized.sub_status_id,
       purpose: normalized.purpose_id,
 
-      // owners
       current_owner: normalized.lead_owner_id || null,
-      // first_owner: normalized.lead_owner_id || null,  // if you decide to use
 
-      // CP / walking / round-robin
       channel_partner: normalized.channel_partner_id || null,
       unknown_channel_partner: normalized.channel_partner_id
         ? null
@@ -858,7 +852,6 @@ const handleChange = (name, value) => {
       walking: !!normalized.walking,
       round_robin: isRoundRobin,
 
-      // offering types as array
       offering_types:
         normalized.offering_type != null && normalized.offering_type !== ""
           ? [normalized.offering_type]
@@ -875,16 +868,13 @@ const handleChange = (name, value) => {
       },
     };
 
-    // 4) Only send assign_to when NOT round-robin
-    //    Backend rule: either assign_to OR round_robin, not both.
     if (
       !isRoundRobin &&
       normalized.assign_to_id != null &&
       normalized.assign_to_id !== ""
     ) {
-      leadPayload.assign_to = normalized.assign_to_id; // single user id
+      leadPayload.assign_to = normalized.assign_to_id;
     }
-    // If isRoundRobin === true => we don't set assign_to at all
 
     const body = {
       lead: leadPayload,
@@ -896,44 +886,26 @@ const handleChange = (name, value) => {
       },
     };
 
-try {
-  const res = await api.post(URLS.salesLeadBundleCreate, body);
-  console.log("✅ Lead create success", res.data); // <--- add this
-
-  showToast("Lead saved successfully", "success");
-
-  if (typeof handleLeadSubmit === "function") {
-    handleLeadSubmit(res.data);
-  }
-
-  setForm(buildInitialFormState());
-  setMasters(null);
-  setChannelPartners([]);
-} catch (err) {
-  console.error("Failed to save lead", err);
-
-  let msg = "Failed to save lead. Please check the data.";
-  const data = err?.response?.data;
-  if (data) {
-    if (typeof data === "string") msg = data;
-    else if (data.detail) msg = data.detail;
-    else if (data.lead && typeof data.lead === "object") {
-      const firstKey = Object.keys(data.lead)[0];
-      const firstVal = data.lead[firstKey];
-      msg = Array.isArray(firstVal) ? firstVal.join(" ") : String(firstVal);
+    // 🔴 IMPORTANT: NO TOAST HERE ANYMORE
+    // If email present and not verified -> open OTP modal and auto-send OTP
+    if (normalized.email && !emailVerified) {
+      setPendingSaveBody(body);
+      setShowEmailOtpModal(true);
+      setEmailOtpCode("");
+      handleSendEmailOtp();
+      return;
     }
-  }
 
-  showToast(msg, "error");
-}
+    // If email already verified, save directly
+    await saveLead(body);
   };
-
-
 
   const handleCancel = () => {
     setForm(buildInitialFormState());
     setMasters(null);
     setChannelPartners([]);
+    setEmailVerified(false);
+    setEmailOtpCode("");
   };
 
   const renderField = (field) => {
@@ -955,7 +927,6 @@ try {
       </label>
     );
 
-    // ---------- CHECKBOX ----------
     if (field.type === "checkbox") {
       return (
         <div
@@ -977,7 +948,6 @@ try {
       );
     }
 
-    // ---------- TEXTAREA ----------
     if (field.type === "textarea") {
       return (
         <div
@@ -996,7 +966,6 @@ try {
       );
     }
 
-    // ---------- SELECT ----------
     if (field.type === "select") {
       const options = getOptionsForField(field);
       return (
@@ -1032,7 +1001,6 @@ try {
       );
     }
 
-    // ---------- TEXT / NUMBER / DATE ----------
     return (
       <div
         key={field.name}
@@ -1081,6 +1049,30 @@ try {
                 </div>
               );
             })}
+
+            {/* Email info for lead group */}
+            {groupKey === "lead" && (
+              <div className="form-row">
+                <div className="form-field-full">
+                  <span
+                    style={{
+                      fontSize: 13,
+                      color: form.email
+                        ? emailVerified
+                          ? "#16a34a"
+                          : "#ef4444"
+                        : "#ef4444",
+                    }}
+                  >
+                    {form.email
+                      ? emailVerified
+                        ? "Email verified via OTP."
+                        : "On Submit, an OTP will be sent to this email. Verification is required to save the lead."
+                      : "Email is required. Please enter a valid email address."}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -1094,7 +1086,7 @@ try {
           {renderSectionGroup("lead", "Lead Information")}
           {renderSectionGroup("address", "Address Information")}
           {renderSectionGroup("description", "Description Information")}
-          {/* Buttons row */}
+
           <div className="form-row">
             <div className="form-field-full">
               <div
@@ -1122,6 +1114,60 @@ try {
           </div>
         </form>
       </div>
+
+      {showEmailOtpModal && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <h3 className="modal-title">Verify Email</h3>
+            <p className="modal-text">
+              We have sent an OTP to <strong>{form.email}</strong>. Please enter
+              it below to verify the email and save the lead.
+            </p>
+
+            <div className="modal-otp-row">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={handleSendEmailOtp}
+                disabled={emailOtpSending}
+              >
+                {emailOtpSending ? "Resending..." : "Resend OTP"}
+              </button>
+
+              <input
+                type="text"
+                className="form-input"
+                style={{ maxWidth: "140px" }}
+                placeholder="Enter OTP"
+                value={emailOtpCode}
+                onChange={(e) => setEmailOtpCode(e.target.value)}
+              />
+            </div>
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  setShowEmailOtpModal(false);
+                  setPendingSaveBody(null);
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={handleVerifyOtpAndSave}
+                disabled={emailOtpVerifying}
+              >
+                {emailOtpVerifying ? "Verifying..." : "Verify & Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
