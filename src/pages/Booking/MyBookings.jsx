@@ -37,7 +37,6 @@ const MyBookings = () => {
   };
 
   const handleSearchBlur = () => {
-    // if search box is empty on blur, hide it again
     if (!search.trim()) {
       setSearchOpen(false);
     }
@@ -72,6 +71,7 @@ const MyBookings = () => {
         b.project_name,
         b.project,
         b.unit_no,
+        b.unit,
         b.tower_name,
         b.status,
       ]
@@ -91,7 +91,7 @@ const MyBookings = () => {
   return (
     <div className="my-bookings-page">
       <div className="my-bookings-container">
-        {/* ---------- Header: search icon + Add + count ---------- */}
+        {/* ---------- Header ---------- */}
         <div className="booking-list-header">
           <div className="booking-header-left">
             <button
@@ -114,14 +114,6 @@ const MyBookings = () => {
                 autoFocus
               />
             )}
-
-            {/* <button
-              type="button"
-              className="booking-add-btn"
-              onClick={handleAddClick}
-            >
-              Add
-            </button> */}
           </div>
 
           <div className="booking-header-right">
@@ -165,7 +157,7 @@ const MyBookings = () => {
                     <th>Customer Name</th>
                     <th>Project</th>
                     <th>Unit</th>
-                    <th>Amount</th>
+                    <th>Advance Amount</th> {/* 🔹 renamed */}
                     <th>Status</th>
                   </tr>
                 </thead>
@@ -179,16 +171,18 @@ const MyBookings = () => {
                   ) : (
                     filtered.map((b) => {
                       const bookingId = b.booking_code || b.form_ref_no || b.id;
+
+                      // 🔹 unit label – supports string or object
                       const unitLabel =
                         b.unit_no ||
                         (b.unit && b.unit.unit_no) ||
                         (b.unit && b.unit.name) ||
+                        b.unit ||
                         "-";
 
                       return (
                         <tr key={b.id}>
                           <td className="booking-actions-cell">
-                            {/* edit – optional */}
                             <button
                               type="button"
                               className="booking-icon-btn"
@@ -200,7 +194,6 @@ const MyBookings = () => {
                               ✏️
                             </button>
 
-                            {/* view */}
                             <button
                               type="button"
                               className="booking-icon-btn"
@@ -210,20 +203,27 @@ const MyBookings = () => {
                               👁
                             </button>
                           </td>
+
                           <td>{bookingId}</td>
                           <td>{b.primary_full_name || "-"}</td>
                           <td>{b.project_name || b.project || "-"}</td>
+
+                          {/* 🔹 show Unit */}
                           <td>{unitLabel}</td>
+
+                          {/* 🔹 show Total Advance as Advance Amount */}
                           <td className="booking-amount-cell">
-                            {b.amount != null && b.amount !== "" ? (
+                            {b.total_advance != null &&
+                            b.total_advance !== "" ? (
                               <>
                                 <span className="rupee-symbol">₹</span>{" "}
-                                {formatAmount(b.amount)}
+                                {formatAmount(b.total_advance)}
                               </>
                             ) : (
                               "-"
                             )}
                           </td>
+
                           <td>
                             <span className="booking-status-pill">
                               {getStatusLabel(b.status)}

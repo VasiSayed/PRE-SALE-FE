@@ -113,7 +113,7 @@ function Navbar({ currentUser, onLogout, showLogout = true }) {
             marginLeft: 8,
           }}
         >
-          SHREE RAM KRUSHNA DEVELOPERS
+          Shree Ram Krushna Developer – Deep Shikhar
         </span>
       </div>
 
