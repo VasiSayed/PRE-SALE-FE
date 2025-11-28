@@ -6,14 +6,31 @@ import projectImage from "../../assets/project.webp";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
-
 const BOOK_API_PREFIX = "/book";
+
+const DOC_TYPES = [
+  { value: "AGREEMENT_PDF", label: "Agreement PDF" },
+  { value: "BOOKING_FORM_PDF", label: "Booking Form PDF" },
+  { value: "PAYMENT_PROOF", label: "Payment Proof" },
+  { value: "IDENTITY_PROOF", label: "Identity Proof (PAN/Aadhaar)" },
+  { value: "OTHER", label: "Other" },
+];
+
+
+const PAYMENT_MODES = [
+  { value: "CHEQUE", label: "Cheque" },
+  { value: "RTGS", label: "RTGS / NEFT" },
+  { value: "UPI", label: "UPI" },
+  { value: "CASH", label: "Cash" },
+  { value: "OTHER", label: "Other" },
+];
+
 
 // ✅ ADD ALL THESE FUNCTIONS HERE (BEFORE Section component)
 // Validation functions
 const validatePAN = (pan) => {
-  const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
-  return panRegex.test(pan);
+  if (!pan) return false;
+  return pan.trim().length === 10;
 };
 
 const validateAadhar = (aadhar) => {
@@ -31,7 +48,7 @@ const validatePhone = (phone) => {
   return phoneRegex.test(phone.replace(/[^0-9]/g, ""));
 };
 
-// Get today's date in YYYY-MM-DD format
+
 const getTodayDate = () => {
   const today = new Date();
   return today.toISOString().split("T")[0];
@@ -39,19 +56,25 @@ const getTodayDate = () => {
 
 
 
-const Section = ({ id, title, open, onToggle, children }) => (
-  <div className="bf-section">
-    <button
-      type="button"
-      className="bf-section-header"
-      onClick={() => onToggle(id)}
-    >
-      <span className="bf-section-title">{title}</span>
-      <span className={`bf-chevron ${open ? "bf-chevron-open" : ""}`}>▾</span>
-    </button>
-    {open && <div className="bf-section-body">{children}</div>}
-  </div>
-);
+
+  const Section = ({ id, title, open, onToggle, children }) => (
+    <div className="bf-section">
+      <button
+        type="button"
+        className="bf-section-header"
+        onClick={() => onToggle(id)}
+      >
+        <span className="bf-section-title">{title}</span>
+        <span className={`bf-chevron ${open ? "bf-chevron-open" : ""}`}>▾</span>
+      </button>
+      {open && <div className="bf-section-body">{children}</div>}
+    </div>
+  );
+
+
+    
+
+
 
 const BookingForm = () => {
   const rootRef = useRef(null);
@@ -64,6 +87,33 @@ const BookingForm = () => {
   const [primaryDob, setPrimaryDob] = useState("");
   const projectIdFromUrl =
     searchParams.get("project_id") || searchParams.get("project");
+  const [agreementValue, setAgreementValue] = useState(""); // numeric string
+  const [agreementValueWords, setAgreementValueWords] = useState("");
+
+  const [interestedUnitError, setInterestedUnitError] = useState("");
+  const [agreementEditable, setAgreementEditable] = useState(false);
+  const [agreementTouched, setAgreementTouched] = useState(false);
+
+  // Multi-type attachments (Agreement PDF, Booking Form, Payment Proof, Other)
+  const [showPaymentDocModal, setShowPaymentDocModal] = useState(false);
+  const [paymentDocs, setPaymentDocs] = useState([]); // ab ye generic attachments array hai
+  const [newPaymentDoc, setNewPaymentDoc] = useState({
+    label: "",
+    doc_type: "PAYMENT_PROOF", // AGREEMENT_PDF / BOOKING_FORM_PDF / PAYMENT_PROOF / OTHER
+    payment_mode: "UPI", // CHEQUE / RTGS / UPI / CASH / OTHER
+    ref_no: "",
+    bank_name: "",
+    amount: "",
+    date: "",
+    remarks: "",
+    file: null,
+  });
+
+  const handlePaymentDocFileChange = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    setNewPaymentDoc((prev) => ({ ...prev, file }));
+  };
 
   // ---------- user + lead ----------
   const [currentUser, setCurrentUser] = useState(null);
@@ -97,6 +147,7 @@ const BookingForm = () => {
     paymentSchedule: true,
     funding: true,
     advanceDeposit: true,
+    attachments: true, // ✅ NEW
     applicantSummary: true,
   });
 
@@ -111,7 +162,7 @@ const BookingForm = () => {
   const handlePrimaryPanChange = (value) => {
     setPrimaryPanNo(value.toUpperCase());
     if (value.length === 10 && !validatePAN(value)) {
-      toast.error("Invalid PAN format. Expected: ABCDE1234F");
+      toast.error("PAN must be 10 characters.");
     }
   };
 
@@ -148,7 +199,7 @@ const BookingForm = () => {
   const [project, setProject] = useState(null);
   const [towers, setTowers] = useState([]);
   const [paymentPlans, setPaymentPlans] = useState([]);
-
+  const [leadProfile, setLeadProfile] = useState(null);
   // --------- Top booking info ----------
   const [formRefNo, setFormRefNo] = useState("");
   const [bookingDate, setBookingDate] = useState(getTodayDate()); // ✅ Auto-set today
@@ -182,8 +233,6 @@ const BookingForm = () => {
   const [superBuiltupSqft, setSuperBuiltupSqft] = useState("");
   const [carpetSqft, setCarpetSqft] = useState("");
   const [balconySqft, setBalconySqft] = useState("");
-  const [agreementValue, setAgreementValue] = useState("");
-  const [agreementValueWords, setAgreementValueWords] = useState("");
   const [agreementDone, setAgreementDone] = useState(false);
 
   const [parkingRequired, setParkingRequired] = useState("NO"); // YES / NO (UI)
@@ -214,7 +263,7 @@ const BookingForm = () => {
   // --------- Payment plan ----------
   const [paymentPlanType, setPaymentPlanType] = useState("MASTER"); // MASTER / CUSTOM
   const [selectedPaymentPlanId, setSelectedPaymentPlanId] = useState("");
-
+  const [masterPlanDueDates, setMasterPlanDueDates] = useState({});
   const [customPlanName, setCustomPlanName] = useState("");
   const [customSlabs, setCustomSlabs] = useState([
     { name: "", percentage: "", days: "" },
@@ -242,6 +291,159 @@ const BookingForm = () => {
     }, 0);
     setAdditionalChargesTotal(total);
   }, [additionalCharges]);
+
+  // ---------- Fetch lead full profile (for prefill) ----------
+  useEffect(() => {
+    if (!leadId) return;
+
+    const fetchLeadProfile = async () => {
+      try {
+        const res = await axiosInstance.get(
+          `/sales/sales-leads/${leadId}/full-info/`
+        );
+        const data = res.data || {};
+        setLeadProfile(data);
+
+        // ---- Primary name ----
+        const fullName =
+          data.full_name ||
+          `${data.first_name || ""} ${data.last_name || ""}`.trim();
+        if (fullName) {
+          setPrimaryFullName(fullName);
+        }
+
+        // ---- Contact ----
+        if (data.email) setEmail1(data.email);
+        if (data.mobile_number) setPhone1(data.mobile_number);
+
+        // ---- Primary DOB (used in summary) ----
+        if (data.personal_info?.date_of_birth) {
+          setPrimaryDob(data.personal_info.date_of_birth); // "YYYY-MM-DD"
+        }
+
+        // ---- Address ----
+        if (data.address) {
+          const addr = data.address;
+          const parts = [
+            addr.flat_or_building,
+            addr.area,
+            addr.city,
+            addr.state,
+            addr.country,
+            addr.pincode,
+          ].filter(Boolean);
+
+          if (parts.length) {
+            const fullAddr = parts.join(", ");
+            // don’t override if user already typed something
+            setPermanentAddress((prev) => prev || fullAddr);
+            setCorrespondenceAddress((prev) => prev || fullAddr);
+          }
+        }
+
+        // ---- Office / Professional info -> Office field ----
+        if (data.professional_info) {
+          const p = data.professional_info;
+
+          // Example: "VibeCopliolet, Malad - 400017"
+          const locationPart =
+            p.office_location && p.office_pincode
+              ? `${p.office_location} - ${p.office_pincode}`
+              : p.office_location || p.office_pincode;
+
+          const officeParts = [
+            p.occupation_name, // "Salaried"
+            p.organization_name, // "VibeCopliolet"
+            locationPart, // "malad - 400017"
+          ].filter(Boolean);
+
+          const officeText = officeParts.join(", ");
+
+          if (officeText) {
+            // user ne agar already manually kuch type kiya ho, uspe overwrite mat karo
+            setOffice((prev) => prev || officeText);
+          }
+        }
+
+        // ---- Project from lead (force booking project to match lead) ----
+        if (data.project) {
+          const pid = data.project;
+          setProjectId(pid);
+          localStorage.setItem("ACTIVE_PROJECT_ID", String(pid));
+          localStorage.setItem("PROJECT_ID", String(pid));
+        }
+      } catch (err) {
+        console.error("Failed to load lead full-info", err);
+      }
+    };
+
+    fetchLeadProfile();
+  }, [leadId]);
+
+  // ---------- Autofill tower/unit from lead's interested units ----------
+  // ---------- Autofill tower/unit from lead's interested units ----------
+  useEffect(() => {
+    if (
+      !leadProfile ||
+      !leadProfile.interested_unit_links ||
+      leadProfile.interested_unit_links.length === 0 ||
+      !towers.length
+    ) {
+      setInterestedUnitError("");
+      return;
+    }
+
+    // pick primary interested unit if flagged, else first
+    const primaryLink =
+      leadProfile.interested_unit_links.find((l) => l.is_primary) ||
+      leadProfile.interested_unit_links[0];
+
+    if (!primaryLink) {
+      setInterestedUnitError("");
+      return;
+    }
+
+    const unitId = String(primaryLink.unit);
+    let foundTowerId = null;
+    let selectedUnitFromLead = null;
+
+    towers.forEach((tower) => {
+      (tower.floors || []).forEach((floor) => {
+        (floor.units || []).forEach((unit) => {
+          if (String(unit.id) === unitId) {
+            foundTowerId = String(tower.id);
+            selectedUnitFromLead = unit;
+          }
+        });
+      });
+    });
+
+    if (foundTowerId && selectedUnitFromLead) {
+      setSelectedTowerId(foundTowerId);
+      setSelectedUnitId(unitId);
+
+      const inv = selectedUnitFromLead.inventory || {};
+      const unitStatus = selectedUnitFromLead.status;
+      const invUnitStatus = inv.unit_status;
+      const availabilityStatus = inv.availability_status;
+
+      const isAvailable =
+        unitStatus === "AVAILABLE" &&
+        invUnitStatus === "AVAILABLE" &&
+        availabilityStatus === "AVAILABLE";
+
+      if (!isAvailable) {
+        setInterestedUnitError(
+          `Lead ka interested unit ${selectedUnitFromLead.unit_no} available nahi hai. Please select another unit.`
+        );
+        setUnitOpen(true); // dropdown khul jaayega
+      } else {
+        setInterestedUnitError("");
+      }
+    } else {
+      setInterestedUnitError("");
+    }
+  }, [leadProfile, towers]);
 
   // ---------- Calculate amount before taxes ----------
   useEffect(() => {
@@ -327,6 +529,7 @@ const BookingForm = () => {
   const [loanRequired, setLoanRequired] = useState("NO"); // YES / NO
   const [bookingAmount, setBookingAmount] = useState("");
   const [otherCharges, setOtherCharges] = useState("");
+  const [projectPricePerSqft, setProjectPricePerSqft] = useState("");
 
   // Top photo
   const [photoFile, setPhotoFile] = useState(null);
@@ -759,14 +962,31 @@ const BookingForm = () => {
     setSelectedOfferData(offer || null);
   }, [selectedOfferId, offers]);
 
-  // Auto-fill KYC deal amount from agreement value if empty
-  useEffect(() => {
-    if (!kycDealAmount && agreementValue) {
-      setKycDealAmount(agreementValue);
-    }
-  }, [agreementValue, kycDealAmount]);
+  // Amount helpers
+  const stripAmount = (value) => {
+    if (!value) return "";
+    // Sirf digits + ek dot allow
+    return value.replace(/[^\d.]/g, "");
+  };
 
-  // When unit changes → auto-fill areas + agreement value from inventory
+  const formatINR = (value) => {
+    if (value === null || value === undefined || value === "") return "";
+    const num = Number(String(value));
+    if (Number.isNaN(num)) return "";
+    return num.toLocaleString("en-IN", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    });
+  };
+
+  // // Auto-fill KYC deal amount from agreement value if empty
+  // useEffect(() => {
+  //   if (!kycDealAmount && agreementValue) {
+  //     setKycDealAmount(agreementValue);
+  //   }
+  // }, [agreementValue, kycDealAmount]);
+
+  // When unit changes → auto-fill areas + base agreement value from inventory
   useEffect(() => {
     if (!selectedUnit) {
       setSuperBuiltupSqft("");
@@ -774,12 +994,13 @@ const BookingForm = () => {
       setBalconySqft("");
       setAgreementValue("");
       setAgreementValueWords("");
+      setAgreementEditable(false);
+      setAgreementTouched(false);
       return;
     }
 
     const inv = selectedUnit.inventory || {};
 
-    // Auto-fill area fields
     const sb =
       inv.saleable_sqft ||
       inv.builtup_sqft ||
@@ -790,26 +1011,50 @@ const BookingForm = () => {
     const ba = inv.balcony_sqft || "";
 
     setSuperBuiltupSqft(sb || "");
-    setCarpetSqft(ca || "");
+    setCarpetSqft((prev) => prev || ca || "");
     setBalconySqft(ba || "");
 
-    // Calculate agreement value with discount
     const baseAgr =
       inv.total_cost ||
       inv.agreement_value ||
       selectedUnit.agreement_value ||
       "";
 
-    if (baseAgr) {
-      const baseAmount = Number(baseAgr);
+    const ratePsf = inv.rate_psf || inv.base_price_psf || null;
+    const areaForRate = Number(
+      ca ||
+        sb ||
+        inv.saleable_sqft ||
+        inv.builtup_sqft ||
+        inv.rera_area_sqft ||
+        0
+    );
+
+    if (baseAgr || (ratePsf && areaForRate)) {
+      // ✅ Inventory ya rate-per-sqft se base amount milega
+      let baseAmount = 0;
+
+      if (baseAgr) {
+        baseAmount = Number(baseAgr) || 0;
+        setAgreementEditable(false); // direct inventory amount → read only
+      } else {
+        baseAmount = Number(ratePsf) * areaForRate;
+        setAgreementEditable(true); // rate per sqft → editable
+      }
+
+      setAgreementTouched(false);
+
       const discount = Number(discountAmount) || 0;
       const finalAmount = baseAmount - discount;
 
-      setAgreementValue(finalAmount);
+      setAgreementValue(String(Math.round(finalAmount)));
       setAgreementValueWords(numberToWords(Math.floor(finalAmount)));
     } else {
-      setAgreementValue("");
-      setAgreementValueWords("");
+      // ✅ Manual mode: koi base nahi → user khud type karega
+      // IMPORTANT: yaha agreementValue ko touch NAAHI karna, warna discount dalte hi blank ho jaata hai
+      setAgreementEditable(true);
+      setAgreementTouched(false);
+      // agreementValue / words jo bhi user ne type kiya hai, wahi rehne do
     }
   }, [selectedUnit, discountAmount]);
 
@@ -823,29 +1068,107 @@ const BookingForm = () => {
     }
   }, [agreementValue]);
 
-  // Calculate discount amount from percentage or vice versa
+  // ✅ Carpet / Super Built-up change hone par Agreement Value auto-calc (editable till user touches)
   useEffect(() => {
     if (!selectedUnit) return;
 
     const inv = selectedUnit.inventory || {};
-    const basePrice = Number(
+    const ratePsf = inv.rate_psf || inv.base_price_psf;
+
+    if (!ratePsf) return; // per sq.ft hi nahi mila
+    if (!agreementEditable) return; // inventory direct amount mode
+    if (agreementTouched) return; // user ne manually Agreement Value change kar diya
+
+    // Ab carpet ya super built-up dono me se jo diya ho use as area
+    const area = Number(carpetSqft || superBuiltupSqft || 0);
+    if (!area) return;
+
+    const baseAmount = Number(ratePsf) * area;
+    const discount = Number(discountAmount) || 0;
+    const finalAmount = baseAmount - discount;
+
+    setAgreementValue(String(Math.round(finalAmount)));
+    setAgreementValueWords(numberToWords(Math.floor(finalAmount)));
+  }, [
+    carpetSqft,
+    superBuiltupSqft,
+    discountAmount,
+    selectedUnit,
+    agreementEditable,
+    agreementTouched,
+  ]);
+
+  // Calculate discount amount from percentage or vice versa
+  // ✅ Discount (%) <-> Amount sync + sahi base se calculation
+  useEffect(() => {
+    if (!selectedUnit) return;
+
+    const inv = selectedUnit.inventory || {};
+
+    // 1) Pehle direct agreement / total cost dekho
+    let basePrice = Number(
       inv.total_cost || inv.agreement_value || selectedUnit.agreement_value || 0
     );
 
+    // 2) Agar direct amount nahi hai, to rate_per_sqft * area se nikalo
+    const ratePsf = inv.rate_psf || inv.base_price_psf || null;
+    const area = Number(
+      carpetSqft ||
+        superBuiltupSqft ||
+        inv.saleable_sqft ||
+        inv.builtup_sqft ||
+        inv.rera_area_sqft ||
+        0
+    );
+
+    if (!basePrice && ratePsf && area) {
+      basePrice = Number(ratePsf) * area;
+    }
+
+    // 3) Last fallback: current agreementValue ko base maan lo
+    if (!basePrice) {
+      basePrice = Number(agreementValue) || 0;
+    }
+
+    if (!basePrice) return; // kuch bhi base nahi mila
+
     if (discountPercent && !discountAmount) {
-      // Calculate amount from percentage
+      // % diya hai → amount nikaalo
       const calculatedAmount = (basePrice * Number(discountPercent)) / 100;
       setDiscountAmount(calculatedAmount.toFixed(2));
     } else if (discountAmount && !discountPercent) {
-      // Calculate percentage from amount
+      // amount diya hai → % nikaalo
       const calculatedPercent = (Number(discountAmount) / basePrice) * 100;
       setDiscountPercent(calculatedPercent.toFixed(2));
     }
-  }, [discountPercent, discountAmount, selectedUnit]);
+  }, [
+    discountPercent,
+    discountAmount,
+    selectedUnit,
+    carpetSqft,
+    superBuiltupSqft,
+    agreementValue,
+  ]);
+
   // ---------- Payment plan helpers ----------
   const selectedPaymentPlan = paymentPlans.find(
     (p) => String(p.id) === String(selectedPaymentPlanId)
   );
+
+  useEffect(() => {
+    if (!selectedPaymentPlan) {
+      setMasterPlanDueDates({});
+      return;
+    }
+
+    setMasterPlanDueDates((prev) => {
+      const next = {};
+      selectedPaymentPlan.slabs.forEach((slab) => {
+        next[slab.id] = prev[slab.id] || "";
+      });
+      return next;
+    });
+  }, [selectedPaymentPlan]);
 
   const handlePaymentPlanChange = (e) => {
     const value = e.target.value;
@@ -949,95 +1272,90 @@ const BookingForm = () => {
     return result.trim() + " Rupees Only";
   };
 
-
   // ✅ ADD THIS ENTIRE BLOCK
-// Calculate all applicants (including primary)
-const allApplicants = useMemo(() => {
-  const applicants = [
-    {
-      sequence: 1,
-      title: primaryTitle,
-      full_name: primaryFullName,
-      dob: primaryDob,
-      pan: primaryPanNo,
-      aadhar: primaryAadharNo,
-      email: email1,
-      phone: phone1,
-      isPrimary: true,
-    },
-  ];
+  // Calculate all applicants (including primary)
+  const allApplicants = useMemo(() => {
+    const applicants = [
+      {
+        sequence: 1,
+        title: primaryTitle,
+        full_name: primaryFullName,
+        dob: primaryDob,
+        pan: primaryPanNo,
+        aadhar: primaryAadharNo,
+        email: email1,
+        phone: phone1,
+        isPrimary: true,
+      },
+    ];
 
-  additionalApplicants.forEach((app, idx) => {
-    if (app.full_name && app.full_name.trim()) {
-      applicants.push({
-        sequence: idx + 2,
-        title: "Mr.",
-        full_name: app.full_name,
-        relation: app.relation,
-        dob: app.dob,
-        pan: app.pan,
-        aadhar: app.aadhar,
-        isPrimary: false,
-      });
-    }
-  });
+    additionalApplicants.forEach((app, idx) => {
+      if (app.full_name && app.full_name.trim()) {
+        applicants.push({
+          sequence: idx + 2,
+          title: "Mr.",
+          full_name: app.full_name,
+          relation: app.relation,
+          dob: app.dob,
+          pan: app.pan,
+          aadhar: app.aadhar,
+          isPrimary: false,
+        });
+      }
+    });
 
-  return applicants;
-}, [
-  primaryTitle,
-  primaryFullName,
-  primaryDob,
-  primaryPanNo,
-  primaryAadharNo,
-  email1,
-  phone1,
-  additionalApplicants,
-]);
-
-
+    return applicants;
+  }, [
+    primaryTitle,
+    primaryFullName,
+    primaryDob,
+    primaryPanNo,
+    primaryAadharNo,
+    email1,
+    phone1,
+    additionalApplicants,
+  ]);
 
   // ---------- Save Booking ----------
   const handleSaveBooking = async () => {
     // ---------- VALIDATIONS ----------
-if (!selectedUnitId) {
-  toast.error("Please select a tower & flat (unit) before saving.");
-  return;
-}
+    if (!selectedUnitId) {
+      toast.error("Please select a tower & flat (unit) before saving.");
+      return;
+    }
 
-  if (!primaryPanNo || !validatePAN(primaryPanNo)) {
-    toast.error("Please enter a valid PAN number for primary applicant.");
-    return;
-  }
-  if (!primaryAadharNo || !validateAadhar(primaryAadharNo)) {
-    toast.error("Please enter a valid Aadhar number for primary applicant.");
-    return;
-  }
-  if (email1 && !validateEmail(email1)) {
-    toast.error("Please enter a valid email address.");
-    return;
-  }
-  if (phone1 && !validatePhone(phone1)) {
-    toast.error("Please enter a valid 10-digit phone number.");
-    return;
-  }
-  if (!bookingDate) {
-    toast.error("Please select Booking Date.");
-    return;
-  }
-  if (!agreementValue) {
-    toast.error("Please enter Agreement Value.");
-    return;
-  }
-  if (paymentPlanType === "MASTER" && !selectedPaymentPlanId) {
-    toast.error("Please select a Payment Plan.");
-    return;
-  }
-  if (paymentPlanType === "CUSTOM" && customTotalPercentage !== 100) {
-    toast.error("Custom payment plan slabs must total 100%.");
-    return;
-  }
-
-
+    if (!primaryPanNo || !validatePAN(primaryPanNo)) {
+      toast.error("Please enter a valid PAN number for primary applicant.");
+      return;
+    }
+    if (!primaryAadharNo || !validateAadhar(primaryAadharNo)) {
+      toast.error("Please enter a valid Aadhar number for primary applicant.");
+      return;
+    }
+    if (email1 && !validateEmail(email1)) {
+      toast.error("Please enter a valid email address.");
+      return;
+    }
+    if (phone1 && !validatePhone(phone1)) {
+      toast.error("Please enter a valid 10-digit phone number.");
+      return;
+    }
+    if (!bookingDate) {
+      toast.error("Please select Booking Date.");
+      return;
+    }
+    if (!agreementValue) {
+      toast.error("Please enter Agreement Value.");
+      return;
+    }
+    if (paymentPlanType === "MASTER" && !selectedPaymentPlanId) {
+      toast.error("Please select a Payment Plan.");
+      return;
+    }
+    if (paymentPlanType === "CUSTOM" && customTotalPercentage !== 100) {
+      toast.error("Custom payment plan slabs must total 100%.");
+      return;
+    }
 
     if (!primaryFullName) {
       toast.error("Please enter Primary Applicant full name.");
@@ -1060,21 +1378,21 @@ if (!selectedUnitId) {
       return;
     }
 
-      for (let i = 0; i < additionalApplicants.length; i++) {
-        const app = additionalApplicants[i];
-        if (app.full_name && app.full_name.trim()) {
-          if (app.pan && !validatePAN(app.pan)) {
-            toast.error(`Invalid PAN for applicant ${i + 2}: ${app.full_name}`);
-            return;
-          }
-          if (app.aadhar && !validateAadhar(app.aadhar)) {
-            toast.error(
-              `Invalid Aadhar for applicant ${i + 2}: ${app.full_name}`
-            );
-            return;
-          }
+    for (let i = 0; i < additionalApplicants.length; i++) {
+      const app = additionalApplicants[i];
+      if (app.full_name && app.full_name.trim()) {
+        if (app.pan && !validatePAN(app.pan)) {
+          toast.error(`Invalid PAN for applicant ${i + 2}: ${app.full_name}`);
+          return;
+        }
+        if (app.aadhar && !validateAadhar(app.aadhar)) {
+          toast.error(
+            `Invalid Aadhar for applicant ${i + 2}: ${app.full_name}`
+          );
+          return;
         }
       }
+    }
 
     // Sales user constraint
     if (currentUser?.role === "SALES" && !leadId) {
@@ -1082,14 +1400,12 @@ if (!selectedUnitId) {
       return;
     }
 
-if (requiresKyc === "YES") {
-  if (!kycRequestId) {
-    toast.error("Please send KYC request before saving booking.");
-    return;
-  }
-}
-
-
+    if (requiresKyc === "YES") {
+      if (!kycRequestId) {
+        toast.error("Please send KYC request before saving booking.");
+        return;
+      }
+    }
 
     setSaving(true);
     toast.info("Submitting booking...");
@@ -1182,29 +1498,60 @@ if (requiresKyc === "YES") {
 
       // ==================================================
       // PAYMENT PLAN
-      // ==================================================
+      // ------- PAYMENT PLAN --------
+      // ------- PAYMENT PLAN --------
       fd.append("payment_plan_type", paymentPlanType);
 
-      if (requiresKyc === "YES" && kycRequestId)
+      if (requiresKyc === "YES" && kycRequestId) {
         fd.append("kyc_request_id", String(kycRequestId));
-
-      if (paymentPlanType === "MASTER" && selectedPaymentPlanId)
-        fd.append("payment_plan_id", selectedPaymentPlanId);
-
-      if (paymentPlanType === "CUSTOM") {
-        fd.append(
-          "custom_payment_plan",
-          JSON.stringify({
-            name: customPlanName || "",
-            slabs: customSlabs.map((s, idx) => ({
-              order_index: idx + 1,
-              name: s.name,
-              percentage: Number(s.percentage || 0),
-              days: s.days === "" ? null : Number(s.days),
-            })),
-          })
-        );
       }
+
+      if (paymentPlanType === "MASTER" && selectedPaymentPlanId) {
+        fd.append("payment_plan_id", selectedPaymentPlanId);
+      }
+
+      // 1) FINAL SCHEDULE BANAAO (planSnapshot)
+      let planSnapshot = {
+        type: paymentPlanType,
+        payment_plan_id:
+          paymentPlanType === "MASTER" ? selectedPaymentPlanId || null : null,
+        slabs: [],
+      };
+
+      if (paymentPlanType === "MASTER" && selectedPaymentPlan) {
+        // MASTER: backend payment plan se aayi slabs + tumhare selected due_date
+        planSnapshot.name = selectedPaymentPlan.name;
+        planSnapshot.slabs = selectedPaymentPlan.slabs.map((slab, idx) => ({
+          order_index: idx + 1,
+          name: slab.name,
+          percentage: slab.percentage,
+          days: slab.days, // original relative days (template)
+          due_date: masterPlanDueDates[slab.id] || null, // 👈 yaha tumhari date
+        }));
+      } else if (paymentPlanType === "CUSTOM") {
+        // CUSTOM: UI se aaya plan
+        planSnapshot.name = customPlanName || "Custom Plan";
+        planSnapshot.slabs = customSlabs.map((s, idx) => ({
+          order_index: idx + 1,
+          name: s.name,
+          percentage: Number(s.percentage || 0),
+          due_date: s.days || null, // 👈 yaha bhi date field
+        }));
+      }
+
+      // 2) HAMESHA plan_snapshot BHEJO (audit / reporting ke liye)
+      fd.append("plan_snapshot", JSON.stringify(planSnapshot));
+
+      // 3) AUR Usi data ko custom_payment_plan me bhi bhejo
+      fd.append(
+        "custom_payment_plan",
+        JSON.stringify({
+          base_payment_plan_id:
+            paymentPlanType === "MASTER" ? selectedPaymentPlanId || null : null,
+          name: planSnapshot.name,
+          slabs: planSnapshot.slabs,
+        })
+      );
 
       // ==================================================
       // FUNDING
@@ -1312,17 +1659,67 @@ if (requiresKyc === "YES") {
 
       if (files.kycAadhar) {
         fd.append(`attachments[${attachmentIndex}][label]`, "KYC Aadhar");
-        fd.append(`attachments[${attachmentIndex}][doc_type]`, "AADHAR");
+        fd.append(
+          `attachments[${attachmentIndex}][doc_type]`,
+          "IDENTITY_PROOF" // 🔁 AADHAR ❌ → IDENTITY_PROOF ✅
+        );
         fd.append(`attachments[${attachmentIndex}][file]`, files.kycAadhar);
         attachmentIndex++;
       }
 
       if (files.kycPan) {
         fd.append(`attachments[${attachmentIndex}][label]`, "KYC PAN");
-        fd.append(`attachments[${attachmentIndex}][doc_type]`, "PAN");
+        fd.append(
+          `attachments[${attachmentIndex}][doc_type]`,
+          "IDENTITY_PROOF" // 🔁 PAN ❌ → IDENTITY_PROOF ✅
+        );
         fd.append(`attachments[${attachmentIndex}][file]`, files.kycPan);
         attachmentIndex++;
       }
+
+      // 🔹 Payment documents as attachments
+      // 🔹 Multi-type attachments (including Payment Proofs)
+      paymentDocs.forEach((doc) => {
+        if (!doc.file) return;
+
+        const label = doc.label || "Attachment";
+
+        fd.append(`attachments[${attachmentIndex}][label]`, label);
+        fd.append(
+          `attachments[${attachmentIndex}][doc_type]`,
+          doc.doc_type || "OTHER"
+        );
+
+        if (doc.doc_type === "PAYMENT_PROOF") {
+          fd.append(
+            `attachments[${attachmentIndex}][payment_mode]`,
+            doc.payment_mode || ""
+          );
+          fd.append(
+            `attachments[${attachmentIndex}][payment_ref_no]`,
+            doc.ref_no || ""
+          );
+          fd.append(
+            `attachments[${attachmentIndex}][bank_name]`,
+            doc.bank_name || ""
+          );
+          fd.append(
+            `attachments[${attachmentIndex}][payment_amount]`,
+            doc.amount || ""
+          );
+          fd.append(
+            `attachments[${attachmentIndex}][payment_date]`,
+            doc.date || ""
+          );
+          fd.append(
+            `attachments[${attachmentIndex}][remarks]`,
+            doc.remarks || ""
+          );
+        }
+
+        fd.append(`attachments[${attachmentIndex}][file]`, doc.file);
+        attachmentIndex++;
+      });
 
       // ==================================================
       // DEBUG LOGGING
@@ -1341,17 +1738,16 @@ if (requiresKyc === "YES") {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-    toast.success("Booking saved successfully! 🎉"); // ✅ REPLACE alert
-    console.log("BOOKING CREATED:", res.data);
+      toast.success("Booking saved successfully! 🎉"); // ✅ REPLACE alert
+      console.log("BOOKING CREATED:", res.data);
     } catch (err) {
-    console.error("❌ Booking save failed:", err);
-    const errorMsg =
-      err?.response?.data?.message ||
-      err?.response?.data?.error ||
-      err?.message ||
-      "Unknown error occurred";
-    toast.error(`Booking Failed: ${errorMsg}`); // ✅ REPLACE alert
-  
+      console.error("❌ Booking save failed:", err);
+      const errorMsg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        "Unknown error occurred";
+      toast.error(`Booking Failed: ${errorMsg}`); // ✅ REPLACE alert
     } finally {
       setSaving(false);
     }
@@ -1424,7 +1820,6 @@ if (requiresKyc === "YES") {
                   </div>
                 </div>
 
-                {/* Show linked lead from URL (no lead modal now) */}
                 {leadId && (
                   <div className="bf-row">
                     <div className="bf-col">
@@ -1432,7 +1827,16 @@ if (requiresKyc === "YES") {
                       <input
                         className="bf-input bf-input-readonly"
                         type="text"
-                        value={`Lead ID: ${leadId}`}
+                        value={
+                          leadProfile
+                            ? `#${leadId} - ${
+                                leadProfile.full_name ||
+                                leadProfile.mobile_number ||
+                                leadProfile.email ||
+                                ""
+                              }`
+                            : `Lead ID: ${leadId}`
+                        }
                         readOnly
                       />
                     </div>
@@ -2283,6 +2687,7 @@ if (requiresKyc === "YES") {
 
                                   setSelectedUnitId(String(u.id));
                                   setUnitOpen(false);
+                                  setInterestedUnitError("");
                                 }}
                                 style={{
                                   backgroundColor: bgColor,
@@ -2351,90 +2756,15 @@ if (requiresKyc === "YES") {
                       )}
                     </div>
                   </div>
-
-                  {/* ✅ ADD THIS LEGEND */}
-                  {selectedTowerId && (
+                  {interestedUnitError && (
                     <div
                       style={{
-                        marginTop: "8px",
-                        display: "flex",
-                        gap: "12px",
+                        marginTop: "4px",
                         fontSize: "12px",
-                        color: "#6b7280",
+                        color: "#dc2626",
                       }}
                     >
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "4px",
-                        }}
-                      >
-                        <div
-                          style={{
-                            width: "12px",
-                            height: "12px",
-                            backgroundColor: "#fee2e2",
-                            border: "1px solid #991b1b",
-                            borderRadius: "2px",
-                          }}
-                        />
-                        <span>Booked</span>
-                      </div>
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "4px",
-                        }}
-                      >
-                        <div
-                          style={{
-                            width: "12px",
-                            height: "12px",
-                            backgroundColor: "#fef3c7",
-                            border: "1px solid #92400e",
-                            borderRadius: "2px",
-                          }}
-                        />
-                        <span>Blocked</span>
-                      </div>
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "4px",
-                        }}
-                      >
-                        <div
-                          style={{
-                            width: "12px",
-                            height: "12px",
-                            backgroundColor: "#f3f4f6",
-                            border: "1px solid #6b7280",
-                            borderRadius: "2px",
-                          }}
-                        />
-                        <span>Not Available</span>
-                      </div>
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "4px",
-                        }}
-                      >
-                        <div
-                          style={{
-                            width: "12px",
-                            height: "12px",
-                            backgroundColor: "#ffffff",
-                            border: "1px solid #059669",
-                            borderRadius: "2px",
-                          }}
-                        />
-                        <span>Available</span>
-                      </div>
+                      {interestedUnitError}
                     </div>
                   )}
                 </div>
@@ -2509,10 +2839,22 @@ if (requiresKyc === "YES") {
                       <span className="bf-required">*</span>
                     </label>
                     <input
-                      className="bf-input bf-input-readonly"
-                      type="number"
-                      value={agreementValue}
-                      readOnly
+                      className={`bf-input ${
+                        !agreementEditable ? "bf-input-readonly" : ""
+                      }`}
+                      type="text"
+                      value={
+                        agreementEditable
+                          ? agreementValue
+                          : formatINR(agreementValue)
+                      }
+                      readOnly={!agreementEditable}
+                      onChange={(e) => {
+                        if (!agreementEditable) return; // inventory amount mode mein ignore
+
+                        setAgreementTouched(true);
+                        setAgreementValue(stripAmount(e.target.value));
+                      }}
                     />
                   </div>
                   <div className="bf-col">
@@ -2724,7 +3066,7 @@ if (requiresKyc === "YES") {
                           }}
                         >
                           <span>Net Base Value</span>
-                          <span>₹{Number(agreementValue || 0).toFixed(2)}</span>
+                          <span>₹{formatINR(Number(agreementValue || 0))}</span>
                         </div>
                         <div
                           style={{
@@ -2735,7 +3077,7 @@ if (requiresKyc === "YES") {
                           }}
                         >
                           <span>Additional Charges Total</span>
-                          <span>₹{additionalChargesTotal.toFixed(2)}</span>
+                          <span>₹{formatINR(additionalChargesTotal)}</span>
                         </div>
                         <div
                           style={{
@@ -2748,7 +3090,7 @@ if (requiresKyc === "YES") {
                           }}
                         >
                           <span>Amount Before Taxes</span>
-                          <span>₹{amountBeforeTaxes.toFixed(2)}</span>
+                          <span>₹{formatINR(amountBeforeTaxes)}</span>
                         </div>
                       </div>
 
@@ -2928,7 +3270,7 @@ if (requiresKyc === "YES") {
                             marginBottom: "16px",
                           }}
                         >
-                          ₹{totalTaxes.toFixed(2)}
+                          ₹{formatINR(totalTaxes)}
                         </div>
                         <div
                           style={{
@@ -2952,7 +3294,7 @@ if (requiresKyc === "YES") {
                               color: "#059669",
                             }}
                           >
-                            ₹{finalAmount.toFixed(2)}
+                            ₹{formatINR(finalAmount)}
                           </div>
                         </div>
                       </div>
@@ -3099,10 +3441,12 @@ if (requiresKyc === "YES") {
                             {/* Agar sirf "KYC" chahiye label, toh upar text ko "KYC" kar do */}
                             <input
                               className="bf-input"
-                              type="number"
-                              value={kycDealAmount}
-                              onChange={(e) => setKycDealAmount(e.target.value)}
-                              placeholder="e.g., 12500000"
+                              type="text"
+                              value={formatINR(kycDealAmount)}
+                              onChange={(e) =>
+                                setKycDealAmount(stripAmount(e.target.value))
+                              }
+                              placeholder="e.g., 1,25,00,000"
                             />
                           </div>
                         </div>
@@ -3195,18 +3539,45 @@ if (requiresKyc === "YES") {
                           }}
                         >
                           <div style={{ fontSize: "14px" }}>{slab.name}</div>
+
                           <div style={{ fontSize: "14px", fontWeight: "500" }}>
                             {slab.percentage}%
                           </div>
+
                           <div style={{ fontSize: "14px", fontWeight: "500" }}>
                             ₹
-                            {(
-                              (Number(agreementValue || 0) * slab.percentage) /
-                              100
-                            ).toFixed(2)}
+                            {formatINR(
+                              (
+                                (Number(agreementValue || 0) *
+                                  slab.percentage) /
+                                100
+                              ).toFixed(2)
+                            )}
                           </div>
+
+                          {/* 🔹 Editable due date + original days info */}
                           <div style={{ fontSize: "14px" }}>
-                            {slab.days !== null ? `${slab.days} days` : "-"}
+                            <input
+                              className="bf-input"
+                              type="date"
+                              value={masterPlanDueDates[slab.id] || ""}
+                              onChange={(e) =>
+                                setMasterPlanDueDates((prev) => ({
+                                  ...prev,
+                                  [slab.id]: e.target.value,
+                                }))
+                              }
+                            />
+                            <div
+                              style={{
+                                fontSize: "11px",
+                                color: "#6b7280",
+                                marginTop: "4px",
+                              }}
+                            >
+                              Default:{" "}
+                              {slab.days !== null ? `${slab.days} days` : "-"}
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -3414,20 +3785,24 @@ if (requiresKyc === "YES") {
                     <label className="bf-label">Booking Amount</label>
                     <input
                       className="bf-input"
-                      type="number"
+                      type="text"
                       placeholder="100000"
-                      value={bookingAmount}
-                      onChange={(e) => setBookingAmount(e.target.value)}
+                      value={formatINR(bookingAmount)}
+                      onChange={(e) =>
+                        setBookingAmount(stripAmount(e.target.value))
+                      }
                     />
                   </div>
                   <div className="bf-col">
                     <label className="bf-label">Other Charges</label>
                     <input
                       className="bf-input"
-                      type="number"
+                      type="text"
                       placeholder="50000"
-                      value={otherCharges}
-                      onChange={(e) => setOtherCharges(e.target.value)}
+                      value={formatINR(otherCharges)}
+                      onChange={(e) =>
+                        setOtherCharges(stripAmount(e.target.value))
+                      }
                     />
                   </div>
                   <div className="bf-col">
@@ -3439,6 +3814,63 @@ if (requiresKyc === "YES") {
                       readOnly
                     />
                   </div>
+                </div>
+              </Section>
+
+              {/* Attachments & Payment Proofs */}
+              <Section
+                id="attachments"
+                title="Attachments & Payment Proofs"
+                open={openSections.attachments}
+                onToggle={toggleSection}
+              >
+                <div className="bf-subcard">
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginBottom: "12px",
+                    }}
+                  >
+                    <span className="bf-label">Attachments</span>
+                    <button
+                      type="button"
+                      className="bf-btn-secondary"
+                      onClick={() => setShowPaymentDocModal(true)}
+                    >
+                      + Add Attachment
+                    </button>
+                  </div>
+
+                  {paymentDocs.length === 0 ? (
+                    <p style={{ fontSize: "13px", color: "#6b7280" }}>
+                      No attachments added yet.
+                    </p>
+                  ) : (
+                    <ul
+                      style={{
+                        marginTop: "8px",
+                        fontSize: "13px",
+                        color: "#374151",
+                      }}
+                    >
+                      {paymentDocs.map((doc, idx) => (
+                        <li key={idx} style={{ marginBottom: "4px" }}>
+                          <strong>{doc.label || "Attachment"}</strong> (
+                          {doc.doc_type || "OTHER"})
+                          {doc.doc_type === "PAYMENT_PROOF" && (
+                            <>
+                              {" "}
+                              – {doc.payment_mode} – {doc.ref_no || "No Ref"} –
+                              ₹{formatINR(doc.amount)}
+                              {doc.date && <span> ({doc.date})</span>}
+                            </>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               </Section>
 
@@ -3729,10 +4161,260 @@ if (requiresKyc === "YES") {
               </div>
             </div>
           )}
+
+          {showPaymentDocModal && (
+            <div className="cp-project-modal-backdrop">
+              <div className="cp-project-modal">
+                <div className="cp-project-modal-header">
+                  <div>
+                    <h2 className="cp-project-modal-title">
+                      Add Payment Document
+                    </h2>
+                    <p className="cp-project-modal-subtitle">
+                      Cheque / RTGS / UPI details add karein aur proof upload
+                      karein.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="cp-project-modal-close"
+                    onClick={() => setShowPaymentDocModal(false)}
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* ---------- MODAL BODY ---------- */}
+                <div
+                  style={{ padding: "16px 0", display: "grid", gap: "12px" }}
+                >
+                  {/* Doc Type + Label */}
+                  <div className="bf-row">
+                    <div className="bf-col">
+                      <label className="bf-label">Document Type</label>
+                      <select
+                        className="bf-input"
+                        value={newPaymentDoc.doc_type}
+                        onChange={(e) =>
+                          setNewPaymentDoc((prev) => ({
+                            ...prev,
+                            doc_type: e.target.value,
+                          }))
+                        }
+                      >
+                        {DOC_TYPES.map((t) => (
+                          <option key={t.value} value={t.value}>
+                            {t.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="bf-col">
+                      <label className="bf-label">Label / Title</label>
+                      <input
+                        className="bf-input"
+                        type="text"
+                        placeholder="Token Amount Payment / Booking Form / Agreement"
+                        value={newPaymentDoc.label}
+                        onChange={(e) =>
+                          setNewPaymentDoc((prev) => ({
+                            ...prev,
+                            label: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  {/* Payment fields only for PAYMENT_PROOF */}
+                  {newPaymentDoc.doc_type === "PAYMENT_PROOF" && (
+                    <>
+                      <div className="bf-row">
+                        <div className="bf-col">
+                          <label className="bf-label">Payment Mode</label>
+                          <select
+                            className="bf-input"
+                            value={newPaymentDoc.payment_mode}
+                            onChange={(e) =>
+                              setNewPaymentDoc((prev) => ({
+                                ...prev,
+                                payment_mode: e.target.value,
+                              }))
+                            }
+                          >
+                            {PAYMENT_MODES.map((m) => (
+                              <option key={m.value} value={m.value}>
+                                {m.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="bf-col">
+                          <label className="bf-label">
+                            Ref / Cheque No / Transaction ID
+                          </label>
+                          <input
+                            className="bf-input"
+                            type="text"
+                            value={newPaymentDoc.ref_no}
+                            onChange={(e) =>
+                              setNewPaymentDoc((prev) => ({
+                                ...prev,
+                                ref_no: e.target.value,
+                              }))
+                            }
+                          />
+                        </div>
+                      </div>
+
+                      <div className="bf-row">
+                        <div className="bf-col">
+                          <label className="bf-label">Bank Name</label>
+                          <input
+                            className="bf-input"
+                            type="text"
+                            value={newPaymentDoc.bank_name}
+                            onChange={(e) =>
+                              setNewPaymentDoc((prev) => ({
+                                ...prev,
+                                bank_name: e.target.value,
+                              }))
+                            }
+                          />
+                        </div>
+                        <div className="bf-col">
+                          <label className="bf-label">Amount</label>
+                          <input
+                            className="bf-input"
+                            type="text"
+                            value={formatINR(newPaymentDoc.amount)}
+                            onChange={(e) =>
+                              setNewPaymentDoc((prev) => ({
+                                ...prev,
+                                amount: stripAmount(e.target.value),
+                              }))
+                            }
+                          />
+                        </div>
+                        <div className="bf-col">
+                          <label className="bf-label">Date</label>
+                          <input
+                            className="bf-input"
+                            type="date"
+                            value={newPaymentDoc.date}
+                            onChange={(e) =>
+                              setNewPaymentDoc((prev) => ({
+                                ...prev,
+                                date: e.target.value,
+                              }))
+                            }
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  <div className="bf-row">
+                    <div className="bf-col">
+                      <label className="bf-label">Remarks (optional)</label>
+                      <textarea
+                        className="bf-textarea"
+                        rows={2}
+                        value={newPaymentDoc.remarks}
+                        onChange={(e) =>
+                          setNewPaymentDoc((prev) => ({
+                            ...prev,
+                            remarks: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="bf-col">
+                      <label className="bf-label">Upload File</label>
+                      <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        onChange={handlePaymentDocFileChange}
+                      />
+                      {newPaymentDoc.file && (
+                        <div
+                          className="bf-file-name"
+                          style={{ marginTop: "4px" }}
+                        >
+                          {newPaymentDoc.file.name}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "flex-end",
+                      gap: "8px",
+                      marginTop: "8px",
+                    }}
+                  >
+                    <button
+                      type="button"
+                      className="bf-btn-secondary"
+                      onClick={() => setShowPaymentDocModal(false)}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="bf-btn-primary"
+                      onClick={() => {
+                        if (!newPaymentDoc.file) {
+                          toast.error("Please upload a file.");
+                          return;
+                        }
+
+                        if (!newPaymentDoc.label.trim()) {
+                          toast.error(
+                            "Please enter a label / title for this attachment."
+                          );
+                          return;
+                        }
+
+                        if (
+                          newPaymentDoc.doc_type === "PAYMENT_PROOF" &&
+                          (!newPaymentDoc.amount || !newPaymentDoc.date)
+                        ) {
+                          toast.error(
+                            "For Payment Proof, amount and date are required."
+                          );
+                          return;
+                        }
+
+                        setPaymentDocs((prev) => [...prev, newPaymentDoc]);
+                        setNewPaymentDoc({
+                          label: "",
+                          doc_type: "PAYMENT_PROOF",
+                          payment_mode: "UPI",
+                          ref_no: "",
+                          bank_name: "",
+                          amount: "",
+                          date: "",
+                          remarks: "",
+                          file: null,
+                        });
+                        setShowPaymentDocModal(false);
+                      }}
+                    >
+                      Save Attachment
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 };
 
-export default BookingForm
+export default BookingForm;
+

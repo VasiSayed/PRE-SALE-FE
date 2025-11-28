@@ -57,6 +57,23 @@ const isImageUrl = (url) => {
   );
 };
 
+const formatDate = (value) => {
+  if (!value) return "-";
+  if (typeof value === "string" && value.includes("T")) {
+    const d = new Date(value);
+    if (!Number.isNaN(d.getTime())) {
+      return d.toLocaleString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
+  }
+  return value;
+};
+
 const BookingDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -108,7 +125,7 @@ const BookingDetail = () => {
 
     const projectDisplay = projectName ? toTitleCase(projectName) : "";
 
-    // Property: Project / Tower - Unit (thoda readable)
+    // Property: Project / Tower - Unit
     const parts = [];
     if (projectDisplay) parts.push(projectDisplay);
     if (towerName) parts.push(towerName);
@@ -236,24 +253,44 @@ const BookingDetail = () => {
   const gstLabel =
     booking.gst_no || booking.gst_percent || booking.gst_percentage;
 
+  const paymentPlan = booking.payment_plan || null;
+
+  const channelPartnerName =
+    booking.channel_partner_name ||
+    booking.channel_partner?.name ||
+    (booking.channel_partner_id ? `ID #${booking.channel_partner_id}` : "-");
+
+  const createdByName = booking.created_by_name || "-";
+  const salesLeadName = booking.sales_lead_name || "-";
+
+  const kycSubmittedAt = booking.kyc_submitted_at;
+  const kycApprovedAt = booking.kyc_approved_at;
+
   return (
     <div className="booking-page">
       <div className="booking-card" ref={printRef}>
         {/* HEADER */}
         <header className="booking-card-header">
+          {/* LEFT: Project / Name / Property */}
           <div className="booking-header-left">
             <div className="booking-header-project">
               {header.project || "Booking Summary"}
             </div>
-            <div className="booking-header-customer">{header.customer}</div>
+
+            <div className="booking-header-customer">
+              {header.customer || "-"}
+            </div>
+
             {header.property && (
               <div className="booking-header-property">{header.property}</div>
             )}
+
             {header.code && (
               <div className="booking-header-code">Ref: {header.code}</div>
             )}
           </div>
 
+          {/* RIGHT: Status + Amount + Meta */}
           <div className="booking-header-right">
             <div className="booking-header-status-row">
               <span className="booking-status-chip-main">
@@ -267,19 +304,23 @@ const BookingDetail = () => {
             </div>
 
             <div className="booking-header-amount">
-              <span className="rupee-symbol">₹</span>
-              <span>{formatAmount(amount)}</span>
+              <div className="booking-header-amount-label">Total Value</div>
+              <div className="booking-header-amount-value">
+                <span className="rupee-symbol">₹</span>
+                <span>{formatAmount(amount)}</span>
+              </div>
             </div>
 
+            {/* Booking date & status – clearly visible */}
             <div className="booking-header-meta">
-              <div>
-                <span className="booking-header-label">Booking Date: </span>
+              <div className="booking-header-meta-row">
+                <span className="booking-header-label">Booking Date</span>
                 <span className="booking-header-value">
                   {booking.booking_date || "-"}
                 </span>
               </div>
-              <div>
-                <span className="booking-header-label">Status: </span>
+              <div className="booking-header-meta-row">
+                <span className="booking-header-label">Status</span>
                 <span className="booking-header-value">
                   {niceStatus(bookingStatus)}
                 </span>
@@ -288,6 +329,7 @@ const BookingDetail = () => {
 
             {isDraft && (
               <div className="booking-draft-note">
+                <span className="booking-draft-dot" />
                 This is a draft copy. Confirmation is pending.
               </div>
             )}
@@ -296,14 +338,116 @@ const BookingDetail = () => {
 
         {/* BODY */}
         <div className="booking-card-body">
+          {/* BOOKING & LEAD META */}
+          <section className="booking-section">
+            <div className="booking-section-title">Booking & Lead Details</div>
+            <div className="booking-section-body booking-grid-3">
+              <div className="booking-field">
+                <span className="booking-field-label">Booking ID</span>
+                <span className="booking-field-value">{booking.id}</span>
+              </div>
+
+              <div className="booking-field">
+                <span className="booking-field-label">Form Reference No.</span>
+                <span className="booking-field-value">
+                  {booking.form_ref_no || "-"}
+                </span>
+              </div>
+
+              <div className="booking-field">
+                <span className="booking-field-label">Status</span>
+                <span className="booking-field-value">
+                  {niceStatus(bookingStatus)}
+                </span>
+              </div>
+
+              <div className="booking-field">
+                <span className="booking-field-label">Status Label</span>
+                <span className="booking-field-value">
+                  {booking.status_label || niceStatus(bookingStatus) || "-"}
+                </span>
+              </div>
+
+              <div className="booking-field">
+                <span className="booking-field-label">Sales Lead</span>
+                <span className="booking-field-value">
+                  {toTitleCase(salesLeadName)}
+                </span>
+              </div>
+
+              <div className="booking-field">
+                <span className="booking-field-label">Created By</span>
+                <span className="booking-field-value">
+                  {toTitleCase(createdByName)}
+                </span>
+              </div>
+
+              <div className="booking-field">
+                <span className="booking-field-label">Channel Partner</span>
+                <span className="booking-field-value">
+                  {channelPartnerName}
+                </span>
+              </div>
+
+              <div className="booking-field">
+                <span className="booking-field-label">Created At</span>
+                <span className="booking-field-value">
+                  {formatDate(booking.created_at)}
+                </span>
+              </div>
+
+              <div className="booking-field">
+                <span className="booking-field-label">Updated At</span>
+                <span className="booking-field-value">
+                  {formatDate(booking.updated_at)}
+                </span>
+              </div>
+
+              <div className="booking-field">
+                <span className="booking-field-label">Blocked At</span>
+                <span className="booking-field-value">
+                  {formatDate(booking.blocked_at)}
+                </span>
+              </div>
+
+              <div className="booking-field">
+                <span className="booking-field-label">Booked At</span>
+                <span className="booking-field-value">
+                  {formatDate(booking.booked_at)}
+                </span>
+              </div>
+
+              <div className="booking-field">
+                <span className="booking-field-label">Cancelled At</span>
+                <span className="booking-field-value">
+                  {formatDate(booking.cancelled_at)}
+                </span>
+              </div>
+
+              <div className="booking-field booking-field-full">
+                <span className="booking-field-label">Cancellation Reason</span>
+                <span className="booking-field-value">
+                  {booking.cancelled_reason || "-"}
+                </span>
+              </div>
+            </div>
+          </section>
+
           {/* PERSONAL */}
           <section className="booking-section">
             <div className="booking-section-title">Personal Information</div>
             <div className="booking-section-body booking-grid-2">
               <div className="booking-field">
-                <span className="booking-field-label">Name</span>
+                <span className="booking-field-label">Title</span>
                 <span className="booking-field-value">
-                  {header.customer || "-"}
+                  {booking.primary_title || "-"}
+                </span>
+              </div>
+
+              <div className="booking-field">
+                <span className="booking-field-label">Full Name</span>
+                <span className="booking-field-value">
+                  {header.customer || booking.primary_full_name || "-"}
                 </span>
               </div>
 
@@ -315,6 +459,20 @@ const BookingDetail = () => {
               <div className="booking-field">
                 <span className="booking-field-label">Mobile Number</span>
                 <span className="booking-field-value">{mobile}</span>
+              </div>
+
+              <div className="booking-field">
+                <span className="booking-field-label">Secondary Email</span>
+                <span className="booking-field-value">
+                  {booking.email_2 || "-"}
+                </span>
+              </div>
+
+              <div className="booking-field">
+                <span className="booking-field-label">Secondary Phone</span>
+                <span className="booking-field-value">
+                  {booking.phone_2 || "-"}
+                </span>
               </div>
 
               <div className="booking-field">
@@ -333,23 +491,20 @@ const BookingDetail = () => {
                 </span>
               </div>
 
-              <div className="booking-field">
-                <span className="booking-field-label">Secondary Email</span>
+              <div className="booking-field booking-field-full">
+                <span className="booking-field-label">Permanent Address</span>
                 <span className="booking-field-value">
-                  {booking.email_2 || "-"}
-                </span>
-              </div>
-
-              <div className="booking-field">
-                <span className="booking-field-label">Secondary Phone</span>
-                <span className="booking-field-value">
-                  {booking.phone_2 || "-"}
+                  {booking.permanent_address || "-"}
                 </span>
               </div>
 
               <div className="booking-field booking-field-full">
-                <span className="booking-field-label">Resident Address</span>
-                <span className="booking-field-value">{residentAddress}</span>
+                <span className="booking-field-label">
+                  Correspondence Address
+                </span>
+                <span className="booking-field-value">
+                  {booking.correspondence_address || "-"}
+                </span>
               </div>
 
               <div className="booking-field booking-field-full">
@@ -388,6 +543,27 @@ const BookingDetail = () => {
                 <span className="booking-field-label">Flat Number</span>
                 <span className="booking-field-value">
                   {booking.unit || "-"}
+                </span>
+              </div>
+
+              <div className="booking-field">
+                <span className="booking-field-label">Super Built-up Area</span>
+                <span className="booking-field-value">
+                  {booking.super_builtup_sqft || booking.super_builtup || "-"}
+                </span>
+              </div>
+
+              <div className="booking-field">
+                <span className="booking-field-label">Carpet Area</span>
+                <span className="booking-field-value">
+                  {booking.carpet_sqft || booking.carpet_area_sqft || "-"}
+                </span>
+              </div>
+
+              <div className="booking-field">
+                <span className="booking-field-label">Balcony Area</span>
+                <span className="booking-field-value">
+                  {booking.balcony_sqft || "-"}
                 </span>
               </div>
 
@@ -438,7 +614,14 @@ const BookingDetail = () => {
               </div>
 
               <div className="booking-field">
-                <span className="booking-field-label">GST</span>
+                <span className="booking-field-label">GST Number</span>
+                <span className="booking-field-value">
+                  {booking.gst_no || "-"}
+                </span>
+              </div>
+
+              <div className="booking-field">
+                <span className="booking-field-label">GST Details</span>
                 <span className="booking-field-value">{gstLabel || "-"}</span>
               </div>
             </div>
@@ -472,12 +655,33 @@ const BookingDetail = () => {
                 </span>
               </div>
 
+              {booking.total_cost && (
+                <div className="booking-field">
+                  <span className="booking-field-label">Total Cost</span>
+                  <span className="booking-field-value">
+                    <span className="rupee-symbol">₹</span>{" "}
+                    {formatAmount(booking.total_cost)}
+                  </span>
+                </div>
+              )}
+
               <div className="booking-field">
                 <span className="booking-field-label">Payment Plan Type</span>
                 <span className="booking-field-value">
                   {niceLabel(booking.payment_plan_type) || "-"}
                 </span>
               </div>
+
+              {booking.custom_payment_plan && (
+                <div className="booking-field booking-field-full">
+                  <span className="booking-field-label">
+                    Custom Payment Plan
+                  </span>
+                  <span className="booking-field-value">
+                    {booking.custom_payment_plan}
+                  </span>
+                </div>
+              )}
 
               <div className="booking-field">
                 <span className="booking-field-label">Loan Required</span>
@@ -515,8 +719,65 @@ const BookingDetail = () => {
                   {kycStatus ? niceStatus(kycStatus) : "-"}
                 </span>
               </div>
+
+              <div className="booking-field">
+                <span className="booking-field-label">KYC Submitted At</span>
+                <span className="booking-field-value">
+                  {formatDate(kycSubmittedAt)}
+                </span>
+              </div>
+
+              <div className="booking-field">
+                <span className="booking-field-label">KYC Approved At</span>
+                <span className="booking-field-value">
+                  {formatDate(kycApprovedAt)}
+                </span>
+              </div>
             </div>
           </section>
+
+          {/* PAYMENT PLAN */}
+          {(paymentPlan || booking.payment_plan_id) && (
+            <section className="booking-section">
+              <div className="booking-section-title">Payment Plan</div>
+              <div className="booking-section-body booking-grid-2">
+                <div className="booking-field">
+                  <span className="booking-field-label">Plan Name</span>
+                  <span className="booking-field-value">
+                    {paymentPlan?.name || "-"}
+                  </span>
+                </div>
+
+                <div className="booking-field">
+                  <span className="booking-field-label">Plan Code</span>
+                  <span className="booking-field-value">
+                    {paymentPlan?.code || booking.payment_plan_id || "-"}
+                  </span>
+                </div>
+
+                <div className="booking-field">
+                  <span className="booking-field-label">Plan Project</span>
+                  <span className="booking-field-value">
+                    {paymentPlan?.project || "-"}
+                  </span>
+                </div>
+
+                <div className="booking-field">
+                  <span className="booking-field-label">Plan Created At</span>
+                  <span className="booking-field-value">
+                    {formatDate(paymentPlan?.created_at)}
+                  </span>
+                </div>
+
+                <div className="booking-field">
+                  <span className="booking-field-label">Plan Updated At</span>
+                  <span className="booking-field-value">
+                    {formatDate(paymentPlan?.updated_at)}
+                  </span>
+                </div>
+              </div>
+            </section>
+          )}
 
           {/* APPLICANTS */}
           {booking.applicants && booking.applicants.length > 0 && (
@@ -534,10 +795,15 @@ const BookingDetail = () => {
                       key={app.id || app.sequence}
                     >
                       <div className="booking-applicant-header">
-                        <div className="booking-applicant-name">
-                          {toTitleCase(
-                            `${app.title || ""} ${app.full_name || ""}`.trim()
-                          ) || "-"}
+                        <div>
+                          <div className="booking-applicant-name">
+                            {toTitleCase(
+                              `${app.title || ""} ${app.full_name || ""}`.trim()
+                            ) || "-"}
+                          </div>
+                          <div className="booking-applicant-subtitle">
+                            Applicant #{app.sequence || "-"}
+                          </div>
                         </div>
                         <div className="booking-applicant-tags">
                           <span className="booking-chip applicant-chip">
@@ -578,6 +844,14 @@ const BookingDetail = () => {
                           </span>
                           <span className="booking-field-value">
                             {app.aadhar_no || "-"}
+                          </span>
+                        </div>
+                        <div className="booking-field">
+                          <span className="booking-field-label">
+                            Date Of Birth
+                          </span>
+                          <span className="booking-field-value">
+                            {formatDate(app.date_of_birth)}
                           </span>
                         </div>
 
@@ -654,6 +928,7 @@ const BookingDetail = () => {
                   const typeUpper = (att.doc_type || "").toUpperCase();
                   const isPan = typeUpper === "PAN";
                   const isAadhar = typeUpper === "AADHAR";
+                  const isPaymentProof = typeUpper === "PAYMENT_PROOF";
                   const showThumb = isImageUrl(att.file);
 
                   return (
@@ -678,7 +953,68 @@ const BookingDetail = () => {
                               Aadhar Document
                             </span>
                           )}
+                          {isPaymentProof && (
+                            <span className="booking-chip small-chip">
+                              Payment Proof
+                            </span>
+                          )}
                         </div>
+
+                        {(isPaymentProof ||
+                          att.payment_mode ||
+                          att.payment_amount ||
+                          att.payment_date ||
+                          att.bank_name ||
+                          att.payment_ref_no ||
+                          att.remarks) && (
+                          <div className="booking-attachment-meta">
+                            {att.payment_mode && (
+                              <div className="booking-attachment-meta-item">
+                                <span>Mode</span>
+                                <strong>{niceLabel(att.payment_mode)}</strong>
+                              </div>
+                            )}
+                            {att.payment_ref_no && (
+                              <div className="booking-attachment-meta-item">
+                                <span>Ref No.</span>
+                                <strong>{att.payment_ref_no}</strong>
+                              </div>
+                            )}
+                            {att.bank_name && (
+                              <div className="booking-attachment-meta-item">
+                                <span>Bank</span>
+                                <strong>{att.bank_name}</strong>
+                              </div>
+                            )}
+                            {att.payment_amount && (
+                              <div className="booking-attachment-meta-item">
+                                <span>Amount</span>
+                                <strong>
+                                  <span className="rupee-symbol">₹</span>{" "}
+                                  {formatAmount(att.payment_amount)}
+                                </strong>
+                              </div>
+                            )}
+                            {att.payment_date && (
+                              <div className="booking-attachment-meta-item">
+                                <span>Payment Date</span>
+                                <strong>{formatDate(att.payment_date)}</strong>
+                              </div>
+                            )}
+                            {att.remarks && (
+                              <div className="booking-attachment-meta-item booking-attachment-meta-remarks">
+                                <span>Remarks</span>
+                                <strong>{att.remarks}</strong>
+                              </div>
+                            )}
+                            {att.created_at && (
+                              <div className="booking-attachment-meta-item">
+                                <span>Uploaded At</span>
+                                <strong>{formatDate(att.created_at)}</strong>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       {showThumb && (
@@ -705,6 +1041,23 @@ const BookingDetail = () => {
                     </div>
                   );
                 })}
+              </div>
+            </section>
+          )}
+
+          {/* BOOKING FORM PDF */}
+          {booking.booking_form_pdf && (
+            <section className="booking-section">
+              <div className="booking-section-title">Generated Documents</div>
+              <div className="booking-section-body">
+                <a
+                  href={booking.booking_form_pdf}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="booking-btn-link"
+                >
+                  View Booking Form PDF
+                </a>
               </div>
             </section>
           )}

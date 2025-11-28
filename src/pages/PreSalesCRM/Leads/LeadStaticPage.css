@@ -1350,3 +1350,666 @@
   font-weight: 600;
   color: #111827;
 }
+/* ===== Lead Stage field – same look as Classification + icon ===== */
+/* ===== Lead Stage field – same as Classification + icon ===== */
+
+.stage-field .field-stage-select-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.stage-field select {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background-color: #f3f4f6; /* same as Classification */
+  padding: 6px 30px 6px 10px; /* right space for icon */
+  font-size: 14px;
+  color: #111827;
+  box-sizing: border-box;
+}
+
+.stage-history-icon-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  color: #6b7280;
+}
+
+.stage-history-icon-btn:hover:not(:disabled) {
+  background: rgba(148, 163, 184, 0.18);
+  color: #374151;
+}
+
+.stage-history-icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.stage-history-icon {
+  font-size: 13px;
+  line-height: 1;
+}
+
+
+/* ===== Stage history modal layout ===== */
+
+.stage-history-modal {
+  max-width: 640px; /* thoda wide so text comfortable lage */
+}
+
+/* scrollable body */
+.stage-history-modal-body {
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.stage-history-modal-body::-webkit-scrollbar {
+  width: 4px;
+}
+
+.stage-history-modal-body::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 2px;
+}
+
+/* list + card styling */
+.stage-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stage-history-item {
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  padding: 8px 10px;
+}
+
+/* top row: left (stage + chips) / right (dates) */
+.stage-history-header-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 4px;
+}
+
+.stage-history-stage {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.stage-history-chips {
+  margin-top: 3px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.stage-history-chip {
+  padding: 2px 8px;
+  font-size: 10px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.stage-status-chip {
+  background: rgba(22, 163, 74, 0.12);
+  color: #15803d;
+}
+
+.stage-substatus-chip {
+  background: rgba(59, 130, 246, 0.12);
+  color: #2563eb;
+}
+
+.stage-history-dates {
+  text-align: right;
+  font-size: 10px;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.stage-history-date + .stage-history-date {
+  margin-top: 2px;
+}
+
+/* meta row + notes */
+.stage-history-meta {
+  margin-top: 2px;
+  font-size: 10px;
+  color: #6b7280;
+}
+
+.stage-history-author {
+  font-weight: 500;
+}
+
+.stage-history-notes {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #374151;
+  line-height: 1.4;
+}
+
+/* mobile: stack dates under title */
+@media (max-width: 640px) {
+  .stage-history-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .stage-history-dates {
+    text-align: left;
+    margin-top: 4px;
+  }
+}
+
+/* ===== Activity status row (pill like HubSpot) ===== */
+
+.activity-status-row {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.activity-status-label {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+/* main pill – default "Done" style */
+.activity-status-pill {
+  padding: 3px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(22, 163, 74, 0.35);
+  background: rgba(22, 163, 74, 0.08);
+  color: #166534;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+/* optional modifiers, if you want different colours later */
+.activity-status-pill--open {
+  border-color: rgba(59, 130, 246, 0.4);
+  background: rgba(59, 130, 246, 0.08);
+  color: #2563eb;
+}
+
+.activity-status-pill--overdue {
+  border-color: rgba(220, 38, 38, 0.4);
+  background: rgba(248, 113, 113, 0.12);
+  color: #b91c1c;
+}
+
+/* ===== Status history lines under the card ===== */
+
+.activity-status-history {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px dashed #e5e7eb;
+}
+
+.status-log-line {
+  font-size: 11px;
+  line-height: 1.4;
+  margin-bottom: 4px;
+}
+
+.status-log-header {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.status-log-badge {
+  font-weight: 600;
+  color: #111827;
+}
+
+.status-log-meta {
+  font-size: 10px;
+  color: #6b7280;
+}
+
+.status-log-comment {
+  margin-left: 18px; /* thoda indent, neeche comment jaisa feel */
+  margin-top: 2px;
+  font-size: 10px;
+  color: #4b5563;
+  font-style: italic;
+}
+
+/* optional title if you open a modal for this */
+.modal-activity-title {
+  margin-top: 4px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+
+/* ===== Interested Unit modal ===== */
+
+.interested-modal {
+  max-width: 520px;
+}
+
+.interested-modal-body {
+  padding-top: 4px;
+}
+
+/* search row */
+
+.interested-search-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.interested-search-input {
+  flex: 1;
+  font-size: 12px;
+}
+
+/* results list inside modal */
+
+.interested-results {
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+/* reuse unit-choices-grid, tweak active state */
+
+.unit-checkbox-item-active {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.06);
+}
+
+.unit-checkbox-item-active .unit-checkbox-label {
+  color: #1d4ed8;
+}
+
+/* radio inside modal */
+
+.unit-checkbox-item input[type="radio"] {
+  width: 14px;
+  height: 14px;
+  margin-top: 2px;
+  cursor: pointer;
+  accent-color: #3b82f6;
+}
+
+/* ===== Interested Unit Modal (Inventory Tree) ===== */
+
+.interested-modal {
+  max-width: 720px;
+}
+
+.interested-modal-body {
+  padding-top: 4px;
+}
+
+/* search row */
+
+.interested-search-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.interested-search-input {
+  flex: 1;
+  font-size: 12px;
+}
+
+/* layout: left tree + right details */
+
+.inventory-modal-layout {
+  display: flex;
+  gap: 12px;
+}
+
+.inventory-tree {
+  flex: 3;
+  max-height: 260px;
+  overflow-y: auto;
+  border-right: 1px solid #e5e7eb;
+  padding-right: 8px;
+}
+
+.inventory-unit-detail {
+  flex: 2;
+  padding-left: 4px;
+}
+
+/* tower / floor headings */
+
+.inventory-tower-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 4px;
+}
+
+.inventory-floor {
+  margin-bottom: 6px;
+}
+
+.inventory-floor-title {
+  font-size: 10px;
+  color: #6b7280;
+  margin-bottom: 4px;
+}
+
+.inventory-units-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* unit pill buttons */
+
+.inventory-unit-pill {
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  padding: 4px 10px;
+  font-size: 10px;
+  background: #f9fafb;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.inventory-unit-pill:hover {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+}
+
+.inventory-unit-pill-active {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: #3b82f6;
+  color: #1d4ed8;
+}
+
+/* right side detail card */
+
+.unit-detail-card {
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  padding: 10px;
+  background: linear-gradient(135deg, #ffffff 0%, #f3f4f6 100%);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+  font-size: 11px;
+}
+
+.unit-detail-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 8px;
+}
+
+.unit-detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.unit-detail-row span {
+  color: #6b7280;
+  font-size: 10px;
+}
+
+.unit-detail-row strong {
+  font-size: 11px;
+  color: #111827;
+}
+
+/* responsive */
+
+@media (max-width: 768px) {
+  .inventory-modal-layout {
+    flex-direction: column;
+  }
+
+  .inventory-tree {
+    border-right: none;
+    border-bottom: 1px solid #e5e7eb;
+    padding-right: 0;
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+  }
+
+  .inventory-unit-detail {
+    padding-left: 0;
+  }
+}
+
+/* ====== Interested units modal (inventory tree) ====== */
+
+.interested-modal {
+  max-width: 980px;
+  width: 95%;
+}
+
+.interested-modal-body {
+  padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* search + filter rows */
+.interested-search-row,
+.interested-filter-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.interested-search-input {
+  flex: 1;
+  border-radius: 4px;
+  border: 1px solid #d0d4dd;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.interested-filter-row label {
+  font-size: 12px;
+  color: #555;
+  min-width: 80px;
+}
+
+.interested-filter-row select {
+  flex: 0 0 200px;
+  border-radius: 4px;
+  border: 1px solid #d0d4dd;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+/* layout: tree + detail */
+.inventory-modal-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 60%) minmax(0, 40%);
+  gap: 16px;
+  margin-top: 4px;
+  min-height: 260px;
+}
+
+/* left side tree */
+.inventory-tree {
+  border: 1px solid #e2e5ee;
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: #fafbff;
+  overflow: auto;
+  max-height: 380px;
+}
+
+.inventory-tower + .inventory-tower {
+  border-top: 1px dashed #dde0ea;
+  margin-top: 8px;
+  padding-top: 8px;
+}
+
+.inventory-tower-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a2750;
+  margin-bottom: 4px;
+}
+
+.inventory-floor {
+  margin-left: 8px;
+  margin-top: 4px;
+}
+
+.inventory-floor-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: #4c5678;
+  margin-bottom: 4px;
+}
+
+.inventory-units-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* unit pills */
+.inventory-unit-pill {
+  border-radius: 999px;
+  padding: 4px 10px;
+  border: 1px solid #d0d4dd;
+  background: #ffffff;
+  font-size: 12px;
+  line-height: 1.4;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.05s;
+}
+
+.inventory-unit-pill:hover {
+  border-color: #19376d;
+  background: #f1f4ff;
+}
+
+.inventory-unit-pill-active {
+  border-color: #19376d;
+  background: #19376d;
+  color: #ffffff;
+}
+
+.inventory-unit-pill-unavailable {
+  background: #f6f7fb;
+  border-style: dashed;
+  border-color: #c7cad6;
+  color: #9a9eb0;
+}
+
+.inventory-unit-pill-unavailable:hover {
+  background: #f6f7fb;
+  border-color: #c7cad6;
+  cursor: default;
+}
+
+.inventory-unit-pill-main {
+  font-weight: 500;
+}
+
+.inventory-unit-pill-tag {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #ffe5e5;
+  color: #b43434;
+}
+
+/* right side details */
+.inventory-detail {
+  border: 1px solid #e2e5ee;
+  border-radius: 6px;
+  padding: 10px 12px;
+  background: #ffffff;
+  overflow: auto;
+  max-height: 380px;
+}
+
+.unit-detail-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.unit-detail-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #19376d;
+  margin-bottom: 4px;
+}
+
+.unit-detail-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  padding: 4px 0;
+  border-bottom: 1px dashed #eceff6;
+}
+
+.unit-detail-row span {
+  color: #6b7280;
+}
+
+.unit-detail-row strong {
+  color: #111827;
+}
+
+/* note under detail / actions */
+.inventory-note {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #b43434;
+}
+
+/* mobile */
+@media (max-width: 900px) {
+  .inventory-modal-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .inventory-tree,
+  .inventory-detail {
+    max-height: 220px;
+  }
+}
+

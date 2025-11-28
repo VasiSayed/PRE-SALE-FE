@@ -2,21 +2,29 @@ import React, { useEffect, useState, useRef } from "react";
 import { useSearchParams, useNavigate, useParams } from "react-router-dom";
 import api, { BASE_URL } from "../../../api/axiosInstance";
 import { toast } from "react-hot-toast";
+
 import "./LeadStaticPage.css";
 
 // helper for datetime-local default
 const nowForInput = () => new Date().toISOString().slice(0, 16);
 
 const LeadStaticPage = () => {
+
+  const [stageHistoryModalOpen, setStageHistoryModalOpen] = useState(false);
+
+
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const [stageChangeNote, setStageChangeNote] = useState("");
+const [updateStatusOptions, setUpdateStatusOptions] = useState([]);
+
   const { id: leadIdFromPath } = useParams();
   const leadId = searchParams.get("lead_id") || leadIdFromPath || null;
 
   const [lead, setLead] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
+const projectId = lead?.project || null;
   // ---- lookups from /client/setup-bundle/ ----
   const [lookups, setLookups] = useState(null);
   const [loadingLookups, setLoadingLookups] = useState(false);
@@ -149,14 +157,24 @@ const LeadStaticPage = () => {
   const [activityFilter, setActivityFilter] = useState("");
   // ---- Interested Inventory (InterestedLeadUnit) ----
   const [interestedUnits, setInterestedUnits] = useState([]);
+  const [interestedModalOpen, setInterestedModalOpen] = useState(false);
+
+  const [inventoryTree, setInventoryTree] = useState([]);
+  const [inventoryLoading, setInventoryLoading] = useState(false);
+
+  const [selectedUnitId, setSelectedUnitId] = useState(null);
+  const [selectedUnitInfo, setSelectedUnitInfo] = useState(null);
+  const [selectedUnitInfoLoading, setSelectedUnitInfoLoading] = useState(false);
+const [availabilityFilter, setAvailabilityFilter] = useState("ALL"); // ALL | AVAILABLE | BOOKED
+const [selectedUnitStatus, setSelectedUnitStatus] = useState(null);
+  
+  const [interestedSaving, setInterestedSaving] = useState(false);
+  const [interestedSearch, setInterestedSearch] = useState("");
+
   const [loadingInterested, setLoadingInterested] = useState(false);
   const [removingInterestedId, setRemovingInterestedId] = useState(null);
 
-  // ---- Add Interested Units ----
-  const [availableUnits, setAvailableUnits] = useState([]);
-  const [availableUnitsLoading, setAvailableUnitsLoading] = useState(false);
-  const [selectedUnitIds, setSelectedUnitIds] = useState([]);
-  const [addingInterested, setAddingInterested] = useState(false);
+
 
   // ---- Email logs + send ----
   const [emailLogs, setEmailLogs] = useState([]);
@@ -254,24 +272,35 @@ const LeadStaticPage = () => {
   }, [leadId]);
 
   // 2) When lead is known, load setup-bundle lookups
-  useEffect(() => {
-    if (!lead || !lead.project) return;
+useEffect(() => {
+  if (!lead || !lead.project) return;
 
-    setLoadingLookups(true);
-    api
-      .get("/client/setup-bundle/", {
-        params: { project_id: lead.project, lead_id: lead.id },
-      })
-      .then((res) => {
-        const data = res.data || {};
-        setLookups(data.lookups || {});
-        setLeadDocs(data.lead_documents || null); // 👈 NEW
-      })
-      .catch((err) => {
-        console.error("Failed to load setup bundle", err);
-      })
-      .finally(() => setLoadingLookups(false));
-  }, [lead]);
+  setLoadingLookups(true);
+  api
+    .get("/client/setup-bundle/", {
+      params: { project_id: lead.project, lead_id: lead.id },
+    })
+    .then((res) => {
+      const data = res.data || {};
+      const lk = data.lookups || {};
+
+      setLookups(lk);
+      setLeadDocs(data.lead_documents || null);
+
+      // 🔹 yaha se activity ke statuses nikaalo
+      const rawStatuses = lk.lead_update_statuses || []; // <== IMPORTANT
+      const filtered = rawStatuses.filter(
+        (s) => !s.project_id || s.project_id === lead.project
+      );
+
+      setUpdateStatusOptions(filtered); // [{id, code, label, project_id}, ...]
+    })
+    .catch((err) => {
+      console.error("Failed to load setup bundle", err);
+    })
+    .finally(() => setLoadingLookups(false));
+}, [lead]);
+
 
   // 3) Prefill extra-info + lead-info forms once lead is loaded
   useEffect(() => {
@@ -340,6 +369,57 @@ const LeadStaticPage = () => {
       annual_income: lead.annual_income ?? "",
     });
   }, [lead]);
+const formatUpdateType = (val) => {
+  if (!val) return "-";
+  return val
+    .toString()
+    .toLowerCase()
+    .split(/[\s_]+/)
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+    .join(" ");
+};
+
+
+const getUpdateStatusLabel = (update) => {
+  if (!update) return "No status";
+
+  // 1) Direct label from backend (preferred)
+  if (update.activity_status_label) return update.activity_status_label;
+  if (update.activity_status_name) return update.activity_status_name;
+
+  // 2) Latest from history (by event_date / created_at / id)
+  if (Array.isArray(update.status_history) && update.status_history.length) {
+    const latest = update.status_history.reduce((latest, item) => {
+      const latestKey = latest.event_date || latest.created_at || "";
+      const itemKey = item.event_date || item.created_at || "";
+
+      if (itemKey > latestKey) return item;
+      if (itemKey < latestKey) return latest;
+
+      // tie-breaker: higher id is newer
+      return (item.id || 0) > (latest.id || 0) ? item : latest;
+    }, update.status_history[0]);
+
+    if (latest.new_status_label) return latest.new_status_label;
+
+    // fallback: use id → lookup
+    if (latest.new_status && updateStatusOptions.length) {
+      const st = updateStatusOptions.find((s) => s.id === latest.new_status);
+      if (st) return st.label || st.code || `#${st.id}`;
+    }
+  }
+
+  // 3) Fallback: use current activity_status id with lookup
+  if (update.activity_status && updateStatusOptions.length) {
+    const st = updateStatusOptions.find((s) => s.id === update.activity_status);
+    if (st) return st.label || st.code || `#${st.id}`;
+  }
+
+  return "No status";
+};
+
+
+
 
   const handleCommentChange = (field, value) => {
     setCommentForm((prev) => ({ ...prev, [field]: value }));
@@ -378,6 +458,64 @@ const LeadStaticPage = () => {
       setSavingComment(false);
     }
   };
+const openActivityStatusModal = (update) => {
+  if (!update) return;
+  setActivityStatusModal({
+    open: true,
+    update,
+    status: update.activity_status || "",
+    comment: "",
+  });
+};
+
+const handleCloseActivityStatusModal = () => {
+  if (savingActivityStatus) return;
+  setActivityStatusModal({
+    open: false,
+    update: null,
+    status: "",
+    comment: "",
+  });
+};
+
+const handleSaveActivityStatus = async () => {
+  const u = activityStatusModal.update;
+  if (!u) return;
+  if (!activityStatusModal.status) {
+    toast.error("Please select a status for this activity.");
+    return;
+  }
+
+  setSavingActivityStatus(true);
+  try {
+    const payload = {
+      activity_status: Number(activityStatusModal.status),
+      comment: activityStatusModal.comment || "",
+    };
+
+    const res = await api.post(
+      `/sales/sales-lead-updates/${u.id}/change-status/`,
+      payload
+    );
+    const updated = res.data;
+
+    // lead.updates ko update karo
+    setLead((prev) => ({
+      ...prev,
+      updates: (prev?.updates || []).map((x) =>
+        x.id === updated.id ? updated : x
+      ),
+    }));
+
+    toast.success("Activity status updated");
+    handleCloseActivityStatusModal();
+  } catch (err) {
+    console.error("Failed to update activity status", err);
+    toast.error("Failed to update activity status");
+  } finally {
+    setSavingActivityStatus(false);
+  }
+};
 
   // 4) Load channel partners by source
   useEffect(() => {
@@ -419,27 +557,60 @@ const LeadStaticPage = () => {
   }, [leadId]);
 
   // 6) Load available units when interested section is opened
-  useEffect(() => {
-    if (!lead || !lead.project) return;
-    if (collapsedSections.interested) return;
 
-    setAvailableUnitsLoading(true);
-    api
-      .get(`/client/projects/${lead.project}/available-units/`)
-      .then((res) => {
-        let items = res.data || [];
-        if (!Array.isArray(items)) {
-          items = items.results || [];
-        }
-        const already = new Set(interestedUnits.map((iu) => iu.unit));
-        items = items.filter((u) => !already.has(u.id));
-        setAvailableUnits(items);
-      })
-      .catch((err) => {
-        console.error("Failed to load available units", err);
-      })
-      .finally(() => setAvailableUnitsLoading(false));
-  }, [lead, collapsedSections.interested, interestedUnits]);
+
+useEffect(() => {
+  if (!interestedModalOpen || !projectId) return;
+
+  const loadInventoryTree = async () => {
+    setInventoryLoading(true);
+    try {
+      const res = await api.get("/client/inventory/tree/", {
+        params: { project_id: projectId },
+      });
+
+      const payload = res.data || {};
+      // 👇 API se towers array aa raha hai
+      const towers = Array.isArray(payload.towers) ? payload.towers : [];
+      setInventoryTree(towers);
+    } catch (err) {
+      console.error("Error loading inventory tree", err);
+    } finally {
+      setInventoryLoading(false);
+    }
+  };
+
+  loadInventoryTree();
+}, [interestedModalOpen, projectId]);
+
+const handleSelectUnit = async (unit) => {
+  if (!unit?.id) return;
+
+  // 👇 status store karo so we know if it is AVAILABLE / BOOKED
+  const status =
+    unit?.inventory?.availability_status ||
+    unit?.inventory?.unit_status ||
+    null;
+  setSelectedUnitStatus(status);
+
+  setSelectedUnitId(unit.id);
+  setSelectedUnitInfo(null);
+  setSelectedUnitInfoLoading(true);
+
+  try {
+    const res = await api.get("/client/inventory/by-unit/", {
+      params: { unit_id: unit.id },
+    });
+    setSelectedUnitInfo(res.data);
+  } catch (err) {
+    console.error("Error loading unit details", err);
+  } finally {
+    setSelectedUnitInfoLoading(false);
+  }
+};
+
+
+
 
   // 7) Load email logs when Email tab active
   useEffect(() => {
@@ -556,6 +727,36 @@ const displayStatusName = rawStatusName
   const stages = lead?.lead_stages || [];
   const stageHistory = lead?.stage_history || [];
   const updates = lead?.updates || [];
+// const [updateStatusOptions, setUpdateStatusOptions] = useState([]);
+
+
+const sortedStageHistory = React.useMemo(() => {
+  if (!stageHistory || !stageHistory.length) return [];
+
+  const copy = [...stageHistory];
+  copy.sort((a, b) => {
+    const aKey = a.event_date || a.created_at || "";
+    const bKey = b.event_date || b.created_at || "";
+
+    // latest first
+    if (aKey < bKey) return 1;
+    if (aKey > bKey) return -1;
+    return (b.id || 0) - (a.id || 0);
+  });
+
+  return copy;
+}, [stageHistory]);
+
+
+
+
+const [activityStatusModal, setActivityStatusModal] = useState({
+  open: false,
+  update: null,
+  status: "",
+  comment: "",
+});
+const [savingActivityStatus, setSavingActivityStatus] = useState(false);
 
   // ==== Activity Filtered List ====
   const filteredUpdates =
@@ -565,6 +766,11 @@ const displayStatusName = rawStatusName
 
   const documents = lead?.documents || [];
   const inventoryDocs = lead?.project_inventory_docs || [];
+
+  const isSelectedAvailable =
+    selectedUnitStatus === "AVAILABLE" ||
+    selectedUnitInfo?.availability_status === "AVAILABLE" ||
+    selectedUnitInfo?.inventory?.availability_status === "AVAILABLE";
 
 const bookingId = leadDocs?.booking?.id || null;
 const quotationId = leadDocs?.quotation?.id || null;
@@ -733,6 +939,39 @@ const handleCreateActivity = async () => {
     e.target.value = "";
   };
 
+  const handleSaveInterested = async () => {
+    if (!lead || !selectedUnitId) return;
+
+    const existing = interestedUnits[0]; // sirf ek interested unit allowed
+    setInterestedSaving(true);
+
+    try {
+      // 1) Purana interested hatado (agar hai)
+      if (existing && existing.id) {
+        await api.delete(`/sales/interested-units/${existing.id}/`);
+      }
+
+      // 2) Naya interested unit create karo
+const res = await api.post("/sales/interested-units/", {
+  sales_lead: lead.id,
+  unit: selectedUnitId, // 👈 yahi tumhara original field hai
+});
+
+      const newRecord = res.data;
+      setInterestedUnits([newRecord]);
+      setInterestedModalOpen(false);
+      toast.success("Interested unit updated");
+    } catch (err) {
+      console.error("Saving interested unit failed", err);
+      toast.error("Failed to save interested unit");
+    } finally {
+      setInterestedSaving(false);
+    }
+  };
+
+
+
+
   const handleCancelUploadDoc = () => {
     if (uploadingDoc) return;
     setDocModalOpen(false);
@@ -869,58 +1108,81 @@ const handleSaveLeadStatus = async () => {
     );
   };
 
-  const handleStageClick = (stage) => {
-    if (!lead) return;
-    if (activeStageId && stage.id === activeStageId) return;
+const handleStageClick = (stage) => {
+  if (!lead) return;
+  if (activeStageId && stage.id === activeStageId) return;
 
-    setStageModal({
-      open: true,
-      stage,
-    });
-  };
+  setStageModal({
+    open: true,
+    stage,
+  });
+  setStageChangeNote(""); // 🔹 har baar fresh note
+};
 
-  const handleCancelStageChange = () => {
-    if (savingStage) return;
+const handleStageDropdownChange = (e) => {
+  const value = e.target.value;
+  if (!value) return;
+
+  const stageId = Number(value);
+  const stage = stages.find((s) => s.id === stageId);
+  if (!stage) return;
+
+  if (activeStageId && stageId === activeStageId) return;
+
+  handleStageClick(stage); // same modal / same flow
+};
+
+
+
+const handleCancelStageChange = () => {
+  if (savingStage) return;
+  setStageModal({ open: false, stage: null });
+  setStageChangeNote("");
+};
+
+const handleConfirmStageChange = async () => {
+  if (!lead || !stageModal.stage) return;
+
+  if (!stageChangeNote.trim()) {
+    toast.error("Please enter a note for this stage change.");
+    return;
+  }
+
+  setSavingStage(true);
+  try {
+    const payload = {
+      sales_lead: lead.id,
+      stage: stageModal.stage.id,
+      status: lead.status || null,
+      sub_status: lead.sub_status || null,
+      event_date: new Date().toISOString(),
+      notes: stageChangeNote.trim(), // 🔹 ab empty nahi
+    };
+
+    setStatusForm((prev) => ({
+      ...prev,
+      status: lead.status || "",
+      sub_status: lead.sub_status || "",
+    }));
+
+    const res = await api.post("/sales/sales-lead-stages/", payload);
+    const newHistory = res.data;
+
+    setLead((prev) => ({
+      ...prev,
+      stage_history: [...(prev?.stage_history || []), newHistory],
+    }));
+    toast.success("Lead stage updated");
+  } catch (err) {
+    console.error("Failed to change stage", err);
+    toast.error("Failed to change stage");
+  } finally {
+    setSavingStage(false);
     setStageModal({ open: false, stage: null });
-  };
+    setStageChangeNote("");
+  }
+};
 
-  const handleConfirmStageChange = async () => {
-    if (!lead || !stageModal.stage) return;
-
-    setSavingStage(true);
-    try {
-      const payload = {
-        sales_lead: lead.id,
-        stage: stageModal.stage.id,
-        status: lead.status || null,
-        sub_status: lead.sub_status || null,
-        event_date: new Date().toISOString(),
-        notes: "",
-      };
-
-      setStatusForm((prev) => ({
-        ...prev,
-        status: lead.status || "",
-        sub_status: lead.sub_status || "",
-        // keep existing comment if user already typed something
-      }));
-
-      const res = await api.post("/sales/sales-lead-stages/", payload);
-      const newHistory = res.data;
-
-      setLead((prev) => ({
-        ...prev,
-        stage_history: [...(prev?.stage_history || []), newHistory],
-      }));
-      toast.success("Lead stage updated");
-    } catch (err) {
-      console.error("Failed to change stage", err);
-      toast.error("Failed to change stage");
-    } finally {
-      setSavingStage(false);
-      setStageModal({ open: false, stage: null });
-    }
-  };
 
   const handleLeadInfoChange = (field, value) => {
     setLeadInfoForm((prev) => ({ ...prev, [field]: value }));
@@ -1194,10 +1456,11 @@ const handleSaveLeadStatus = async () => {
       <div className="lead-header">
         {/* LEFT: Lead name + basic info */}
         <div className="lead-header-left">
-          {/* Lead Name – centered only in this box */}
-          <h1 className="lead-title">{displayFullName}</h1>
+          {/* Top bar: name centered like screenshot */}
+          <div className="lead-title-bar">
+            <h1 className="lead-title">{displayFullName}</h1>
+          </div>
 
-          {/* Owner / Mobile / Email grid */}
           <div className="lead-header-grid">
             <div className="field-compact">
               <label>Lead Owner:</label>
@@ -1223,14 +1486,47 @@ const handleSaveLeadStatus = async () => {
             </div>
 
             <div className="field-compact">
-              <label>Lead Status:</label>
+              <label>Classification:</label>
               <input
                 type="text"
                 value={displayStatusName}
                 readOnly
                 onClick={handleOpenLeadStatusModal}
-                style={{ cursor: "pointer" }}
+                className="readonly-clickable"
               />
+            </div>
+
+            <div className="field-compact stage-field">
+              <label>Lead Status:</label>
+              <div className="field-stage-select-wrap">
+                <select
+                  value={activeStageId || ""}
+                  onChange={handleStageDropdownChange}
+                  disabled={!stages.length}
+                >
+                  <option value="">
+                    {stages.length ? "Select stage" : "No stages configured"}
+                  </option>
+                  {stages.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.order ? `${s.order}. ${s.name}` : s.name}
+                    </option>
+                  ))}
+                </select>
+
+                {/* small icon button – open stage history modal */}
+                <button
+                  type="button"
+                  className="stage-history-icon-btn"
+                  onClick={() => setStageHistoryModalOpen(true)}
+                  disabled={!stageHistory.length}
+                  title="View stage history"
+                >
+                  <span className="stage-history-icon" aria-hidden="true">
+                    🕓
+                  </span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -1629,16 +1925,72 @@ const handleSaveLeadStatus = async () => {
                     </div>
                   </div>
                 ) : (
-                  filteredUpdates.map((u) => (
-                    <div key={u.id} className="activity-row">
-                      <div className="activity-icon info">i</div>
-                      <div className="activity-strip">
-                        <div className="strip-title">{u.title}</div>
-                        <div className="strip-sub">{u.info}</div>
-                        <div className="strip-sub small">{u.update_type}</div>
+                  filteredUpdates.map((u) => {
+                    const body = u.remarks || u.info || "";
+                    const when = u.event_date || u.created_at || null;
+                    const statusLabel = getUpdateStatusLabel(u);
+
+                    return (
+                      <div key={u.id} className="activity-row">
+                        <div className="activity-icon info">i</div>
+                        <div className="activity-strip">
+                          <div className="strip-title">
+                            {u.title || "(No title)"}
+                          </div>
+
+                          {body && <div className="strip-sub">{body}</div>}
+
+                          <div className="strip-sub small">
+                            {formatUpdateType(u.update_type)}
+                            {u.created_by_name && ` • ${u.created_by_name}`}
+                            {when &&
+                              ` • ${new Date(when).toLocaleString("en-GB")}`}
+                          </div>
+
+                          {/* 🔹 Activity status pill + change option */}
+                          <div className="activity-status-row">
+                            <span className="activity-status-label">
+                              Activity Status:
+                            </span>
+                            <button
+                              type="button"
+                              className="activity-status-pill"
+                              onClick={() => openActivityStatusModal(u)}
+                            >
+                              {statusLabel}
+                            </button>
+                          </div>
+
+                          {/* 🔹 Status history timeline */}
+                          {Array.isArray(u.status_history) &&
+                            u.status_history.length > 0 && (
+                              <div className="activity-status-history">
+                                {u.status_history.map((sh) => (
+                                  <div key={sh.id} className="status-log-line">
+                                    <div className="status-log-badge">
+                                      {sh.old_status_label || "-"} →{" "}
+                                      {sh.new_status_label || "-"}
+                                    </div>
+                                    <div className="status-log-meta">
+                                      {sh.changed_by_name || "Staff"}
+                                      {sh.event_date &&
+                                        ` • ${new Date(
+                                          sh.event_date
+                                        ).toLocaleString("en-GB")}`}
+                                    </div>
+                                    {sh.comment && (
+                                      <div className="status-log-comment">
+                                        {sh.comment}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>
@@ -2155,84 +2507,40 @@ const handleSaveLeadStatus = async () => {
 
                 <div className="interested-units-section">
                   <div className="interested-header">
-                    <h4>Add Interested Units</h4>
+                    <h4>Interested Unit</h4>
+                    <button
+                      type="button"
+                      className="btn-primary small"
+                      onClick={() => {
+                        setInterestedSearch("");
+                        setSelectedUnitId(null);
+                        setSelectedUnitInfo(null);
+                        setInterestedModalOpen(true);
+                      }}
+                    >
+                      + Add Interested Unit
+                    </button>
                   </div>
-                  {availableUnitsLoading ? (
-                    <div className="empty-state">
-                      Loading available units...
-                    </div>
-                  ) : availableUnits.length === 0 ? (
-                    <div className="empty-state">
-                      No available units found for this project.
+
+                  {interestedUnits.length === 0 ? (
+                    <div className="empty-state small">
+                      No interested unit selected yet.
                     </div>
                   ) : (
-                    <>
-                      <div className="unit-choices-grid">
-                        {availableUnits.map((u) => {
-                          const checked = selectedUnitIds.includes(u.id);
-                          const label = `${u.tower_name || ""}${
-                            u.tower_name ? " / " : ""
-                          }${u.floor_number || ""}${
-                            u.floor_number ? " / " : ""
-                          }${u.unit_no || `Unit #${u.id}`}`;
-
-                          return (
-                            <label key={u.id} className="unit-checkbox-item">
-                              <input
-                                type="checkbox"
-                                checked={checked}
-                                onChange={(e) => {
-                                  setSelectedUnitIds((prev) =>
-                                    e.target.checked
-                                      ? [...prev, u.id]
-                                      : prev.filter((id) => id !== u.id)
-                                  );
-                                }}
-                              />
-                              <div>
-                                <div className="unit-checkbox-label">
-                                  {label}
-                                </div>
-                                <div className="unit-checkbox-meta">
-                                  {u.configuration && (
-                                    <span>Config: {u.configuration} </span>
-                                  )}
-                                  {u.carpet_sqft && (
-                                    <span>
-                                      • Carpet: {u.carpet_sqft} sq.ft{" "}
-                                    </span>
-                                  )}
-                                  {u.agreement_value && (
-                                    <span>
-                                      • Value: ₹
-                                      {Number(u.agreement_value).toLocaleString(
-                                        "en-IN"
-                                      )}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </label>
-                          );
-                        })}
-                      </div>
-                      <div className="interested-save-row">
-                        <button
-                          type="button"
-                          className="btn-primary"
-                          onClick={handleSaveInterestedUnits}
-                          disabled={
-                            addingInterested ||
-                            selectedUnitIds.length === 0 ||
-                            availableUnitsLoading
-                          }
-                        >
-                          {addingInterested
-                            ? "Saving..."
-                            : "Save Selected Units"}
-                        </button>
-                      </div>
-                    </>
+                    <div className="interested-list">
+                      {interestedUnits.map((u) => (
+                        <div key={u.id} className="interested-item">
+                          <div className="interested-info">
+                            <div className="interested-label">
+                              {u.label || u.inventory_name}
+                            </div>
+                            <div className="interested-meta">
+                              {u.tower_name} • {u.floor_name} • {u.unit_no}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
               </>
@@ -2719,8 +3027,20 @@ const handleSaveLeadStatus = async () => {
               Move to "{stageModal.stage.name}"?
             </div>
             <div className="modal-body">
-              Are you sure you want to move this lead to{" "}
-              <strong>{stageModal.stage.name}</strong>?
+              <div>
+                Are you sure you want to move this lead to{" "}
+                <strong>{stageModal.stage.name}</strong>?
+              </div>
+
+              <div className="field-full" style={{ marginTop: 12 }}>
+                <label>Note (required)</label>
+                <textarea
+                  className="input-plain tall"
+                  value={stageChangeNote}
+                  onChange={(e) => setStageChangeNote(e.target.value)}
+                  placeholder="Reason / context for this stage change"
+                />
+              </div>
             </div>
             <div className="modal-actions">
               <button
@@ -2870,6 +3190,429 @@ const handleSaveLeadStatus = async () => {
                 disabled={uploadingDoc}
               >
                 {uploadingDoc ? "Uploading..." : "Upload"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activityStatusModal.open && activityStatusModal.update && (
+        <div className="modal-backdrop">
+          <div className="modal">
+            <div className="modal-title">Change Activity Status</div>
+            <div className="modal-body">
+              <div className="field-full">
+                <label>Activity</label>
+                <div className="modal-activity-title">
+                  {activityStatusModal.update.title || "(No title)"}
+                </div>
+              </div>
+
+              <div className="field-full">
+                <label>Status</label>
+                <select
+                  value={activityStatusModal.status || ""}
+                  onChange={(e) =>
+                    setActivityStatusModal((prev) => ({
+                      ...prev,
+                      status: e.target.value ? Number(e.target.value) : "",
+                    }))
+                  }
+                >
+                  <option value="">Select status</option>
+                  {updateStatusOptions.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.label || s.code}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="field-full">
+                <label>Comment</label>
+                <textarea
+                  className="input-plain tall"
+                  placeholder="Add a note for this activity status change"
+                  value={activityStatusModal.comment}
+                  onChange={(e) =>
+                    setActivityStatusModal((prev) => ({
+                      ...prev,
+                      comment: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="modal-actions">
+              <button
+                className="btn-secondary"
+                type="button"
+                onClick={handleCloseActivityStatusModal}
+                disabled={savingActivityStatus}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn-primary"
+                type="button"
+                onClick={handleSaveActivityStatus}
+                disabled={savingActivityStatus || !activityStatusModal.status}
+              >
+                {savingActivityStatus ? "Updating..." : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {stageHistoryModalOpen && (
+        <div className="modal-backdrop">
+          <div className="modal stage-history-modal">
+            <div className="modal-title">Stage History</div>
+
+            <div className="modal-body stage-history-modal-body">
+              {sortedStageHistory.length === 0 ? (
+                <div className="empty-state small">No stage changes yet.</div>
+              ) : (
+                <ul className="stage-history-list">
+                  {sortedStageHistory.map((h) => {
+                    const st = stages.find((s) => s.id === h.stage);
+                    const label =
+                      (st &&
+                        (st.order ? `${st.order}. ${st.name}` : st.name)) ||
+                      h.stage_name ||
+                      `Stage #${h.stage}`;
+
+                    const eventTime = h.event_date || null;
+                    const createdTime = h.created_at || null;
+                    const author =
+                      h.created_by_name || h.changed_by_name || "Staff";
+
+                    return (
+                      <li key={h.id} className="stage-history-item">
+                        {/* top row: stage + chips + dates */}
+                        <div className="stage-history-header-row">
+                          <div className="stage-history-left">
+                            <div className="stage-history-stage">{label}</div>
+
+                            <div className="stage-history-chips">
+                              {h.status_name && (
+                                <span className="stage-history-chip stage-status-chip">
+                                  {h.status_name}
+                                </span>
+                              )}
+
+                              {h.sub_status_name && (
+                                <span className="stage-history-chip stage-substatus-chip">
+                                  {h.sub_status_name}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="stage-history-dates">
+                            {eventTime && (
+                              <div className="stage-history-date">
+                                Event:&nbsp;
+                                {new Date(eventTime).toLocaleString("en-GB")}
+                              </div>
+                            )}
+                            {createdTime && (
+                              <div className="stage-history-date">
+                                Created:&nbsp;
+                                {new Date(createdTime).toLocaleString("en-GB")}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* meta row */}
+                        <div className="stage-history-meta">
+                          <span className="stage-history-author">{author}</span>
+                          {h.id && <span> • ID: {h.id}</span>}
+                        </div>
+
+                        {/* notes */}
+                        {h.notes && (
+                          <div className="stage-history-notes">{h.notes}</div>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setStageHistoryModalOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {interestedModalOpen && (
+        <div className="modal-backdrop">
+          <div className="modal interested-modal">
+            <div className="modal-title">Select Interested Unit</div>
+
+            <div className="modal-body interested-modal-body">
+              {/* 🔎 Search row */}
+              <div className="interested-search-row">
+                <input
+                  type="text"
+                  className="input-plain interested-search-input"
+                  placeholder="Search by unit / tower / floor…"
+                  value={interestedSearch}
+                  onChange={(e) => setInterestedSearch(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="btn-secondary small"
+                  disabled={inventoryLoading}
+                >
+                  Search
+                </button>
+              </div>
+
+              {/* 🎛 Availability filter */}
+              <div className="interested-filter-row">
+                <label>Availability</label>
+                <select
+                  value={availabilityFilter}
+                  onChange={(e) => setAvailabilityFilter(e.target.value)}
+                >
+                  <option value="ALL">All Units</option>
+                  <option value="AVAILABLE">Available Only</option>
+                  <option value="BOOKED">Booked / Blocked</option>
+                </select>
+              </div>
+
+              {/* 🌳 Tree + ℹ️ Detail layout */}
+              {inventoryLoading ? (
+                <div className="empty-state small">Loading inventory…</div>
+              ) : inventoryTree.length === 0 ? (
+                <div className="empty-state small">
+                  No inventory found for this project.
+                </div>
+              ) : (
+                <div className="inventory-modal-layout">
+                  {/* LEFT: tower / floor / units */}
+                  <div className="inventory-tree">
+                    {inventoryTree.map((tower) => (
+                      <div key={tower.id} className="inventory-tower">
+                        <div className="inventory-tower-title">
+                          {tower.name ||
+                            tower.tower_name ||
+                            `Tower #${tower.id}`}
+                        </div>
+
+                        {(tower.floors || tower.children || []).map((floor) => (
+                          <div key={floor.id} className="inventory-floor">
+                            <div className="inventory-floor-title">
+                              {floor.name ||
+                                floor.floor_name ||
+                                (floor.number
+                                  ? `Floor ${floor.number}`
+                                  : `Floor #${floor.id}`)}
+                            </div>
+
+                            <div className="inventory-units-row">
+                              {(floor.units || floor.children || []).map(
+                                (unit) => {
+                                  const inv = unit.inventory;
+                                  const status =
+                                    inv?.availability_status ||
+                                    inv?.unit_status ||
+                                    "UNKNOWN";
+                                  const isAvailable = status === "AVAILABLE";
+
+                                  // 🎛 Filter apply karo
+                                  if (
+                                    availabilityFilter === "AVAILABLE" &&
+                                    !isAvailable
+                                  ) {
+                                    return null;
+                                  }
+                                  if (
+                                    availabilityFilter === "BOOKED" &&
+                                    isAvailable
+                                  ) {
+                                    return null;
+                                  }
+
+                                  const label =
+                                    unit.label ||
+                                    unit.unit_no ||
+                                    unit.inventory_name ||
+                                    `Unit #${unit.id}`;
+
+                                  // 🔍 local search (text + tower + floor)
+                                  const combined = (
+                                    `${label} ` +
+                                    `${tower.name || tower.tower_name || ""} ` +
+                                    `${
+                                      floor.name ||
+                                      floor.floor_name ||
+                                      floor.number ||
+                                      ""
+                                    }`
+                                  )
+                                    .toLowerCase()
+                                    .trim();
+
+                                  if (
+                                    interestedSearch &&
+                                    !combined.includes(
+                                      interestedSearch.toLowerCase().trim()
+                                    )
+                                  ) {
+                                    return null;
+                                  }
+
+                                  const active = selectedUnitId === unit.id;
+
+                                  const pillClasses =
+                                    "inventory-unit-pill" +
+                                    (active
+                                      ? " inventory-unit-pill-active"
+                                      : "") +
+                                    (!isAvailable
+                                      ? " inventory-unit-pill-unavailable"
+                                      : "");
+
+                                  return (
+                                    <button
+                                      key={unit.id}
+                                      type="button"
+                                      className={pillClasses}
+                                      onClick={() => handleSelectUnit(unit)}
+                                    >
+                                      <span className="inventory-unit-pill-main">
+                                        {label}
+                                      </span>
+                                      {!isAvailable && (
+                                        <span className="inventory-unit-pill-tag">
+                                          {status === "BOOKED"
+                                            ? "Booked"
+                                            : status}
+                                        </span>
+                                      )}
+                                    </button>
+                                  );
+                                }
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* RIGHT: selected unit detail */}
+                  <div className="inventory-detail">
+                    {selectedUnitInfoLoading ? (
+                      <div className="empty-state small">
+                        Loading unit details…
+                      </div>
+                    ) : !selectedUnitId ? (
+                      <div className="empty-state small">
+                        Select a unit from the left to see details.
+                      </div>
+                    ) : selectedUnitInfo ? (
+                      <div className="unit-detail-card">
+                        <div className="unit-detail-title">
+                          {selectedUnitInfo.unit_label ||
+                            selectedUnitInfo.unit_no ||
+                            `Unit #${selectedUnitId}`}
+                        </div>
+
+                        <div className="unit-detail-row">
+                          <span>Project</span>
+                          <strong>
+                            {selectedUnitInfo.project_name ||
+                              selectedUnitInfo.project?.name ||
+                              "-"}
+                          </strong>
+                        </div>
+
+                        <div className="unit-detail-row">
+                          <span>Tower</span>
+                          <strong>
+                            {selectedUnitInfo.tower_name ||
+                              selectedUnitInfo.tower?.name ||
+                              "-"}
+                          </strong>
+                        </div>
+
+                        <div className="unit-detail-row">
+                          <span>Floor</span>
+                          <strong>
+                            {selectedUnitInfo.floor_name ||
+                              selectedUnitInfo.floor?.number ||
+                              "-"}
+                          </strong>
+                        </div>
+
+                        <div className="unit-detail-row">
+                          <span>Agreement Value</span>
+                          <strong>
+                            {selectedUnitInfo.agreement_value != null
+                              ? `₹${selectedUnitInfo.agreement_value}`
+                              : "-"}
+                          </strong>
+                        </div>
+
+                        <div className="unit-detail-row">
+                          <span>Total Cost</span>
+                          <strong>
+                            {selectedUnitInfo.total_cost != null
+                              ? `₹${selectedUnitInfo.total_cost}`
+                              : "-"}
+                          </strong>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="empty-state small">
+                        No details found for this unit.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {selectedUnitId && !isSelectedAvailable && (
+                <div className="inventory-note">
+                  This unit is <strong>not available</strong>. Please select an{" "}
+                  <strong>AVAILABLE</strong> unit to assign.
+                </div>
+              )}
+            </div>
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn-secondary small"
+                onClick={() => setInterestedModalOpen(false)}
+                disabled={interestedSaving}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-primary small"
+                onClick={handleSaveInterested}
+                disabled={
+                  !selectedUnitId || !isSelectedAvailable || interestedSaving
+                }
+              >
+                {interestedSaving ? "Saving…" : "Save"}
               </button>
             </div>
           </div>

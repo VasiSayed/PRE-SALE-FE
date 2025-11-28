@@ -301,22 +301,50 @@ export default function SalesNavigation() {
 
     if (userRole === "SALES") {
       return [
-        { id: "dashboard", label: "Dashboard", route: "/dashboard", section: "pre-sales" },
-        { id: "leads", label: "Leads", route: "/leads", section: "pre-sales" },
-
-        // 👇 NEW: Opportunities tab
+        {
+          id: "dashboard",
+          label: "Dashboard",
+          route: "/dashboard",
+          section: "pre-sales",
+        },
         {
           id: "opportunities",
           label: "Opportunities",
           route: "/sales/opportunities",
           section: "pre-sales",
         },
+        { id: "leads", label: "Leads", route: "/leads", section: "pre-sales" },
 
-        { id: "site-visit", label: "Site Visit", route: "/sales/lead/site-visit", section: "pre-sales" },
-        { id: "inventory", label: "Inventory", route: "/inventory-planning/", section: "pre-sales" },
-        { id: "quotation", label: "Quotation", route: "/costsheet", section: "pre-sales" },
-        { id: "booking", label: "Booking", route: "/booking/list", section: "pre-sales" },
-        { id: "Documents", label: "Documents", route: "/documents", section: "pre-sales" },
+        {
+          id: "site-visit",
+          label: "Site Visit",
+          route: "/sales/lead/site-visit",
+          section: "pre-sales",
+        },
+        {
+          id: "inventory",
+          label: "Inventory",
+          route: "/inventory-planning/",
+          section: "pre-sales",
+        },
+        {
+          id: "quotation",
+          label: "Quotation",
+          route: "/costsheet",
+          section: "pre-sales",
+        },
+        {
+          id: "booking",
+          label: "Booking",
+          route: "/booking/list",
+          section: "pre-sales",
+        },
+        {
+          id: "Documents",
+          label: "Documents",
+          route: "/documents",
+          section: "pre-sales",
+        },
       ];
     }
 

@@ -1,176 +1,222 @@
-import { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import Navbar from '../Header/Navbar';
-import Footer from '../Footer/Footer';
-import profileImg from '../../assets/profile.jpg';
+// src/components/Auth/Auth.jsx (or wherever your Auth component lives)
+import { useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
+import Navbar from "../Header/Navbar";
+import Footer from "../Footer/Footer";
+import profileImg from "../../assets/profile.jpg";
 import api from "../../api/axiosInstance";
-import './Auth.css';
+import "./Auth.css";
 
 // SVG Icons for form inputs
 const UserIcon = ({ size = 24 }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    width={size}
+    height={size}
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
     <circle cx="12" cy="7" r="4" />
   </svg>
 );
 
 const LockIcon = ({ size = 24 }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    width={size}
+    height={size}
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
     <path d="M7 11V7a5 5 0 0 1 10 0v4" />
   </svg>
 );
 
 const MailIcon = ({ size = 24 }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    width={size}
+    height={size}
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
     <polyline points="22,6 12,13 2,6" />
   </svg>
 );
 
 export default function Auth() {
-  // Authentication logic from old code
-const { login, user } = useAuth();
+  const { login, loginWithOtp, user } = useAuth();
   const nav = useNavigate();
   const loc = useLocation();
   const from = loc.state?.from || "/dashboard";
 
-  const [isLogin, setIsLogin] = useState(true);
+  const [isLogin, setIsLogin] = useState(true); // signup disabled but keeping for compatibility
+
+  // "password" or "otp"
+  const [loginMode, setLoginMode] = useState("password");
+
   const [formData, setFormData] = useState({
-    username: '',
-    password: '',
-    name: ''
+    username: "", // username OR email (for OTP)
+    password: "",
+    name: "",
+    otp: "",
   });
+
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [error, setError] = useState("");
 
   const handleInputChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
-    setError('');
+    setFormData((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
+    setError("");
   };
 
-// const handleSubmit = async (e) => {
-//   e.preventDefault();
-//   setError("");
-//   setLoading(true);
+  const handleModeChange = (mode) => {
+    setLoginMode(mode);
+    setError("");
+    setOtpSent(false);
+    setFormData((prev) => ({
+      ...prev,
+      password: "",
+      otp: "",
+    }));
+  };
 
-//   try {
-//     if (isLogin) {
-//       // 1) Normal login – this will set access/refresh tokens
-//       await login({
-//         username: formData.username,
-//         password: formData.password,
-//       });
+  const handleSendOtp = async () => {
+    setError("");
 
-//       // 2) Immediately after successful login, fetch my-scope
-//       try {
-//         const scopeRes = await api.get("/client/my-scope/", {
-//           params: { include_units: true },
-//         });
+    if (!formData.username) {
+      setError("Please enter your email address to receive OTP.");
+      return;
+    }
 
-//         const scopeData = scopeRes.data || {};
+    setOtpSending(true);
+    try {
+      await api.post("/accounts/login/otp/start/", {
+        email: formData.username,
+      });
+      setOtpSent(true);
+      // If you have a toast system use that; keeping it silent here
+      // e.g. showToast("OTP sent to your email", "success");
+    } catch (err) {
+      console.error("Failed to send OTP:", err);
+      setError("Failed to send OTP. Please check your email and try again.");
+    } finally {
+      setOtpSending(false);
+    }
+  };
 
-//         // 3) Store full scope in localStorage
-//         localStorage.setItem("MY_SCOPE", JSON.stringify(scopeData));
+  // Common post-login actions: fetch scope + redirect based on role
+  const doAfterLogin = async (data) => {
+    const userRole = data?.user?.role || "SALES";
 
-//         // 4) (Optional but very useful) store first project id as active
-//         if (scopeData.projects && scopeData.projects.length > 0) {
-//           const firstProjectId = scopeData.projects[0].id;
-//           if (firstProjectId) {
-//             localStorage.setItem("ACTIVE_PROJECT_ID", String(firstProjectId));
-//             localStorage.setItem("PROJECT_ID", String(firstProjectId));
-//           }
-//         }
-//       } catch (scopeErr) {
-//         console.error("Failed to fetch /client/my-scope/:", scopeErr);
-//         // Don’t block login if this fails
-//       }
-
-//           const userRole = user?.role || "SALES";
-//       const userRole = user?.role || "SALES";
-
-//       if (userRole === "SALES") {
-//         nav("/leads", { replace: true });
-//       } else {
-//         nav(from, { replace: true });
-//       }
-//     } else {
-//       setError("Signup is currently disabled. Please login.");
-//     }
-//   } catch (err) {
-//     setError("Invalid username or password");
-//   } finally {
-//     setLoading(false);
-//   }
-// };
-
-
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  setError("");
-  setLoading(true);
-
-  try {
-    if (isLogin) {
-      // 1) Call login and GET the response with user + tokens
-      const data = await login({
-        username: formData.username,
-        password: formData.password,
+    // Fetch my-scope (non-blocking for navigation)
+    try {
+      const scopeRes = await api.get("/client/my-scope/", {
+        params: { include_units: true },
       });
 
-      // 2) Extract role from login response
-      const userRole = data?.user?.role || "SALES";
+      const scopeData = scopeRes.data || {};
 
-      // 3) Fetch my-scope (non-blocking for navigation)
-      try {
-        const scopeRes = await api.get("/client/my-scope/", {
-          params: { include_units: true },
+      localStorage.setItem("MY_SCOPE", JSON.stringify(scopeData));
+
+      if (scopeData.projects && scopeData.projects.length > 0) {
+        const firstProjectId = scopeData.projects[0].id;
+        if (firstProjectId) {
+          localStorage.setItem("ACTIVE_PROJECT_ID", String(firstProjectId));
+          localStorage.setItem("PROJECT_ID", String(firstProjectId));
+        }
+      }
+    } catch (scopeErr) {
+      console.error("Failed to fetch /client/my-scope/:", scopeErr);
+      // Don’t block login if scope fails
+    }
+
+    // Redirect based on role
+    if (userRole === "SALES") {
+      nav("/dashboard", { replace: true });
+    } else {
+      nav(from, { replace: true });
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      if (!isLogin) {
+        setError("Signup is currently disabled. Please login.");
+        return;
+      }
+
+      if (loginMode === "password") {
+        // ------- Normal username/password login -------
+        const data = await login({
+          username: formData.username,
+          password: formData.password,
         });
 
-        const scopeData = scopeRes.data || {};
-
-        localStorage.setItem("MY_SCOPE", JSON.stringify(scopeData));
-
-        if (scopeData.projects && scopeData.projects.length > 0) {
-          const firstProjectId = scopeData.projects[0].id;
-          if (firstProjectId) {
-            localStorage.setItem("ACTIVE_PROJECT_ID", String(firstProjectId));
-            localStorage.setItem("PROJECT_ID", String(firstProjectId));
-          }
-        }
-      } catch (scopeErr) {
-        console.error("Failed to fetch /client/my-scope/:", scopeErr);
-        // Don’t block login if scope fails
-      }
-
-      // 4) Decide redirect based on ROLE from login response
-      if (userRole === "SALES") {
-        nav("/dashboard", { replace: true });
+        await doAfterLogin(data);
       } else {
-        // for ADMIN or other roles, go to previous or default page
-        nav(from, { replace: true });
-      }
-    } else {
-      setError("Signup is currently disabled. Please login.");
-    }
-  } catch (err) {
-    console.error("Login failed:", err);
-    setError("Invalid username or password");
-  } finally {
-    setLoading(false);
-  }
-};
+        // ------- OTP login flow -------
+        if (!formData.username) {
+          setError("Please enter your email address.");
+          return;
+        }
+        if (!formData.otp) {
+          setError("Please enter the OTP you received.");
+          return;
+        }
 
+        const data = await loginWithOtp({
+          email: formData.username,
+          otp: formData.otp,
+        });
+
+        await doAfterLogin(data);
+      }
+    } catch (err) {
+      console.error("Login failed:", err);
+      setError(
+        loginMode === "password"
+          ? "Invalid username or password"
+          : "Invalid email or OTP"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const toggleMode = () => {
     setIsLogin(!isLogin);
-    setError('');
-    setFormData({ username: '', password: '', name: '' });
+    setError("");
+    setFormData({ username: "", password: "", name: "", otp: "" });
   };
+
+  const isPasswordMode = loginMode === "password";
+  const isOtpMode = loginMode === "otp";
 
   return (
     <div className="auth-page">
@@ -194,6 +240,26 @@ const handleSubmit = async (e) => {
               </p>
             </div>
 
+            {/* Login mode toggle: Password / OTP */}
+            <div className="auth-mode-toggle">
+              <button
+                type="button"
+                className={
+                  isPasswordMode ? "mode-btn mode-btn-active" : "mode-btn"
+                }
+                onClick={() => handleModeChange("password")}
+              >
+                Password Login
+              </button>
+              <button
+                type="button"
+                className={isOtpMode ? "mode-btn mode-btn-active" : "mode-btn"}
+                onClick={() => handleModeChange("otp")}
+              >
+                OTP via Email
+              </button>
+            </div>
+
             {/* Form Section */}
             <form onSubmit={handleSubmit} className="auth-form">
               {!isLogin && (
@@ -213,18 +279,21 @@ const handleSubmit = async (e) => {
                 </div>
               )}
 
+              {/* Username / Email field */}
               <div className="form-group">
                 <label className="form-label">
-                  {isLogin ? "Username" : "Email Address"}
+                  {isPasswordMode ? "Username" : "Email Address"}
                 </label>
                 <div className="input-wrapper">
                   <MailIcon size={20} />
                   <input
-                    type="text"
+                    type={isPasswordMode ? "text" : "email"}
                     name="username"
                     className="form-input"
                     placeholder={
-                      isLogin ? "Enter your username" : "Enter your email"
+                      isPasswordMode
+                        ? "Enter your username"
+                        : "Enter your email"
                     }
                     value={formData.username}
                     onChange={handleInputChange}
@@ -234,25 +303,66 @@ const handleSubmit = async (e) => {
                 </div>
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Password</label>
-                <div className="input-wrapper">
-                  <LockIcon size={20} />
-                  <input
-                    type="password"
-                    name="password"
-                    className="form-input"
-                    placeholder="Enter your password"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    required
-                  />
+              {/* Password field only for password login */}
+              {isPasswordMode && (
+                <div className="form-group">
+                  <label className="form-label">Password</label>
+                  <div className="input-wrapper">
+                    <LockIcon size={20} />
+                    <input
+                      type="password"
+                      name="password"
+                      className="form-input"
+                      placeholder="Enter your password"
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* OTP section for OTP login */}
+              {isOtpMode && (
+                <>
+                  <div className="form-group">
+                    <label className="form-label">
+                      One-Time Password (OTP)
+                    </label>
+                    <div className="input-wrapper">
+                      <LockIcon size={20} />
+                      <input
+                        type="text"
+                        name="otp"
+                        className="form-input"
+                        placeholder="Enter the OTP"
+                        value={formData.otp}
+                        onChange={handleInputChange}
+                        maxLength={6}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-footer" style={{ marginBottom: "8px" }}>
+                    <button
+                      type="button"
+                      className="secondary-btn"
+                      onClick={handleSendOtp}
+                      disabled={otpSending || !formData.username}
+                    >
+                      {otpSending
+                        ? "Sending OTP..."
+                        : otpSent
+                        ? "Resend OTP"
+                        : "Send OTP"}
+                    </button>
+                  </div>
+                </>
+              )}
 
               {error && <div className="error-message">{error}</div>}
 
-              {isLogin && (
+              {isPasswordMode && (
                 <div className="form-footer">
                   <label className="remember-me">
                     <input type="checkbox" />
@@ -267,15 +377,19 @@ const handleSubmit = async (e) => {
               <button type="submit" className="submit-btn" disabled={loading}>
                 {loading
                   ? isLogin
-                    ? "Signing in..."
+                    ? isPasswordMode
+                      ? "Signing in..."
+                      : "Verifying OTP..."
                     : "Signing up..."
                   : isLogin
-                  ? "Login"
+                  ? isPasswordMode
+                    ? "Login"
+                    : "Verify & Login"
                   : "Sign Up"}
               </button>
             </form>
 
-            {/* Toggle Section */}
+            {/* Toggle Section (signup disabled) */}
             <div className="auth-toggle">
               <p>
                 {/* {isLogin ? "Don't have an account?" : 'Already have an account?'} */}

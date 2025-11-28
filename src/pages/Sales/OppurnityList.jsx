@@ -1,7 +1,9 @@
+// src/pages/Opportunities/OppurnityList.jsx (path adjust kar lena)
 import { useEffect, useMemo, useState } from "react";
 import axiosInstance from "../../api/axiosInstance";
 import SearchBar from "../../common/SearchBar";
 import "../SiteVisit/SiteVisitList.css"; // same styling reuse
+import { toast } from "react-toastify";
 
 function debounce(fn, delay) {
   let timeoutId;
@@ -14,6 +16,7 @@ function debounce(fn, delay) {
 export default function OppurnityList() {
   const [rows, setRows] = useState([]);
   const [projects, setProjects] = useState([]);
+const [excelUploading, setExcelUploading] = useState(false);
 
   // filters
   const [q, setQ] = useState("");
@@ -28,49 +31,214 @@ export default function OppurnityList() {
   const [count, setCount] = useState(0);
   const [summary, setSummary] = useState(null); // total + by_status
 
+  // 🔹 status configs (per project) for change-status / filters
+  const [statusConfigs, setStatusConfigs] = useState([]);
+  const [statusConfigsProjectId, setStatusConfigsProjectId] = useState(null);
+
   // 🔹 status change modal state
   const [statusModalOpen, setStatusModalOpen] = useState(false);
   const [statusTarget, setStatusTarget] = useState(null);
-  const [statusChangeValue, setStatusChangeValue] = useState("");
+  const [statusChangeValue, setStatusChangeValue] = useState(""); // stores status_config_id
   const [statusComment, setStatusComment] = useState("");
 
-  const statusOptions = [
-    { value: "", label: "All Status" },
-    { value: "NEW", label: "New" },
-    { value: "IN_REVIEW", label: "In Review" },
-    { value: "CONVERTED", label: "Converted" },
-    { value: "JUNK", label: "Junk" },
-    { value: "DUPLICATE", label: "Duplicate" },
-  ];
-
-  // status options for change-status (CONVERTED ko yaha se hata diya)
-  const statusChangeOptions = [
-    { value: "NEW", label: "New" },
-    { value: "IN_REVIEW", label: "In Review" },
-    { value: "JUNK", label: "Junk" },
-    { value: "DUPLICATE", label: "Duplicate" },
-  ];
-
-  // ---- helper: build project_ids param from array ----
-  const buildProjectIdsParam = (idsArray) => {
+  // ---- helper: build project param (comma separated ids) ----
+  const buildProjectParam = (idsArray) => {
     const arr = idsArray || [];
     if (!arr.length) return undefined;
     return arr.join(","); // backend expects comma-separated string
   };
+
+  // ---- helper: status label from configs / fallback ----
+  const statusLabelForCode = (code) => {
+    if (!code) return "";
+    const cfg = statusConfigs.find((c) => c.code === code);
+    if (cfg) return cfg.label;
+
+    if (code === "NEW") return "New";
+    if (code === "IN_REVIEW") return "In Review";
+    if (code === "CONVERTED") return "Converted";
+
+    // fallback: QUALIFIED_LEAD -> "Qualified Lead"
+    return code
+      .toLowerCase()
+      .split("_")
+      .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+      .join(" ");
+  };
+
+  // ---- helper: load status configs for a project ----
+  const loadStatusConfigs = async (projectId) => {
+    try {
+      const params = projectId ? { project_id: projectId } : {};
+      const res = await axiosInstance.get(
+        "/sales/lead-opportunity-status-configs/",
+        { params }
+      );
+      const configs = res.data || [];
+      setStatusConfigs(configs);
+      setStatusConfigsProjectId(projectId || null);
+      return configs;
+    } catch (err) {
+      console.error("Failed to load opportunity status configs", err);
+      setStatusConfigs([]);
+      setStatusConfigsProjectId(projectId || null);
+      return [];
+    }
+  };
+
+
+
+    const handleExcelChange = async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      setExcelUploading(true);
+
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const res = await axiosInstance.post(
+          "/sales/lead-opportunities/import-opportunities/",
+          formData,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          }
+        );
+
+        const data = res?.data || {};
+        const summary = data.summary || {};
+
+        toast.success(
+          `Imported: ${summary.processed || 0}, Skipped: ${
+            summary.skipped || 0
+          }, Errors: ${summary.errors || 0}`
+        );
+
+        // list refresh
+        setPage(1);
+        fetchList({ page: 1 });
+      } catch (err) {
+        console.error("Opportunity import failed", err);
+
+        const resp = err?.response;
+        let msg =
+          resp?.data?.detail ||
+          resp?.data?.error ||
+          (typeof resp?.data === "string" ? resp.data : null);
+
+        if (!msg && resp?.data && typeof resp.data === "object") {
+          const firstKey = Object.keys(resp.data)[0];
+          const firstVal = resp.data[firstKey];
+          if (Array.isArray(firstVal)) msg = firstVal[0];
+          else if (typeof firstVal === "string") msg = firstVal;
+        }
+
+        toast.error(msg || "Failed to import opportunities.");
+      } finally {
+        setExcelUploading(false);
+        // same file dobara choose kar sake isliye reset
+        e.target.value = "";
+      }
+    };
+
+
+
+const downloadSampleExcel = () => {
+  const header = [
+    "project_id",
+    "source_system",
+    "source_name",
+    "external_id",
+    "full_name",
+    "email",
+    "mobile_number",
+    "to_lead",
+    "owner_username",
+    "owner_email",
+    "remark",
+    "status_code",
+  ];
+
+  const rows = [
+    [
+      "1",
+      "CALLING",
+      "Jan Calling Sheet",
+      "HOT Lead",
+      "vIBHU NIRBHAVNE",
+      "rahul@example.com",
+      "07806512710",
+      "yes",
+      "sales1",
+      "sales1@client.com",
+      "Very interested, wants site visit",
+      "CONVERTED",
+    ],
+    [
+      "1",
+      "CALLING",
+      "Jan Calling Sheet",
+      "Cold Lead",
+      "MURTHI NIRBHAVNE",
+      "cold@example.com",
+      "209323999",
+      "no",
+      "sales1",
+      "sales2@client.com",
+      "Not interested right now",
+      "NEW",
+    ],
+  ];
+
+  const csvLines = [
+    header.join(","), // header row
+    ...rows.map((r) =>
+      r
+        .map((value) => {
+          const v = value ?? "";
+          if (/[",\n]/.test(v)) {
+            return `"${v.replace(/"/g, '""')}"`;
+          }
+          return v;
+        })
+        .join(",")
+    ),
+  ];
+
+  const blob = new Blob([csvLines.join("\n")], {
+    type: "text/csv;charset=utf-8;",
+  });
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "opportunities_import_template.csv";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
+
+
+
 
   // ---- main fetch ----
   const fetchList = async (opts = {}) => {
     setLoading(true);
     try {
       const projectIdsFromOpts = opts.project_ids ?? selectedProjectIds;
-      const project_ids = buildProjectIdsParam(projectIdsFromOpts);
+      const projectParam = buildProjectParam(projectIdsFromOpts);
 
       const params = {
         search: (opts.q ?? q) || undefined,
         status: (opts.status ?? status) || undefined,
-        project_ids, // comma separated ids or undefined
-        start_date: (opts.start_date ?? startDate) || undefined,
-        end_date: (opts.end_date ?? endDate) || undefined,
+        project: projectParam, // backend: qp.getlist("project")
+        date_from: (opts.date_from ?? startDate) || undefined,
+        date_to: (opts.date_to ?? endDate) || undefined,
         page: opts.page ?? page,
       };
 
@@ -146,12 +314,20 @@ export default function OppurnityList() {
 
         setSelectedProjectIds(defaultProjectIds);
 
+        // load status configs for default project (if any)
+        if (defaultProjectIds.length) {
+          await loadStatusConfigs(defaultProjectIds[0]);
+        } else {
+          await loadStatusConfigs(null);
+        }
+
         await fetchList({
           page: 1,
           project_ids: defaultProjectIds,
         });
       } catch (err) {
         console.error("Failed to load my-scope for opportunities", err);
+        await loadStatusConfigs(null);
         await fetchList({ page: 1 });
       }
     };
@@ -208,7 +384,7 @@ export default function OppurnityList() {
     });
   };
 
-  const resetFilters = () => {
+  const resetFilters = async () => {
     setStatus("");
     setStartDate("");
     setEndDate("");
@@ -222,15 +398,20 @@ export default function OppurnityList() {
       defaultIds = [String(projects[0].id)];
     }
     setSelectedProjectIds(defaultIds);
-
     setPage(1);
     setModalOpen(false);
+
+    if (defaultIds.length) {
+      await loadStatusConfigs(defaultIds[0]);
+    } else {
+      await loadStatusConfigs(null);
+    }
 
     fetchList({
       q: "",
       status: "",
-      start_date: "",
-      end_date: "",
+      date_from: "",
+      date_to: "",
       project_ids: defaultIds,
       page: 1,
     });
@@ -243,79 +424,211 @@ export default function OppurnityList() {
       q,
       status,
       project_ids: selectedProjectIds,
-      start_date: startDate,
-      end_date: endDate,
+      date_from: startDate,
+      date_to: endDate,
       page: 1,
     });
   };
 
-  // ---- convert API call ----
+  // ---- convert API call (manual convert) ----
+  // ---- convert API call (manual convert) ----
   const handleConvert = async (oppId) => {
     if (!window.confirm("Convert this opportunity to Lead?")) return;
+
     try {
       const res = await axiosInstance.post(
         `/sales/lead-opportunities/${oppId}/convert/`,
         {}
       );
-      alert(`Converted! Sales Lead ID: ${res.data.sales_lead_id}`);
+
+      const leadId = res?.data?.sales_lead_id;
+      if (leadId) {
+        toast.success(`Converted to Sales Lead #${leadId}`);
+      } else {
+        toast.success("Converted to lead successfully.");
+      }
+
       // refresh list
       fetchList({ page });
     } catch (err) {
       console.error("Convert failed", err);
-      alert("Failed to convert opportunity.");
+
+      const resp = err?.response;
+      const msgFromServer =
+        resp?.data?.detail ||
+        resp?.data?.error ||
+        (typeof resp?.data === "string" ? resp.data : null);
+
+      toast.error(msgFromServer || "Failed to convert opportunity.");
     }
   };
 
-  // 🔹 open status change modal
-  const openStatusModal = (opp) => {
+  // ---- helper: derive project id from an opportunity row ----
+  const deriveProjectIdFromOpp = (opp) => {
+    if (!opp) return null;
+    if (opp.project_id) return String(opp.project_id);
+    if (typeof opp.project === "number") return String(opp.project);
+    if (opp.project && typeof opp.project === "object" && opp.project.id) {
+      return String(opp.project.id);
+    }
+    // fallback: use first selected project filter
+    if (selectedProjectIds.length) return selectedProjectIds[0];
+    return null;
+  };
+
+  // 🔹 open status change modal (now using status_config_id)
+  const openStatusModal = async (opp) => {
     setStatusTarget(opp);
-    // default current status ya IN_REVIEW
-    const current =
-      opp.status && opp.status !== "CONVERTED" ? opp.status : "IN_REVIEW";
-    setStatusChangeValue(current);
+
+    const projId = deriveProjectIdFromOpp(opp);
+
+    let configs = statusConfigs;
+    if (projId && projId !== statusConfigsProjectId) {
+      configs = await loadStatusConfigs(projId);
+    }
+
+    // default selection = config matching current status (if exists),
+    // else first non-CONVERTED config
+    const currentCfg =
+      configs.find(
+        (cfg) => cfg.code === opp.status && cfg.code !== "CONVERTED"
+      ) || configs.find((cfg) => cfg.code !== "CONVERTED");
+
+    setStatusChangeValue(currentCfg ? String(currentCfg.id) : "");
     setStatusComment("");
     setStatusModalOpen(true);
   };
 
   // 🔹 submit status change
+  // 🔹 submit status change
   const submitStatusChange = async () => {
     if (!statusTarget) return;
     if (!statusChangeValue) {
-      alert("Please select a status.");
+      toast.error("Please select a status.");
       return;
     }
 
     try {
-      await axiosInstance.post(
+      const res = await axiosInstance.post(
         `/sales/lead-opportunities/${statusTarget.id}/change-status/`,
         {
-          status: statusChangeValue,
+          status_config_id: statusChangeValue,
           comment: statusComment,
         }
       );
-      alert("Status updated.");
+
+      const data = res?.data || {};
+      const label =
+        data.status_config_label ||
+        data.status_config_code ||
+        statusLabelForCode(statusTarget.status) ||
+        "";
+
+      let msg = label
+        ? `Status updated to "${label}".`
+        : "Status updated successfully.";
+
+      if (data.auto_converted) {
+        if (data.sales_lead_id) {
+          msg = `${msg} Auto-converted to Sales Lead #${data.sales_lead_id}.`;
+        } else {
+          msg = `${msg} Auto-converted to lead.`;
+        }
+      }
+
+      toast.success(msg);
+
       setStatusModalOpen(false);
       setStatusTarget(null);
       // refresh current page
       fetchList({ page });
     } catch (err) {
       console.error("Status update failed", err);
-      alert("Failed to update status.");
+
+      const resp = err?.response;
+      // DRF validation errors ko human readable banaane ke liye
+      let msgFromServer =
+        resp?.data?.detail ||
+        resp?.data?.error ||
+        (typeof resp?.data === "string" ? resp.data : null);
+
+      if (!msgFromServer && resp?.data && typeof resp.data === "object") {
+        // first error message uthao
+        const firstKey = Object.keys(resp.data)[0];
+        const firstVal = resp.data[firstKey];
+        if (Array.isArray(firstVal)) {
+          msgFromServer = firstVal[0];
+        } else if (typeof firstVal === "string") {
+          msgFromServer = firstVal;
+        }
+      }
+
+      toast.error(msgFromServer || "Failed to update status.");
     }
   };
 
-  const totalOpp = summary?.total ?? count;
+  // 🔹 derived status options (dynamic)
   const byStatus = summary?.by_status || {};
+
+  const allStatusCodes = useMemo(() => {
+    const fromConfigs = statusConfigs.map((cfg) => cfg.code);
+    const fromSummary = Object.keys(byStatus);
+    const set = new Set([...fromConfigs, ...fromSummary]);
+    return Array.from(set);
+  }, [statusConfigs, byStatus]);
+
+  const statusFilterOptions = useMemo(() => {
+    const opts = allStatusCodes.map((code) => ({
+      value: code,
+      label: statusLabelForCode(code),
+    }));
+    return [{ value: "", label: "All Status" }, ...opts];
+  }, [allStatusCodes, statusConfigs]); // statusLabelForCode depends on configs
+
+  const statusChangeOptions = useMemo(
+    () => statusConfigs, // sab dikhao, including CONVERTED
+    [statusConfigs]
+  );
+
+  const totalOpp = summary?.total ?? count;
 
   return (
     <div className="projects-page">
       {/* Toolbar */}
+
+      <input
+        id="opp-excel-input"
+        type="file"
+        accept=".csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        style={{ display: "none" }}
+        onChange={handleExcelChange}
+      />
+
       <div className="projects-toolbar">
         <SearchBar
           value={q}
           onChange={(e) => handleSearchChange(e.target.value)}
           placeholder="Search by name, email, mobile..."
         />
+
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={downloadSampleExcel}
+          style={{ fontSize: 12, padding: "6px 10px" }}
+        >
+          ⬇ Sample Excel
+        </button>
+
+        <button
+          type="button"
+          className="btn-import"
+          onClick={() => document.getElementById("opp-excel-input")?.click()}
+          disabled={excelUploading}
+        >
+          <span className="import-icon">📄</span>
+          {excelUploading ? "IMPORTING..." : "IMPORT EXCEL"}
+        </button>
 
         <button className="filter-btn" onClick={() => setModalOpen(true)}>
           <i className="fa fa-filter" /> Filters
@@ -331,8 +644,8 @@ export default function OppurnityList() {
         <div className="stat-card">
           <div className="stat-label">Status Breakdown</div>
           <div className="stat-value-small">
-            {["NEW", "IN_REVIEW", "CONVERTED", "JUNK", "DUPLICATE"].map(
-              (st) => (
+            {allStatusCodes.length ? (
+              allStatusCodes.map((st) => (
                 <span
                   key={st}
                   style={{
@@ -341,9 +654,13 @@ export default function OppurnityList() {
                     color: getStatusColor(st),
                   }}
                 >
-                  {st}: {byStatus[st] ?? 0}
+                  {statusLabelForCode(st)}: {byStatus[st] ?? 0}
                 </span>
-              )
+              ))
+            ) : (
+              <span style={{ fontSize: 12, color: "#6b7280" }}>
+                No data yet
+              </span>
             )}
           </div>
         </div>
@@ -395,13 +712,13 @@ export default function OppurnityList() {
                   <tr key={o.id}>
                     <td className="row-actions">
                       {/* Convert */}
-                      <button
+                      {/* <button
                         className="icon-btn icon-btn-view"
                         title="Convert to Lead"
                         onClick={() => handleConvert(o.id)}
                       >
                         <i className="fa fa-exchange" />
-                      </button>
+                      </button> */}
                       {/* Change Status */}
                       <button
                         className="icon-btn icon-btn-edit"
@@ -419,16 +736,31 @@ export default function OppurnityList() {
                     <td>{o.source_name || "-"}</td>
                     <td>{projectName}</td>
                     <td>
-                      <span
-                        className="status-badge"
-                        style={{
-                          backgroundColor: `${getStatusColor(o.status)}20`,
-                          color: getStatusColor(o.status),
-                        }}
-                      >
-                        {o.status}
-                      </span>
+                      {o.status_config_label ? (
+                        <span
+                          className="status-badge"
+                          style={{
+                            backgroundColor: `${getStatusColor(
+                              o.status_config_code || ""
+                            )}20`,
+                            color: getStatusColor(o.status_config_code || ""),
+                          }}
+                        >
+                          {o.status_config_label}
+                        </span>
+                      ) : (
+                        <span
+                          className="status-badge"
+                          style={{
+                            backgroundColor: "#e5e7eb",
+                            color: "#4b5563",
+                          }}
+                        >
+                          Fresh
+                        </span>
+                      )}
                     </td>
+
                     <td>{formatDT(o.created_at)}</td>
                   </tr>
                 );
@@ -516,8 +848,8 @@ export default function OppurnityList() {
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
               >
-                {statusOptions.map((s) => (
-                  <option key={s.value} value={s.value}>
+                {statusFilterOptions.map((s) => (
+                  <option key={s.value || "ALL"} value={s.value}>
                     {s.label}
                   </option>
                 ))}
@@ -609,7 +941,11 @@ export default function OppurnityList() {
                       {statusTarget.full_name || "-"}
                     </div>
                     <div>
-                      <strong>Current Status:</strong> {statusTarget.status}
+                      <strong>Current Status:</strong>{" "}
+                      {statusTarget.status_config_label ||
+                        statusTarget.status_config_code ||
+                        statusLabelForCode(statusTarget.status) ||
+                        "-"}
                     </div>
                   </>
                 )}
@@ -622,9 +958,10 @@ export default function OppurnityList() {
                 onChange={(e) => setStatusChangeValue(e.target.value)}
               >
                 <option value="">Select status</option>
-                {statusChangeOptions.map((s) => (
-                  <option key={s.value} value={s.value}>
-                    {s.label}
+                {statusChangeOptions.map((cfg) => (
+                  <option key={cfg.id} value={cfg.id}>
+                    {cfg.label}
+                    {cfg.can_convert ? " (Auto-convert)" : ""}
                   </option>
                 ))}
               </select>

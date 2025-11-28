@@ -16,9 +16,8 @@ export function AuthProvider({ children }) {
   const navigate = useNavigate();
   const isAuthed = !!access;
 
-  const login = async ({ username, password }) => {
-    // Call backend login API
-    const data = await AuthAPI.login(username, password);
+  // 🔹 Common helper: apply tokens + user to state + localStorage
+  const applyAuthResponse = (data) => {
     const a = data?.access;
     const r = data?.refresh;
     const u = data?.user;
@@ -39,8 +38,19 @@ export function AuthProvider({ children }) {
       setUser(u);
     }
 
-    // 🔴 IMPORTANT: return full data so caller can use user.role
     return data;
+  };
+
+  // 🔹 Normal username/password login
+  const login = async ({ username, password }) => {
+    const data = await AuthAPI.login(username, password);
+    return applyAuthResponse(data);
+  };
+
+  // 🔹 OTP login (email + OTP -> tokens)
+  const loginWithOtp = async ({ email, otp }) => {
+    const data = await AuthAPI.loginWithOtp(email, otp);
+    return applyAuthResponse(data);
   };
 
   const logout = () => {
@@ -68,6 +78,7 @@ export function AuthProvider({ children }) {
       user,
       isAuthed,
       login,
+      loginWithOtp, // 👈 expose OTP login
       logout,
     }),
     [access, refresh, user, isAuthed]

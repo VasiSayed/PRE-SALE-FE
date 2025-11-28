@@ -78,7 +78,19 @@ export const URLS = {
 
 export const AuthAPI = {
   login: (username, password) =>
-    api.post(URLS.login, { username, password }).then((r) => r.data),
+    api
+      .post("/accounts/login/", { username, password })
+      .then((res) => res.data),
+
+  // 🔹 New: OTP verify -> returns { refresh, access, user }
+  loginWithOtp: (email, otp) =>
+    api
+      .post("/accounts/login/otp/verify/", { email, otp })
+      .then((res) => res.data),
+
+  // (if you want a helper for start, optional)
+  startLoginOtp: (email) =>
+    api.post("/accounts/login/otp/start/", { email }).then((res) => res.data),
 };
 
 export const SetupAPI = {

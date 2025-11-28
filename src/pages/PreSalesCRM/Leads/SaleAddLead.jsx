@@ -3,12 +3,31 @@ import React, { useState, useEffect } from "react";
 import { SetupAPI, URLS } from "../../../api/endpoints";
 import api from "../../../api/axiosInstance";
 import { showToast } from "../../../utils/toast";
-import "./SaleAddLead.css"; // 👈 add this (or change to your CSS file name)
+import "./SaleAddLead.css";
 
 const SECTION_KEY = "lead_setup";
-const SECTION_TITLE = "Lead Setup";
 
-// ---- Field config ----
+// Budget slabs (2 Cr to 7 Cr)
+const BUDGET_OPTIONS = [
+  { value: 20000000, label: "2 Cr – 2.5 Cr" },
+  { value: 22500000, label: "2.5 Cr – 3 Cr" },
+  { value: 30000000, label: "3 Cr – 3.5 Cr" },
+  { value: 32500000, label: "3.5 Cr – 4 Cr" },
+  { value: 40000000, label: "4 Cr – 4.5 Cr" },
+  { value: 42500000, label: "4.5 Cr – 5 Cr" },
+  { value: 50000000, label: "5 Cr – 5.5 Cr" },
+  { value: 52500000, label: "5.5 Cr – 6 Cr" },
+  { value: 60000000, label: "6 Cr – 6.5 Cr" },
+  { value: 62500000, label: "6.5 Cr – 7 Cr" },
+];
+
+// CP Mode
+const CP_MODE = {
+  REGISTERED: "REGISTERED",
+  UNREGISTERED: "UNREGISTERED",
+};
+
+// Field config
 const FIELDS = [
   // Lead Information
   {
@@ -34,7 +53,7 @@ const FIELDS = [
     name: "email",
     label: "Email",
     type: "text",
-    required: true, // ✅ email now mandatory
+    required: true,
     span: 1,
     parse: "identity",
   },
@@ -79,7 +98,7 @@ const FIELDS = [
     section: "lead",
     name: "walking",
     label: "Walk-in Lead",
-    type: "checkbox",
+    type: "toggle",
     required: false,
     span: 1,
     parse: "identity",
@@ -88,19 +107,21 @@ const FIELDS = [
     section: "lead",
     name: "budget",
     label: "Budget",
-    type: "number",
+    type: "select",
     required: false,
     span: 1,
     parse: "number",
+    options: BUDGET_OPTIONS,
   },
   {
     section: "lead",
     name: "annual_income",
     label: "Annual Income",
-    type: "number",
+    type: "text",
     required: false,
     span: 1,
     parse: "number",
+    placeholder: "e.g., 15,00,000",
   },
   {
     section: "lead",
@@ -114,22 +135,24 @@ const FIELDS = [
   {
     section: "lead",
     name: "lead_classification_id",
-    label: "Lead Classification",
+    label: "Classification",
     type: "select",
     required: false,
     span: 1,
     parse: "number",
     options: [],
+    hiddenWhen: "form.walking === true",
   },
   {
     section: "lead",
     name: "lead_subclass_id",
-    label: "Lead Subclass",
+    label: "Sub Classification",
     type: "select",
     required: false,
     span: 1,
     parse: "number",
     options: [],
+    hiddenWhen: "form.walking === true",
   },
   {
     section: "lead",
@@ -140,6 +163,7 @@ const FIELDS = [
     span: 1,
     parse: "number",
     options: [],
+    hiddenWhen: "form.walking === true",
   },
   {
     section: "lead",
@@ -150,42 +174,56 @@ const FIELDS = [
     span: 1,
     parse: "number",
     options: [],
+    hiddenWhen: "form.walking === true",
   },
-  // Channel Partner dropdown (based on source/sub-source)
+  // Normal lead CP type (shown when source selected and not walk-in)
   {
     section: "lead",
-    name: "channel_partner_id",
-    label: "Channel Partner",
-    type: "select",
-    required: false,
-    span: 1,
-    parse: "number",
-    options: [],
-  },
-  // Unknown CP text box
-  {
-    section: "lead",
-    name: "unknown_channel_partner",
-    label: "Unregistered CP Name",
-    type: "text",
+    name: "normal_cp_type",
+    label: "Channel Partner Type",
+    type: "cp_type",
     required: false,
     span: 1,
     parse: "identity",
+    hiddenWhen: "form.walking === true || !form.lead_source_id",
+  },
+  // Normal lead CP search (shown based on CP type)
+  {
+    section: "lead",
+    name: "normal_cp_search",
+    label: "Channel Partner",
+    type: "cp_search",
+    required: false,
+    span: 3,
+    parse: "identity",
+    hiddenWhen: "form.walking === true || !form.lead_source_id",
+  },
+  // Walk-in CP type (shown only when walking=true)
+  {
+    section: "lead",
+    name: "walkin_cp_type",
+    label: "Channel Partner Type",
+    type: "cp_type",
+    required: false,
+    span: 1,
+    parse: "identity",
+    hiddenWhen: "form.walking === false",
+  },
+  // Walk-in CP search (shown only when walking=true)
+  {
+    section: "lead",
+    name: "walkin_cp_search",
+    label: "Channel Partner",
+    type: "cp_search",
+    required: false,
+    span: 3,
+    parse: "identity",
+    hiddenWhen: "form.walking === false",
   },
   {
     section: "lead",
     name: "status_id",
-    label: "Status",
-    type: "select",
-    required: false,
-    span: 1,
-    parse: "number",
-    options: [],
-  },
-  {
-    section: "lead",
-    name: "sub_status_id",
-    label: "Sub Status",
+    label: "Categorization",
     type: "select",
     required: false,
     span: 1,
@@ -308,9 +346,12 @@ const ROUND_ROBIN_VALUE = "__ROUND_ROBIN__";
 const buildInitialFormState = () => {
   const form = {};
   FIELDS.forEach((field) => {
-    form[field.name] = field.type === "checkbox" ? false : "";
+    if (field.type === "checkbox" || field.type === "toggle") {
+      form[field.name] = false;
+    } else {
+      form[field.name] = "";
+    }
   });
-  // internal state flag, not rendered as field
   form.round_robin = false;
   return form;
 };
@@ -318,7 +359,6 @@ const buildInitialFormState = () => {
 const evaluateExpression = (expr, { form, setup, scope }) => {
   if (!expr) return false;
   try {
-    // eslint-disable-next-line no-new-func
     const fn = new Function("form", "setup", "scope", `return (${expr});`);
     return !!fn(form, setup, scope);
   } catch {
@@ -341,6 +381,11 @@ const normalizeScalarValue = (value, field) => {
   if (value === "" || value === undefined || value === null) return null;
 
   if (field.parse === "number") {
+    if (field.name === "annual_income" && typeof value === "string") {
+      const cleaned = value.replace(/,/g, "");
+      const n = Number(cleaned);
+      return Number.isNaN(n) ? null : n;
+    }
     const n = Number(value);
     return Number.isNaN(n) ? null : n;
   }
@@ -363,7 +408,7 @@ const normalizeScalarValue = (value, field) => {
 const SaleAddLead = ({ handleLeadSubmit }) => {
   const [form, setForm] = useState(buildInitialFormState);
 
-  // OTP state
+  // Email OTP
   const [emailOtpSending, setEmailOtpSending] = useState(false);
   const [emailOtpVerifying, setEmailOtpVerifying] = useState(false);
   const [emailOtpCode, setEmailOtpCode] = useState("");
@@ -373,7 +418,7 @@ const SaleAddLead = ({ handleLeadSubmit }) => {
   const [showEmailOtpModal, setShowEmailOtpModal] = useState(false);
   const [pendingSaveBody, setPendingSaveBody] = useState(null);
 
-  // collapsible groups
+  // Collapsible groups
   const [openGroups, setOpenGroups] = useState({
     lead: true,
     address: true,
@@ -383,9 +428,39 @@ const SaleAddLead = ({ handleLeadSubmit }) => {
   const [projects, setProjects] = useState([]);
   const [masters, setMasters] = useState(null);
   const [loadingMasters, setLoadingMasters] = useState(false);
+
+  // CP search
   const [cpSearch, setCpSearch] = useState("");
   const [channelPartners, setChannelPartners] = useState([]);
   const [loadingCP, setLoadingCP] = useState(false);
+
+  // Normal lead CP (non-walk-in)
+  const [normalCpSearch, setNormalCpSearch] = useState("");
+  const [normalSelectedCpId, setNormalSelectedCpId] = useState("");
+  const [normalCpType, setNormalCpType] = useState(CP_MODE.REGISTERED);
+
+  // Walk-in CP mode
+  const [cpMode, setCpMode] = useState(CP_MODE.REGISTERED);
+  const [selectedCpId, setSelectedCpId] = useState("");
+
+  // Quick CP create
+  const [showQuickCpModal, setShowQuickCpModal] = useState(false);
+  const [quickCpForm, setQuickCpForm] = useState({
+    name: "",
+    email: "",
+    mobile_number: "",
+    company_name: "",
+    pan_number: "",
+    rera_number: "",
+    partner_tier_id: "",
+  });
+  const [quickCpOtpSending, setQuickCpOtpSending] = useState(false);
+  const [quickCpOtpVerifying, setQuickCpOtpVerifying] = useState(false);
+  const [quickCpOtpCode, setQuickCpOtpCode] = useState("");
+  const [quickCpEmailVerified, setQuickCpEmailVerified] = useState(false);
+
+  // Partner tiers for quick CP
+  const [partnerTiers, setPartnerTiers] = useState([]);
 
   useEffect(() => {
     SetupAPI.myScope()
@@ -393,6 +468,11 @@ const SaleAddLead = ({ handleLeadSubmit }) => {
         const list =
           data?.projects || data?.project_list || data?.results || [];
         setProjects(list);
+
+        // Auto-select if only 1 project
+        if (list.length === 1) {
+          setForm((prev) => ({ ...prev, project_id: list[0].id }));
+        }
       })
       .catch((err) => {
         console.error("Failed to load scope", err);
@@ -418,14 +498,52 @@ const SaleAddLead = ({ handleLeadSubmit }) => {
         showToast("Failed to load lead masters", "error");
       })
       .finally(() => setLoadingMasters(false));
+
+    // Load partner tiers for quick CP
+    api
+      .get("/channel/partner-tiers/")
+      .then((res) => {
+        const list = res.data?.results || res.data || [];
+        setPartnerTiers(list);
+      })
+      .catch((err) => {
+        console.error("Failed to load partner tiers", err);
+      });
   }, [form.project_id]);
 
-  // ------- when source / sub-source changes, fetch Channel Partners -------
+  // ------- CP logic: walk-in vs normal -------
   useEffect(() => {
-    const sourceId = form.lead_source_id;
-    const subSourceId = form.lead_sub_source_id;
+    if (!form.project_id) {
+      setChannelPartners([]);
+      return;
+    }
 
-    // no source selected => clear
+    // Walk-in mode
+    if (form.walking) {
+      if (cpMode === CP_MODE.REGISTERED) {
+        setLoadingCP(true);
+        api
+          .get("/channel/partners/by-project/", {
+            params: { project_id: form.project_id },
+          })
+          .then((res) => {
+            const list = res.data?.results || res.data || [];
+            setChannelPartners(list);
+          })
+          .catch((err) => {
+            console.error("Failed to load project CPs", err);
+            setChannelPartners([]);
+            showToast("Failed to load channel partners", "error");
+          })
+          .finally(() => setLoadingCP(false));
+      } else {
+        setChannelPartners([]);
+      }
+      return;
+    }
+
+    // Normal lead mode (walk-in = false)
+    const sourceId = form.lead_source_id;
     if (!sourceId) {
       setChannelPartners([]);
       return;
@@ -433,26 +551,32 @@ const SaleAddLead = ({ handleLeadSubmit }) => {
 
     setLoadingCP(true);
 
-    const url = `${URLS.channelPartnersBySource}${sourceId}/`;
-    const config = subSourceId
-      ? { params: { sub_source_id: subSourceId } }
-      : {};
+    const params = { project_id: form.project_id };
+    if (form.lead_sub_source_id) {
+      params.source_id = form.lead_sub_source_id;
+    } else {
+      params.source_id = sourceId;
+    }
 
     api
-      .get(url, config)
+      .get("/channel/partners/by-project/", { params })
       .then((res) => {
-        const data = res.data;
-        let list = [];
-
-        if (Array.isArray(data)) {
-          list = data;
-        } else if (Array.isArray(data.results)) {
-          list = data.results;
-        } else {
-          list = [];
-        }
-
+        const list = res.data?.results || res.data || [];
         setChannelPartners(list);
+
+        // Fallback: if sub-source returns empty, try main source
+        if (list.length === 0 && form.lead_sub_source_id) {
+          return api.get("/channel/partners/by-project/", {
+            params: { project_id: form.project_id, source_id: sourceId },
+          });
+        }
+        return null;
+      })
+      .then((fallbackRes) => {
+        if (fallbackRes) {
+          const list = fallbackRes.data?.results || fallbackRes.data || [];
+          setChannelPartners(list);
+        }
       })
       .catch((err) => {
         console.error("Failed to load channel partners", err);
@@ -460,7 +584,13 @@ const SaleAddLead = ({ handleLeadSubmit }) => {
         showToast("Failed to load channel partners", "error");
       })
       .finally(() => setLoadingCP(false));
-  }, [form.lead_source_id, form.lead_sub_source_id]);
+  }, [
+    form.project_id,
+    form.walking,
+    cpMode,
+    form.lead_source_id,
+    form.lead_sub_source_id,
+  ]);
 
   const toggleGroup = (groupKey) => {
     setOpenGroups((prev) => ({ ...prev, [groupKey]: !prev[groupKey] }));
@@ -476,16 +606,33 @@ const SaleAddLead = ({ handleLeadSubmit }) => {
         setEmailOtpCode("");
       }
 
-      // When main source changes: reset sub-source + CP
+      // Walking toggle
+      if (name === "walking") {
+        if (value === true) {
+          // Reset classification/source fields
+          next.lead_classification_id = "";
+          next.lead_subclass_id = "";
+          next.lead_source_id = "";
+          next.lead_sub_source_id = "";
+          setCpMode(CP_MODE.REGISTERED);
+          setSelectedCpId("");
+        }
+      }
+
+      // When main source changes: reset sub-source
       if (name === "lead_source_id") {
         next.lead_sub_source_id = "";
-        next.channel_partner_id = "";
+        setSelectedCpId("");
         setCpSearch("");
+        setNormalCpSearch("");
+        setNormalSelectedCpId("");
       }
 
       if (name === "lead_sub_source_id") {
-        next.channel_partner_id = "";
+        setSelectedCpId("");
         setCpSearch("");
+        setNormalCpSearch("");
+        setNormalSelectedCpId("");
       }
 
       // assign_to → round robin state
@@ -546,6 +693,12 @@ const SaleAddLead = ({ handleLeadSubmit }) => {
       setChannelPartners([]);
       setEmailVerified(false);
       setEmailOtpCode("");
+      setCpMode(CP_MODE.REGISTERED);
+      setSelectedCpId("");
+      setCpSearch("");
+      setNormalCpSearch("");
+      setNormalSelectedCpId("");
+      setNormalCpType(CP_MODE.REGISTERED);
     } catch (err) {
       console.error("Failed to save lead", err);
 
@@ -608,6 +761,126 @@ const SaleAddLead = ({ handleLeadSubmit }) => {
     }
   };
 
+  // Quick CP OTP
+  const handleSendQuickCpOtp = async () => {
+    const email = (quickCpForm.email || "").trim();
+    if (!email) {
+      showToast("Please enter CP email first.", "error");
+      return;
+    }
+
+    setQuickCpEmailVerified(false);
+    setQuickCpOtpCode("");
+    setQuickCpOtpSending(true);
+
+    try {
+      await api.post("/sales/sales-leads/email-otp/start/", { email });
+      showToast("OTP sent to CP email.", "success");
+    } catch (err) {
+      console.error("Failed to send quick CP OTP", err);
+      let msg = "Failed to send OTP.";
+      const data = err?.response?.data;
+      if (data?.detail) msg = data.detail;
+      showToast(msg, "error");
+    } finally {
+      setQuickCpOtpSending(false);
+    }
+  };
+
+  const handleVerifyQuickCpOtp = async () => {
+    const email = (quickCpForm.email || "").trim();
+    const otp = (quickCpOtpCode || "").trim();
+
+    if (!email) {
+      showToast("Please enter CP email first.", "error");
+      return;
+    }
+    if (!otp) {
+      showToast("Please enter OTP.", "error");
+      return;
+    }
+
+    setQuickCpOtpVerifying(true);
+    try {
+      await api.post("/sales/sales-leads/email-otp/verify/", { email, otp });
+      showToast("CP email verified.", "success");
+      setQuickCpEmailVerified(true);
+    } catch (err) {
+      console.error("Failed to verify quick CP OTP", err);
+      setQuickCpEmailVerified(false);
+      let msg = "Failed to verify OTP.";
+      const data = err?.response?.data;
+      if (data?.detail) msg = data.detail;
+      showToast(msg, "error");
+    } finally {
+      setQuickCpOtpVerifying(false);
+    }
+  };
+
+  const handleQuickCpCreate = async () => {
+    if (!quickCpEmailVerified) {
+      showToast("Please verify CP email first.", "error");
+      return;
+    }
+
+    if (
+      !quickCpForm.name ||
+      !quickCpForm.email ||
+      !quickCpForm.partner_tier_id
+    ) {
+      showToast("Name, Email, and Partner Tier are required.", "error");
+      return;
+    }
+
+    try {
+      const body = {
+        name: quickCpForm.name,
+        email: quickCpForm.email,
+        mobile_number: quickCpForm.mobile_number || "",
+        company_name: quickCpForm.company_name || "",
+        pan_number: quickCpForm.pan_number || "",
+        rera_number: quickCpForm.rera_number || "",
+        partner_tier_id: quickCpForm.partner_tier_id,
+        project_id: form.project_id,
+      };
+
+      const res = await api.post("/channel/partners/quick-create/", body);
+      showToast("Channel Partner created successfully.", "success");
+
+      const newCp = res.data;
+
+      // Reload project CPs
+      const reloadRes = await api.get("/channel/partners/by-project/", {
+        params: { project_id: form.project_id },
+      });
+      const list = reloadRes.data?.results || reloadRes.data || [];
+      setChannelPartners(list);
+
+      // Auto-select newly created CP
+      setSelectedCpId(newCp.id);
+
+      // Close modal
+      setShowQuickCpModal(false);
+      setQuickCpForm({
+        name: "",
+        email: "",
+        mobile_number: "",
+        company_name: "",
+        pan_number: "",
+        rera_number: "",
+        partner_tier_id: "",
+      });
+      setQuickCpOtpCode("");
+      setQuickCpEmailVerified(false);
+    } catch (err) {
+      console.error("Failed to create quick CP", err);
+      let msg = "Failed to create Channel Partner.";
+      const data = err?.response?.data;
+      if (data?.detail) msg = data.detail;
+      showToast(msg, "error");
+    }
+  };
+
   const isFieldHidden = (field) =>
     evaluateExpression(field.hiddenWhen, {
       form,
@@ -622,7 +895,6 @@ const SaleAddLead = ({ handleLeadSubmit }) => {
       scope: null,
     });
 
-  // map masters/projects to select options
   const getOptionsForField = (field) => {
     const toOptions = (items) =>
       (items || []).map((item) => ({
@@ -630,12 +902,15 @@ const SaleAddLead = ({ handleLeadSubmit }) => {
         label: item.name || item.label || item.title || `#${item.id}`,
       }));
 
-    // Project select uses my-scope projects
     if (field.name === "project_id") {
       return (projects || []).map((p) => ({
         value: p.id,
         label: p.name || p.project_name || p.title || `Project #${p.id}`,
       }));
+    }
+
+    if (field.name === "budget") {
+      return BUDGET_OPTIONS;
     }
 
     if (!masters) {
@@ -704,37 +979,6 @@ const SaleAddLead = ({ handleLeadSubmit }) => {
         ];
       }
 
-      case "channel_partner_id": {
-        const term = (cpSearch || "").toLowerCase();
-
-        let opts = (channelPartners || []).map((cp) => {
-          const fullName =
-            cp.user?.full_name ||
-            [cp.user?.first_name, cp.user?.last_name].filter(Boolean).join(" ");
-
-          const mainLabel =
-            fullName || cp.company_name || cp.user?.email || `CP #${cp.id}`;
-
-          const extra =
-            cp.company_name && fullName
-              ? ` (${cp.company_name})`
-              : cp.company_name && !fullName
-              ? ` (${cp.company_name})`
-              : "";
-
-          return {
-            value: cp.id,
-            label: `${mainLabel}${extra}`,
-          };
-        });
-
-        if (term) {
-          opts = opts.filter((o) => o.label.toLowerCase().includes(term));
-        }
-
-        return opts;
-      }
-
       default: {
         if (field.options && field.options.length) return field.options;
 
@@ -791,8 +1035,13 @@ const SaleAddLead = ({ handleLeadSubmit }) => {
       }
     });
 
+    // Walk-in CP validation
+    if (form.walking && cpMode === CP_MODE.REGISTERED && !selectedCpId) {
+      missing.push("Channel Partner (Registered)");
+    }
+
     if (missing.length) {
-      window.alert("Please fill required fields");
+      window.alert("Please fill required fields:\n" + missing.join("\n"));
       return false;
     }
     return true;
@@ -845,10 +1094,6 @@ const SaleAddLead = ({ handleLeadSubmit }) => {
 
       current_owner: normalized.lead_owner_id || null,
 
-      channel_partner: normalized.channel_partner_id || null,
-      unknown_channel_partner: normalized.channel_partner_id
-        ? null
-        : normalized.unknown_channel_partner || "",
       walking: !!normalized.walking,
       round_robin: isRoundRobin,
 
@@ -868,6 +1113,26 @@ const SaleAddLead = ({ handleLeadSubmit }) => {
       },
     };
 
+    // Walk-in CP logic
+    if (form.walking) {
+      if (cpMode === CP_MODE.REGISTERED && selectedCpId) {
+        leadPayload.channel_partner = selectedCpId;
+        leadPayload.unknown_channel_partner = "";
+      } else {
+        leadPayload.channel_partner = null;
+        leadPayload.unknown_channel_partner = "";
+      }
+    } else {
+      // Normal lead: use normalSelectedCpId if source selected
+      if (normalSelectedCpId) {
+        leadPayload.channel_partner = normalSelectedCpId;
+        leadPayload.unknown_channel_partner = "";
+      } else {
+        leadPayload.channel_partner = null;
+        leadPayload.unknown_channel_partner = "";
+      }
+    }
+
     if (
       !isRoundRobin &&
       normalized.assign_to_id != null &&
@@ -886,8 +1151,7 @@ const SaleAddLead = ({ handleLeadSubmit }) => {
       },
     };
 
-    // 🔴 IMPORTANT: NO TOAST HERE ANYMORE
-    // If email present and not verified -> open OTP modal and auto-send OTP
+    // Email OTP check
     if (normalized.email && !emailVerified) {
       setPendingSaveBody(body);
       setShowEmailOtpModal(true);
@@ -896,7 +1160,6 @@ const SaleAddLead = ({ handleLeadSubmit }) => {
       return;
     }
 
-    // If email already verified, save directly
     await saveLead(body);
   };
 
@@ -906,6 +1169,12 @@ const SaleAddLead = ({ handleLeadSubmit }) => {
     setChannelPartners([]);
     setEmailVerified(false);
     setEmailOtpCode("");
+    setCpMode(CP_MODE.REGISTERED);
+    setSelectedCpId("");
+    setCpSearch("");
+    setNormalCpSearch("");
+    setNormalSelectedCpId("");
+    setNormalCpType(CP_MODE.REGISTERED);
   };
 
   const renderField = (field) => {
@@ -926,6 +1195,207 @@ const SaleAddLead = ({ handleLeadSubmit }) => {
         {field.required && <span className="required">*</span>}
       </label>
     );
+
+    if (field.type === "toggle") {
+      return (
+        <div
+          key={field.name}
+          className={field.span === 3 ? "form-field-full" : "form-field"}
+        >
+          <label className="form-label">{field.label}</label>
+          <div className="toggle-container">
+            <div
+              className={`toggle ${form[field.name] ? "on" : "off"}`}
+              onClick={() => handleChange(field.name, !form[field.name])}
+            >
+              <div className="toggle-slider"></div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // CP Type dropdown (for normal leads)
+    if (field.type === "cp_type") {
+      // Determine which CP type to use based on walking
+      const currentCpType = form.walking ? cpMode : normalCpType;
+      const setCpTypeFunc = form.walking ? setCpMode : setNormalCpType;
+
+      return (
+        <div
+          key={field.name}
+          className={field.span === 3 ? "form-field-full" : "form-field"}
+        >
+          <label className="form-label">
+            {field.label}
+            {field.required && <span className="required">*</span>}
+          </label>
+          <select
+            className="form-input"
+            value={currentCpType}
+            onChange={(e) => {
+              setCpTypeFunc(e.target.value);
+              setSelectedCpId("");
+              setCpSearch("");
+              setNormalSelectedCpId("");
+              setNormalCpSearch("");
+            }}
+          >
+            <option value={CP_MODE.REGISTERED}>Registered</option>
+            <option value={CP_MODE.UNREGISTERED}>Unregistered</option>
+          </select>
+        </div>
+      );
+    }
+
+    // CP Search field type (for both walk-in and normal leads)
+    if (field.type === "cp_search") {
+      // Determine which mode we're in
+      const isWalkIn = form.walking;
+      const currentCpType = isWalkIn ? cpMode : normalCpType;
+      const currentSearch = isWalkIn ? cpSearch : normalCpSearch;
+      const setCurrentSearch = isWalkIn ? setCpSearch : setNormalCpSearch;
+      const currentSelectedId = isWalkIn ? selectedCpId : normalSelectedCpId;
+      const setCurrentSelectedId = isWalkIn
+        ? setSelectedCpId
+        : setNormalSelectedCpId;
+
+      // If unregistered, show create button
+      if (currentCpType === CP_MODE.UNREGISTERED) {
+        return (
+          <div
+            key={field.name}
+            className={field.span === 3 ? "form-field-full" : "form-field"}
+          >
+            <label className="form-label">
+              {field.label}
+              {field.required && <span className="required">*</span>}
+            </label>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => setShowQuickCpModal(true)}
+              style={{ width: "auto" }}
+            >
+              + Create New Channel Partner
+            </button>
+          </div>
+        );
+      }
+
+      // Registered mode - show search + dropdown
+      return (
+        <div
+          key={field.name}
+          className={field.span === 3 ? "form-field-full" : "form-field"}
+        >
+          <label className="form-label">
+            {field.label} (Type to search)
+            {field.required && <span className="required">*</span>}
+          </label>
+          <div className="searchable-select">
+            <input
+              type="text"
+              className="form-input"
+              placeholder="Search by name, company, email..."
+              value={currentSearch}
+              onChange={(e) => {
+                setCurrentSearch(e.target.value);
+                if (currentSelectedId && e.target.value) {
+                  setCurrentSelectedId("");
+                }
+              }}
+              disabled={loadingCP}
+            />
+            <select
+              className="form-input"
+              style={{ marginTop: "8px" }}
+              value={currentSelectedId}
+              onChange={(e) => {
+                setCurrentSelectedId(e.target.value);
+                if (e.target.value) {
+                  const selected = channelPartners.find(
+                    (cp) => cp.id === parseInt(e.target.value)
+                  );
+                  if (selected) {
+                    const fullName =
+                      selected.full_name ||
+                      selected.user?.full_name ||
+                      [
+                        selected.first_name || selected.user?.first_name,
+                        selected.last_name || selected.user?.last_name,
+                      ]
+                        .filter(Boolean)
+                        .join(" ");
+                    const mainLabel =
+                      fullName ||
+                      selected.company_name ||
+                      selected.email ||
+                      selected.user?.email ||
+                      `CP #${selected.id}`;
+                    setCurrentSearch(mainLabel);
+                  }
+                }
+              }}
+              disabled={loadingCP}
+              size="6"
+            >
+              <option value="">
+                {loadingCP
+                  ? "Loading..."
+                  : currentSearch
+                  ? "— Select from filtered results —"
+                  : "— Start typing to search —"}
+              </option>
+              {channelPartners
+                .filter((cp) => {
+                  if (!currentSearch) return true;
+                  const term = currentSearch.toLowerCase();
+                  const fullName =
+                    cp.full_name ||
+                    cp.user?.full_name ||
+                    [
+                      cp.first_name || cp.user?.first_name,
+                      cp.last_name || cp.user?.last_name,
+                    ]
+                      .filter(Boolean)
+                      .join(" ");
+                  const companyName = cp.company_name || "";
+                  const email = cp.email || cp.user?.email || "";
+                  const searchString =
+                    `${fullName} ${companyName} ${email}`.toLowerCase();
+                  return searchString.includes(term);
+                })
+                .map((cp) => {
+                  const fullName =
+                    cp.full_name ||
+                    cp.user?.full_name ||
+                    [
+                      cp.first_name || cp.user?.first_name,
+                      cp.last_name || cp.user?.last_name,
+                    ]
+                      .filter(Boolean)
+                      .join(" ");
+                  const mainLabel =
+                    fullName ||
+                    cp.company_name ||
+                    cp.email ||
+                    cp.user?.email ||
+                    `CP #${cp.id}`;
+                  const extra =
+                    cp.company_name && fullName ? ` (${cp.company_name})` : "";
+                  return (
+                    <option key={cp.id} value={cp.id}>
+                      {mainLabel}
+                      {extra}
+                    </option>
+                  );
+                })}
+            </select>
+          </div>
+        </div>
+      );
+    }
 
     if (field.type === "checkbox") {
       return (
@@ -984,8 +1454,6 @@ const SaleAddLead = ({ handleLeadSubmit }) => {
             <option value="">
               {field.name === "project_id"
                 ? "Select project"
-                : field.name === "channel_partner_id" && loadingCP
-                ? "Loading..."
                 : loadingMasters && field.name !== "project_id"
                 ? "Loading..."
                 : "Select"}
@@ -1014,6 +1482,7 @@ const SaleAddLead = ({ handleLeadSubmit }) => {
           value={form[field.name] || ""}
           onChange={(e) => handleChange(field.name, e.target.value)}
           disabled={disabled}
+          placeholder={field.placeholder || ""}
         />
       </div>
     );
@@ -1021,7 +1490,7 @@ const SaleAddLead = ({ handleLeadSubmit }) => {
 
   const renderSectionGroup = (groupKey, title) => {
     const rows = buildRowsForSection(groupKey);
-    if (!rows.length) return null;
+    if (!rows.length && groupKey !== "lead") return null;
 
     const open = openGroups[groupKey];
 
@@ -1115,6 +1584,7 @@ const SaleAddLead = ({ handleLeadSubmit }) => {
         </form>
       </div>
 
+      {/* Email OTP Modal */}
       {showEmailOtpModal && (
         <div className="modal-overlay">
           <div className="modal">
@@ -1163,6 +1633,204 @@ const SaleAddLead = ({ handleLeadSubmit }) => {
                 disabled={emailOtpVerifying}
               >
                 {emailOtpVerifying ? "Verifying..." : "Verify & Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quick CP Create Modal */}
+      {showQuickCpModal && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ maxWidth: "600px" }}>
+            <h3 className="modal-title">Create New Channel Partner</h3>
+
+            <div style={{ marginBottom: "15px" }}>
+              <label className="form-label">
+                Name<span className="required">*</span>
+              </label>
+              <input
+                type="text"
+                className="form-input"
+                value={quickCpForm.name}
+                onChange={(e) =>
+                  setQuickCpForm((prev) => ({ ...prev, name: e.target.value }))
+                }
+              />
+            </div>
+
+            <div style={{ marginBottom: "15px" }}>
+              <label className="form-label">
+                Email<span className="required">*</span>
+              </label>
+              <div style={{ display: "flex", gap: "10px" }}>
+                <input
+                  type="email"
+                  className="form-input"
+                  style={{ flex: 1 }}
+                  value={quickCpForm.email}
+                  onChange={(e) => {
+                    setQuickCpForm((prev) => ({
+                      ...prev,
+                      email: e.target.value,
+                    }));
+                    setQuickCpEmailVerified(false);
+                    setQuickCpOtpCode("");
+                  }}
+                />
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={handleSendQuickCpOtp}
+                  disabled={quickCpOtpSending}
+                  style={{ whiteSpace: "nowrap" }}
+                >
+                  {quickCpOtpSending ? "Sending..." : "Send OTP"}
+                </button>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: "15px" }}>
+              <label className="form-label">
+                OTP<span className="required">*</span>
+              </label>
+              <div style={{ display: "flex", gap: "10px" }}>
+                <input
+                  type="text"
+                  className="form-input"
+                  style={{ flex: 1 }}
+                  placeholder="Enter OTP"
+                  value={quickCpOtpCode}
+                  onChange={(e) => setQuickCpOtpCode(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={handleVerifyQuickCpOtp}
+                  disabled={quickCpOtpVerifying}
+                  style={{ whiteSpace: "nowrap" }}
+                >
+                  {quickCpOtpVerifying ? "Verifying..." : "Verify"}
+                </button>
+              </div>
+              {quickCpEmailVerified && (
+                <span style={{ fontSize: 12, color: "#16a34a" }}>
+                  ✓ Email verified
+                </span>
+              )}
+            </div>
+
+            <div style={{ marginBottom: "15px" }}>
+              <label className="form-label">
+                Partner Tier<span className="required">*</span>
+              </label>
+              <select
+                className="form-input"
+                value={quickCpForm.partner_tier_id}
+                onChange={(e) =>
+                  setQuickCpForm((prev) => ({
+                    ...prev,
+                    partner_tier_id: e.target.value,
+                  }))
+                }
+              >
+                <option value="">Select Partner Tier</option>
+                {partnerTiers.map((tier) => (
+                  <option key={tier.id} value={tier.id}>
+                    {tier.name || tier.title || `Tier #${tier.id}`}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ marginBottom: "15px" }}>
+              <label className="form-label">Mobile Number</label>
+              <input
+                type="text"
+                className="form-input"
+                value={quickCpForm.mobile_number}
+                onChange={(e) =>
+                  setQuickCpForm((prev) => ({
+                    ...prev,
+                    mobile_number: e.target.value,
+                  }))
+                }
+              />
+            </div>
+
+            <div style={{ marginBottom: "15px" }}>
+              <label className="form-label">Company Name</label>
+              <input
+                type="text"
+                className="form-input"
+                value={quickCpForm.company_name}
+                onChange={(e) =>
+                  setQuickCpForm((prev) => ({
+                    ...prev,
+                    company_name: e.target.value,
+                  }))
+                }
+              />
+            </div>
+
+            <div style={{ marginBottom: "15px" }}>
+              <label className="form-label">PAN Number</label>
+              <input
+                type="text"
+                className="form-input"
+                value={quickCpForm.pan_number}
+                onChange={(e) =>
+                  setQuickCpForm((prev) => ({
+                    ...prev,
+                    pan_number: e.target.value,
+                  }))
+                }
+              />
+            </div>
+
+            <div style={{ marginBottom: "15px" }}>
+              <label className="form-label">RERA Number</label>
+              <input
+                type="text"
+                className="form-input"
+                value={quickCpForm.rera_number}
+                onChange={(e) =>
+                  setQuickCpForm((prev) => ({
+                    ...prev,
+                    rera_number: e.target.value,
+                  }))
+                }
+              />
+            </div>
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  setShowQuickCpModal(false);
+                  setQuickCpForm({
+                    name: "",
+                    email: "",
+                    mobile_number: "",
+                    company_name: "",
+                    pan_number: "",
+                    rera_number: "",
+                    partner_tier_id: "",
+                  });
+                  setQuickCpOtpCode("");
+                  setQuickCpEmailVerified(false);
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={handleQuickCpCreate}
+              >
+                Create CP
               </button>
             </div>
           </div>
