@@ -432,36 +432,36 @@ const downloadSampleExcel = () => {
 
   // ---- convert API call (manual convert) ----
   // ---- convert API call (manual convert) ----
-  const handleConvert = async (oppId) => {
-    if (!window.confirm("Convert this opportunity to Lead?")) return;
+  // const handleConvert = async (oppId) => {
+  //   if (!window.confirm("Convert this opportunity to Lead?")) return;
 
-    try {
-      const res = await axiosInstance.post(
-        `/sales/lead-opportunities/${oppId}/convert/`,
-        {}
-      );
+  //   try {
+  //     const res = await axiosInstance.post(
+  //       `/sales/lead-opportunities/${oppId}/convert/`,
+  //       {}
+  //     );
 
-      const leadId = res?.data?.sales_lead_id;
-      if (leadId) {
-        toast.success(`Converted to Sales Lead #${leadId}`);
-      } else {
-        toast.success("Converted to lead successfully.");
-      }
+  //     const leadId = res?.data?.sales_lead_id;
+  //     if (leadId) {
+  //       toast.success(`Converted to Sales Lead #${leadId}`);
+  //     } else {
+  //       toast.success("Converted to lead successfully.");
+  //     }
 
-      // refresh list
-      fetchList({ page });
-    } catch (err) {
-      console.error("Convert failed", err);
+  //     // refresh list
+  //     fetchList({ page });
+  //   } catch (err) {
+  //     console.error("Convert failed", err);
 
-      const resp = err?.response;
-      const msgFromServer =
-        resp?.data?.detail ||
-        resp?.data?.error ||
-        (typeof resp?.data === "string" ? resp.data : null);
+  //     const resp = err?.response;
+  //     const msgFromServer =
+  //       resp?.data?.detail ||
+  //       resp?.data?.error ||
+  //       (typeof resp?.data === "string" ? resp.data : null);
 
-      toast.error(msgFromServer || "Failed to convert opportunity.");
-    }
-  };
+  //     toast.error(msgFromServer || "Failed to convert opportunity.");
+  //   }
+  // };
 
   // ---- helper: derive project id from an opportunity row ----
   const deriveProjectIdFromOpp = (opp) => {
