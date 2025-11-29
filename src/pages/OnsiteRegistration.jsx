@@ -12,7 +12,7 @@ const CP_MODE = {
   REGISTERED: "REGISTERED",
   UNREGISTERED: "UNREGISTERED",
 };
-const usingType = !!form.offering_type_id; // true => type-only mo
+
 const initialForm = {
   project_id: "",
   first_name: "",
@@ -24,7 +24,7 @@ const initialForm = {
   tower_id: "",
   floor_id: "",
   unit_id: "",
-  inventory_id: "", // 🔹 NEW: inventory to send to backend
+  inventory_id: "", // backend ko bhejna hai
   flat_number: "", // from unit.unit_no
   // CP
   has_channel_partner: false,
@@ -32,9 +32,11 @@ const initialForm = {
   terms_accepted: false,
 };
 
-
 export default function OnsiteRegistration() {
   const [form, setForm] = useState(initialForm);
+
+  // ✅ yaha pe safe hai – ab `form` defined hai
+  const usingType = !!form.offering_type_id; // true => type-only mode
 
   const [scopeLoading, setScopeLoading] = useState(true);
   const [projects, setProjects] = useState([]);
@@ -47,6 +49,7 @@ export default function OnsiteRegistration() {
 
   const [lookupResult, setLookupResult] = useState(null);
   const [checkingPhone, setCheckingPhone] = useState(false);
+const [showLookupDetails, setShowLookupDetails] = useState(false);
 
   // ---------- CP state (REGISTERED vs UNREGISTERED) ----------
   const [cpMode, setCpMode] = useState(CP_MODE.REGISTERED);
@@ -69,47 +72,52 @@ export default function OnsiteRegistration() {
   const [partnerTiers, setPartnerTiers] = useState([]);
 
   // ---------- Phone lookup (10 digits + project) ----------
-  useEffect(() => {
-    const digits = (form.mobile_number || "").replace(/\D/g, "");
-    if (digits.length === 10 && form.project_id) {
-      setCheckingPhone(true);
-      api
-        .get("/sales/sales-leads/lookup-by-phone/", {
-          params: {
-            phone: digits,
-            project_id: form.project_id,
-          },
-        })
-        .then((res) => {
-          setLookupResult(res.data || null);
-        })
-        .catch((err) => {
-          console.error("phone lookup failed", err);
-          setLookupResult(null);
-        })
-        .finally(() => setCheckingPhone(false));
-    } else {
-      setLookupResult(null);
-    }
-  }, [form.mobile_number, form.project_id]);
+useEffect(() => {
+  const digits = (form.mobile_number || "").replace(/\D/g, "");
+
+  // naya lookup start -> details collapse
+  setShowLookupDetails(false);
+
+  if (digits.length === 10 && form.project_id) {
+    setCheckingPhone(true);
+    api
+      .get("/sales/sales-leads/lookup-by-phone/", {
+        params: {
+          phone: digits,
+          project_id: form.project_id,
+        },
+      })
+      .then((res) => {
+        setLookupResult(res.data || null);
+      })
+      .catch((err) => {
+        console.error("phone lookup failed", err);
+        setLookupResult(null);
+      })
+      .finally(() => setCheckingPhone(false));
+  } else {
+    setLookupResult(null);
+  }
+}, [form.mobile_number, form.project_id]);
 
   // ---------- Load scope with towers + floors + units + offering_types ----------
   useEffect(() => {
     setScopeLoading(true);
     api
-      .get(SCOPE_URL, { params: { include_units: true, unit_type: true } }) // 🔹 both flags
+      .get(SCOPE_URL, { params: { include_units: true, unit_type: true } })
       .then((res) => {
         const data = res.data || {};
         const list = data.projects || data.project_list || data.results || [];
         setProjects(list);
-        setOfferingTypes(data.offering_types || []); // global list
+        setOfferingTypes(data.offering_types || []);
 
+        // auto-select project if only one
         if (list.length === 1) {
           setForm((prev) => ({ ...prev, project_id: String(list[0].id) }));
         }
       })
       .catch((err) => {
-        console.error("Failed to load scope", err);
+        console.error("Failed to load project scope", err);
         showToast("Failed to load project scope", "error");
       })
       .finally(() => setScopeLoading(false));
@@ -157,6 +165,7 @@ export default function OnsiteRegistration() {
       (selectedTower.floors || []).find(
         (f) => String(f.id) === String(form.floor_id)
       ) || null;
+    // ⭐ saare units return karo, status ke saath
     return floor?.units || [];
   }, [selectedTower, form.floor_id]);
 
@@ -168,7 +177,6 @@ export default function OnsiteRegistration() {
     }
 
     if (cpMode !== CP_MODE.REGISTERED) {
-      // Unregistered mode: we don't need list
       setChannelPartners([]);
       return;
     }
@@ -191,161 +199,168 @@ export default function OnsiteRegistration() {
   }, [form.project_id, form.has_channel_partner, cpMode]);
 
   // ---------- helpers ----------
-const handleChange = (name, value) => {
-  setForm((prev) => {
-    const next = { ...prev, [name]: value };
+  const handleChange = (name, value) => {
+    setForm((prev) => {
+      const next = { ...prev, [name]: value };
 
-    if (name === "project_id") {
-      next.tower_id = "";
-      next.floor_id = "";
-      next.unit_id = "";
-      next.inventory_id = "";
-      next.flat_number = "";
-      next.offering_type_id = "";
-      next.channel_partner_id = "";
-      setCpMode(CP_MODE.REGISTERED);
-    }
-
-    if (name === "tower_id") {
-      next.floor_id = "";
-      next.unit_id = "";
-      next.inventory_id = "";
-      next.flat_number = "";
-      // user unit side pe aa raha hai => type clear
-      next.offering_type_id = "";
-    }
-
-    if (name === "floor_id") {
-      next.unit_id = "";
-      next.inventory_id = "";
-      next.flat_number = "";
-      next.offering_type_id = "";
-    }
-
-    if (name === "has_channel_partner" && value === false) {
-      next.channel_partner_id = "";
-      setCpMode(CP_MODE.REGISTERED);
-    }
-
-    // 👉 If user selects an offering type, clear tower/floor/unit
-    if (name === "offering_type_id") {
-      if (value) {
+      if (name === "project_id") {
         next.tower_id = "";
         next.floor_id = "";
         next.unit_id = "";
         next.inventory_id = "";
         next.flat_number = "";
+        next.offering_type_id = "";
+        next.channel_partner_id = "";
+        setCpMode(CP_MODE.REGISTERED);
+
+        // ⭐ auto-select tower if only one tower in this project
+        const project = projects.find((p) => String(p.id) === String(value));
+        if (project && project.towers && project.towers.length === 1) {
+          next.tower_id = String(project.towers[0].id);
+        }
       }
-    }
 
-    return next;
-  });
-};
+      if (name === "tower_id") {
+        next.floor_id = "";
+        next.unit_id = "";
+        next.inventory_id = "";
+        next.flat_number = "";
+        // user unit side pe aa raha hai => type clear
+        next.offering_type_id = "";
+      }
 
+      if (name === "floor_id") {
+        next.unit_id = "";
+        next.inventory_id = "";
+        next.flat_number = "";
+        next.offering_type_id = "";
+      }
 
-  // 🔹 separate handler for unit selection: also set flat_number
+      if (name === "has_channel_partner" && value === false) {
+        next.channel_partner_id = "";
+        setCpMode(CP_MODE.REGISTERED);
+      }
+
+      // 👉 If user selects an offering type, clear tower/floor/unit
+      if (name === "offering_type_id") {
+        if (value) {
+          next.tower_id = "";
+          next.floor_id = "";
+          next.unit_id = "";
+          next.inventory_id = "";
+          next.flat_number = "";
+        }
+      }
+
+      return next;
+    });
+  };
+
+  // 🔹 unit select => inventory_id + flat_number set
 const handleUnitChange = (unitId) => {
   setForm((prev) => {
     const next = { ...prev };
 
-    next.unit_id = unitId || "";
-    // unit side pe shift => type clear
-    next.offering_type_id = "";
-
     if (!unitId) {
+      next.unit_id = "";
       next.inventory_id = "";
       next.flat_number = "";
       return next;
     }
 
-    // floor.units se selected unit nikaalo
     const unit = units.find((u) => String(u.id) === String(unitId)) || null;
+    if (!unit) return next;
 
-    // 🔹 inventory_id BE ko bhejna hai
-    // my-scope me agar aapne inventory_id expose kiya hai to yeh use hoga,
-    // warna fallback unit.id pe (agar 1-1 mapping hai)
+    // ❌ Non-AVAILABLE unit select kiya to ignore + toast
+    if (unit.status !== "AVAILABLE") {
+      showToast("This unit is not available.", "error");
+      return next;
+    }
+
+    next.unit_id = unitId;
+    next.offering_type_id = ""; // unit pe shift => type clear
+
     next.inventory_id = unit?.inventory_id || unit?.id || "";
-
-    // 🔹 flat_number = unit_no
     next.flat_number = unit?.unit_no || "";
 
     return next;
   });
 };
 
-const validate = () => {
-  const missing = [];
 
-  if (!form.project_id) missing.push("Project");
-  if (!form.first_name.trim()) missing.push("First Name");
-  if (!form.last_name.trim()) missing.push("Last Name");
-  if (!form.mobile_number.trim()) missing.push("Mobile Number");
-  if (!form.email.trim()) missing.push("Email");
 
-  const hasType = !!form.offering_type_id;
-  const hasFlatCombo = !!(form.tower_id && form.floor_id && form.flat_number);
+  const validate = () => {
+    const missing = [];
 
-  if (!hasType && !hasFlatCombo) {
-    missing.push("Either Offering Type OR Tower + Floor + Unit");
-  }
+    if (!form.project_id) missing.push("Project");
+    if (!form.first_name.trim()) missing.push("First Name");
+    if (!form.last_name.trim()) missing.push("Last Name");
+    if (!form.mobile_number.trim()) missing.push("Mobile Number");
+    if (!form.email.trim()) missing.push("Email");
 
-  if (hasType && hasFlatCombo) {
-    showToast(
-      "Please select either Offering Type OR Tower + Floor + Unit, not both.",
-      "error"
-    );
-    return false;
-  }
+    const hasType = !!form.offering_type_id;
+    const hasFlatCombo = !!(form.tower_id && form.floor_id && form.flat_number);
 
-  if (!form.terms_accepted) {
-    missing.push("Terms & Conditions");
-  }
+    if (!hasType && !hasFlatCombo) {
+      missing.push("Either Offering Type OR Tower + Floor + Unit");
+    }
 
-  if (form.has_channel_partner && !form.channel_partner_id) {
-    missing.push("Channel Partner");
-  }
+    if (hasType && hasFlatCombo) {
+      showToast(
+        "Please select either Offering Type OR Tower + Floor + Unit, not both.",
+        "error"
+      );
+      return false;
+    }
 
-  if (missing.length) {
-    showToast("Please fill required fields:\n" + missing.join("\n"), "error");
-    return false;
-  }
+    if (!form.terms_accepted) {
+      missing.push("Terms & Conditions");
+    }
 
-  return true;
-};
+    if (form.has_channel_partner && !form.channel_partner_id) {
+      missing.push("Channel Partner");
+    }
+
+    if (missing.length) {
+      showToast("Please fill required fields:\n" + missing.join("\n"), "error");
+      return false;
+    }
+
+    return true;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (submitting) return;
     if (!validate()) return;
 
-const payload = {
-  project_id: Number(form.project_id),
-  first_name: form.first_name.trim(),
-  last_name: form.last_name.trim(),
-  mobile_number: form.mobile_number.trim(),
-  email: form.email.trim(),
+    const payload = {
+      project_id: Number(form.project_id),
+      first_name: form.first_name.trim(),
+      last_name: form.last_name.trim(),
+      mobile_number: form.mobile_number.trim(),
+      email: form.email.trim(),
 
-  // 👉 CASE 1: type-only
-  offering_type_id: form.offering_type_id
-    ? Number(form.offering_type_id)
-    : null,
+      // CASE 1: type-only
+      offering_type_id: form.offering_type_id
+        ? Number(form.offering_type_id)
+        : null,
 
-  // 👉 CASE 2: tower + floor + unit
-  tower_id: form.tower_id ? Number(form.tower_id) : null,
-  floor_id: form.floor_id ? Number(form.floor_id) : null,
-  inventory_id: form.inventory_id ? Number(form.inventory_id) : null,
+      // CASE 2: tower + floor + unit/inventory
+      tower_id: form.tower_id ? Number(form.tower_id) : null,
+      floor_id: form.floor_id ? Number(form.floor_id) : null,
+      inventory_id: form.inventory_id ? Number(form.inventory_id) : null,
 
-  flat_number: form.flat_number || "",
+      flat_number: form.flat_number || "",
 
-  has_channel_partner: !!form.has_channel_partner,
-  channel_partner_id:
-    form.has_channel_partner && form.channel_partner_id
-      ? Number(form.channel_partner_id)
-      : null,
+      has_channel_partner: !!form.has_channel_partner,
+      channel_partner_id:
+        form.has_channel_partner && form.channel_partner_id
+          ? Number(form.channel_partner_id)
+          : null,
 
-  terms_accepted: !!form.terms_accepted,
-};
-
+      terms_accepted: !!form.terms_accepted,
+    };
 
     setSubmitting(true);
     try {
@@ -370,7 +385,6 @@ const payload = {
   };
 
   // ---------- Quick CP: OTP send/verify + create ----------
-
   const handleSendQuickCpOtp = async () => {
     const email = (quickCpForm.email || "").trim();
     if (!email) {
@@ -574,13 +588,116 @@ const payload = {
             />
             {(checkingPhone || lookupResult) && (
               <div className="onsite-lookup-banner">
-                {checkingPhone
-                  ? "Checking existing records…"
-                  : lookupResult?.present
-                  ? `Lead / opportunity already exists for this mobile. Leads: ${
-                      lookupResult.lead_count || 0
-                    }, Opportunities: ${lookupResult.opportunity_count || 0}.`
-                  : "No existing lead found. New lead will be created."}
+                {checkingPhone ? (
+                  <span>Checking existing records…</span>
+                ) : lookupResult?.present ? (
+                  <>
+                    <span>
+                      Lead / opportunity already exists for this mobile. Leads:{" "}
+                      {lookupResult.lead_count || 0}, Opportunities:{" "}
+                      {lookupResult.opportunity_count || 0}.
+                    </span>
+                    <button
+                      type="button"
+                      className="onsite-lookup-more-btn"
+                      onClick={() => setShowLookupDetails((prev) => !prev)}
+                    >
+                      {showLookupDetails ? "Hide details" : "Show more"}
+                    </button>
+                  </>
+                ) : (
+                  <span>No existing lead found. New lead will be created.</span>
+                )}
+              </div>
+            )}
+
+            {/* Details block */}
+            {lookupResult?.present && showLookupDetails && (
+              <div className="onsite-lookup-details">
+                {lookupResult.leads?.length ? (
+                  <table className="onsite-lookup-table">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Flat</th>
+                        <th>CP</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {lookupResult.leads.map((lead, idx) => (
+                        <tr key={lead.id}>
+                          <td>{idx + 1}</td>
+                          <td>
+                            {lead.full_name ||
+                              `${lead.first_name} ${lead.last_name}`}
+                          </td>
+                          <td>{lead.email || "-"}</td>
+                          <td>{lead.address?.flat_or_building || "-"}</td>
+                          <td>{lead.channel_partner_name || "-"}</td>
+                          <td>{lead.status_name || "-"}</td>
+                          <td>
+                            {lead.created_at
+                              ? lead.created_at.slice(0, 10)
+                              : "-"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div className="onsite-helper">
+                    No lead details available.
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Details block */}
+            {lookupResult?.present && showLookupDetails && (
+              <div className="onsite-lookup-details">
+                {lookupResult.leads?.length ? (
+                  <table className="onsite-lookup-table">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Flat</th>
+                        <th>CP</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {lookupResult.leads.map((lead, idx) => (
+                        <tr key={lead.id}>
+                          <td>{idx + 1}</td>
+                          <td>
+                            {lead.full_name ||
+                              `${lead.first_name} ${lead.last_name}`}
+                          </td>
+                          <td>{lead.email || "-"}</td>
+                          <td>{lead.address?.flat_or_building || "-"}</td>
+                          <td>{lead.channel_partner_name || "-"}</td>
+                          <td>{lead.status_name || "-"}</td>
+                          <td>
+                            {lead.created_at
+                              ? lead.created_at.slice(0, 10)
+                              : "-"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div className="onsite-helper">
+                    No lead details available.
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -687,68 +804,27 @@ const payload = {
                   disabled={!form.tower_id || !form.floor_id}
                 >
                   <option value="">Select Unit</option>
-                  {units.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.unit_no || `Unit #${u.id}`}
-                    </option>
-                  ))}
+                  {units.map((u) => {
+                    const isAvailable = u.status === "AVAILABLE";
+                    const label = `${u.unit_no || `Unit #${u.id}`} ${
+                      u.status ? `(${u.status})` : ""
+                    }`;
+
+                    return (
+                      <option
+                        key={u.id}
+                        value={u.id}
+                        disabled={!isAvailable}
+                        data-status={u.status}
+                      >
+                        {label}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
             </>
           )}
-
-          {/* Optional: tower / floor combo */}
-          <div className="onsite-field">
-            <label className="onsite-label">Tower (optional)</label>
-            <select
-              className="onsite-input"
-              value={form.tower_id}
-              onChange={(e) => handleChange("tower_id", e.target.value)}
-              disabled={!selectedProject}
-            >
-              <option value="">Select Tower</option>
-              {towers.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name || `Tower #${t.id}`}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="onsite-field">
-            <label className="onsite-label">Floor (optional)</label>
-            <select
-              className="onsite-input"
-              value={form.floor_id}
-              onChange={(e) => handleChange("floor_id", e.target.value)}
-              disabled={!form.tower_id}
-            >
-              <option value="">Select Floor</option>
-              {floors.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.number || f.name || `Floor #${f.id}`}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Unit (optional, but participates in required logic) */}
-          <div className="onsite-field">
-            <label className="onsite-label">Unit (optional)</label>
-            <select
-              className="onsite-input"
-              value={form.unit_id}
-              onChange={(e) => handleUnitChange(e.target.value)}
-              disabled={!form.tower_id || !form.floor_id}
-            >
-              <option value="">Select Unit</option>
-              {units.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.unit_no || `Unit #${u.id}`}
-                </option>
-              ))}
-            </select>
-          </div>
 
           {/* Channel Partner toggle */}
           <div className="onsite-field onsite-checkbox-row">
@@ -869,7 +945,8 @@ const payload = {
             <button
               type="submit"
               className="onsite-submit-btn"
-              disabled={submitting}
+              // ⭐ Button disabled jab tak T&C accept nahi
+              disabled={submitting || !form.terms_accepted}
             >
               {submitting ? "Creating..." : "CREATE"}
             </button>
@@ -1077,4 +1154,3 @@ const payload = {
     </div>
   );
 }
-

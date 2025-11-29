@@ -205,3 +205,70 @@
     padding: 16px 12px;
   }
 }
+
+
+/* 🔹 Unit status colours in dropdown */
+.onsite-input option[data-status="BOOKED"],
+.onsite-input option[data-status="SOLD"],
+.onsite-input option[data-status="BLOCKED"],
+.onsite-input option[data-status="NOT_RELEASED"] {
+  color: #b91c1c; /* red */
+}
+
+.onsite-input option[data-status="AVAILABLE"] {
+  color: #166534; /* green */
+}
+
+
+.onsite-lookup-banner {
+  margin-top: 6px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: #f9fafb;
+  border: 1px dashed #d1d5db;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.onsite-lookup-more-btn {
+  border: none;
+  background: #e5e7eb;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.onsite-lookup-more-btn:hover {
+  background: #d1d5db;
+}
+
+.onsite-lookup-details {
+  margin-top: 8px;
+  padding: 8px;
+  border-radius: 6px;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+}
+
+.onsite-lookup-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.onsite-lookup-table th,
+.onsite-lookup-table td {
+  padding: 4px 6px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+}
+
+.onsite-lookup-table th {
+  font-weight: 600;
+  background: #e5e7eb;
+}
+
