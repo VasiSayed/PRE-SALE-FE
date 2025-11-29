@@ -33,6 +33,23 @@ const validatePAN = (pan) => {
   return pan.trim().length === 10;
 };
 
+const formatDateTime = (value) => {
+  if (!value) return "-";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return d.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+
+
+
+
 const validateAadhar = (aadhar) => {
   const aadharRegex = /^[0-9]{12}$/;
   return aadharRegex.test(aadhar.replace(/\s/g, ""));
@@ -145,8 +162,10 @@ const BookingForm = () => {
     costSummary: true,
     taxesStatutory: true,
     paymentSchedule: true,
+    paymentsSummary: true,
     funding: true,
     advanceDeposit: true,
+    leadPayments: true,
     attachments: true, // ✅ NEW
     applicantSummary: true,
   });
@@ -283,6 +302,66 @@ const BookingForm = () => {
   // Computed values for display
   const [additionalChargesTotal, setAdditionalChargesTotal] = useState(0);
   const [amountBeforeTaxes, setAmountBeforeTaxes] = useState(0);
+
+  // ---------- Lead Payments (from full-info API) ----------
+  const dealBaseAmount = useMemo(() => {
+    // Priority: finalAmount (incl. taxes) -> agreementValue -> lead budget
+    const finalAmt = Number(finalAmount || 0);
+    if (finalAmt > 0) return finalAmt;
+
+    const agrAmt = Number(agreementValue || 0);
+    if (agrAmt > 0) return agrAmt;
+
+    const budgetAmt = leadProfile?.budget ? Number(leadProfile.budget) : 0;
+    return budgetAmt || 0;
+  }, [finalAmount, agreementValue, leadProfile]);
+
+  const leadPaymentsInfo = useMemo(() => {
+    const payments = leadProfile?.payments || [];
+    if (!payments.length) {
+      return {
+        baseAmount: dealBaseAmount,
+        totalPaid: 0,
+        balance: dealBaseAmount,
+        rows: [],
+      };
+    }
+
+    // sort by date (oldest → newest)
+    const sorted = [...payments].sort((a, b) => {
+      const da = a.payment_date ? new Date(a.payment_date) : 0;
+      const db = b.payment_date ? new Date(b.payment_date) : 0;
+      return da - db;
+    });
+
+    let running = dealBaseAmount || 0;
+    let totalPaid = 0;
+
+    const rows = sorted.map((p) => {
+      const amt = Number(p.amount || 0);
+      totalPaid += amt;
+
+      if (dealBaseAmount) {
+        running -= amt; // 👈 yahi "minus from last" hai
+      }
+
+      return {
+        ...p,
+        running_balance: dealBaseAmount ? running : null,
+      };
+    });
+
+    const balance = dealBaseAmount
+      ? Math.max(dealBaseAmount - totalPaid, 0)
+      : 0;
+
+    return {
+      baseAmount: dealBaseAmount,
+      totalPaid,
+      balance,
+      rows,
+    };
+  }, [leadProfile, dealBaseAmount]);
 
   // ---------- Calculate additional charges total ----------
   useEffect(() => {
@@ -1316,6 +1395,37 @@ const BookingForm = () => {
     additionalApplicants,
   ]);
 
+
+  const payments = useMemo(
+    () =>
+      leadProfile && Array.isArray(leadProfile.payments)
+        ? leadProfile.payments
+        : [],
+    [leadProfile]
+  );
+
+
+    const totalClearedPaid = useMemo(() => {
+      if (!payments.length) return 0;
+
+      return payments.reduce((sum, p) => {
+        if (!p || !p.amount) return sum;
+
+        const status = String(p.status || "").toUpperCase();
+        if (status === "PENDING") {
+          // do NOT minus pending
+          return sum;
+        }
+
+        return sum + Number(p.amount || 0);
+      }, 0);
+    }, [payments]);
+
+
+      const netPayableAfterReceipts = useMemo(() => {
+        const gross = Number(finalAmount || 0);
+        return gross - totalClearedPaid;
+      }, [finalAmount, totalClearedPaid]);
   // ---------- Save Booking ----------
   const handleSaveBooking = async () => {
     // ---------- VALIDATIONS ----------
@@ -3253,7 +3363,7 @@ const BookingForm = () => {
                           border: "1px solid #e5e7eb",
                         }}
                       >
-                        <div
+                        {/* <div
                           style={{
                             fontSize: "13px",
                             fontWeight: "500",
@@ -3262,7 +3372,37 @@ const BookingForm = () => {
                           }}
                         >
                           Total Taxes
+                        </div> */}
+                        <div
+                          style={{
+                            minWidth: "300px",
+                            padding: "16px",
+                            backgroundColor: "#f9fafb",
+                            borderRadius: "8px",
+                            border: "1px solid #e5e7eb",
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontSize: "13px",
+                              fontWeight: "500",
+                              marginBottom: "8px",
+                              color: "#6b7280",
+                            }}
+                          >
+                            Total Taxes
+                          </div>
+                          <div
+                            style={{
+                              fontSize: "18px",
+                              fontWeight: "600",
+                              marginBottom: "16px",
+                            }}
+                          >
+                            ₹{formatINR(totalTaxes)}
+                          </div>
                         </div>
+
                         <div
                           style={{
                             fontSize: "18px",
@@ -3816,6 +3956,241 @@ const BookingForm = () => {
                   </div>
                 </div>
               </Section>
+
+              {/* Lead Payments from CRM (EOI etc.) */}
+              {/* Payments / Receipts against this Lead */}
+              {leadId && (
+                <Section
+                  id="paymentsSummary"
+                  title="Payments / Receipts for this Lead"
+                  open={openSections.paymentsSummary}
+                  onToggle={toggleSection}
+                >
+                  <div className="bf-subcard">
+                    {!payments.length ? (
+                      <p style={{ color: "#6b7280", fontSize: "13px" }}>
+                        Is lead ke liye abhi koi payment record nahi hai.
+                      </p>
+                    ) : (
+                      <>
+                        {/* Table */}
+                        <div style={{ overflowX: "auto" }}>
+                          <table
+                            style={{
+                              width: "100%",
+                              borderCollapse: "collapse",
+                              fontSize: "13px",
+                            }}
+                          >
+                            <thead>
+                              <tr
+                                style={{
+                                  backgroundColor: "#f3f4f6",
+                                  textAlign: "left",
+                                }}
+                              >
+                                <th style={{ padding: "8px" }}>Date</th>
+                                <th style={{ padding: "8px" }}>Type</th>
+                                <th style={{ padding: "8px" }}>Method</th>
+                                <th style={{ padding: "8px" }}>Amount</th>
+                                <th style={{ padding: "8px" }}>Status</th>
+                                <th style={{ padding: "8px" }}>Details</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {payments.map((p) => {
+                                const status = String(
+                                  p.status || ""
+                                ).toUpperCase();
+                                const isPending = status === "PENDING";
+
+                                const dateLabel = p.payment_date
+                                  ? new Date(p.payment_date).toLocaleString(
+                                      "en-IN",
+                                      {
+                                        dateStyle: "medium",
+                                        timeStyle: "short",
+                                      }
+                                    )
+                                  : "-";
+
+                                const detail =
+                                  p.payment_method === "POS" ||
+                                  p.payment_method === "ONLINE"
+                                    ? p.transaction_no ||
+                                      p.neft_rtgs_ref_no ||
+                                      "-"
+                                    : p.payment_method === "DRAFT_CHEQUE"
+                                    ? p.cheque_number || "-"
+                                    : p.neft_rtgs_ref_no ||
+                                      p.transaction_no ||
+                                      p.cheque_number ||
+                                      "-";
+
+                                return (
+                                  <tr key={p.id}>
+                                    <td
+                                      style={{
+                                        padding: "8px",
+                                        borderBottom: "1px solid #e5e7eb",
+                                      }}
+                                    >
+                                      {dateLabel}
+                                    </td>
+                                    <td
+                                      style={{
+                                        padding: "8px",
+                                        borderBottom: "1px solid #e5e7eb",
+                                      }}
+                                    >
+                                      {p.payment_type || "-"}
+                                    </td>
+                                    <td
+                                      style={{
+                                        padding: "8px",
+                                        borderBottom: "1px solid #e5e7eb",
+                                      }}
+                                    >
+                                      {p.payment_method || "-"}
+                                    </td>
+                                    <td
+                                      style={{
+                                        padding: "8px",
+                                        borderBottom: "1px solid #e5e7eb",
+                                        fontWeight: "500",
+                                      }}
+                                    >
+                                      ₹{formatINR(p.amount || 0)}
+                                    </td>
+                                    <td
+                                      style={{
+                                        padding: "8px",
+                                        borderBottom: "1px solid #e5e7eb",
+                                      }}
+                                    >
+                                      <span
+                                        style={{
+                                          padding: "2px 8px",
+                                          borderRadius: "999px",
+                                          fontSize: "11px",
+                                          fontWeight: 600,
+                                          backgroundColor: isPending
+                                            ? "#fef3c7" // yellow
+                                            : "#dcfce7", // green-ish for non-pending
+                                          color: isPending
+                                            ? "#92400e"
+                                            : "#166534",
+                                        }}
+                                      >
+                                        {status}
+                                      </span>
+                                    </td>
+                                    <td
+                                      style={{
+                                        padding: "8px",
+                                        borderBottom: "1px solid #e5e7eb",
+                                      }}
+                                    >
+                                      {detail}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Summary card */}
+                        <div
+                          style={{
+                            marginTop: "16px",
+                            display: "flex",
+                            justifyContent: "flex-end",
+                          }}
+                        >
+                          <div
+                            style={{
+                              minWidth: "320px",
+                              padding: "16px",
+                              backgroundColor: "#f9fafb",
+                              borderRadius: "8px",
+                              border: "1px solid #e5e7eb",
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                marginBottom: "6px",
+                                color: "#6b7280",
+                                fontSize: "13px",
+                              }}
+                            >
+                              <span>Total Receivable (Incl. Taxes)</span>
+                              <span>
+                                ₹{formatINR(Number(finalAmount || 0))}
+                              </span>
+                            </div>
+
+                            <div
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                marginBottom: "6px",
+                                color: "#6b7280",
+                                fontSize: "13px",
+                              }}
+                            >
+                              <span>Less: Cleared Payments</span>
+                              <span>− ₹{formatINR(totalClearedPaid)}</span>
+                            </div>
+
+                            <div
+                              style={{
+                                marginTop: "10px",
+                                paddingTop: "10px",
+                                borderTop: "2px solid #e5e7eb",
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  fontSize: "14px",
+                                  fontWeight: "600",
+                                  color: "#374151",
+                                }}
+                              >
+                                Final Amount Payable
+                              </span>
+                              <span
+                                style={{
+                                  fontSize: "22px",
+                                  fontWeight: "700",
+                                  color: "#059669",
+                                }}
+                              >
+                                ₹{formatINR(netPayableAfterReceipts)}
+                              </span>
+                            </div>
+
+                            <div
+                              style={{
+                                marginTop: "4px",
+                                fontSize: "11px",
+                                color: "#6b7280",
+                              }}
+                            >
+                              * Pending payments ko minus nahi kiya gaya hai.
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </Section>
+              )}
 
               {/* Attachments & Payment Proofs */}
               <Section
@@ -4417,4 +4792,5 @@ const BookingForm = () => {
 };
 
 export default BookingForm;
+
 

@@ -465,3 +465,69 @@
 }
 
 
+.bf-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.bf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.bf-table th,
+.bf-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.bf-table th {
+  background-color: #f9fafb;
+  font-weight: 600;
+  color: #4b5563;
+}
+
+.bf-table tr:nth-child(even) {
+  background-color: #f9fafb;
+}
+
+.bf-leadpay-summary .bf-leadpay-chip {
+  padding: 8px 12px;
+  border-radius: 9999px;
+  background-color: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+}
+
+.bf-leadpay-chip span {
+  color: #6b7280;
+}
+
+.bf-leadpay-chip strong {
+  color: #111827;
+  font-size: 14px;
+}
+
+.bf-leadpay-chip-paid {
+  background-color: #ecfdf5;
+  border-color: #bbf7d0;
+}
+
+.bf-leadpay-chip-balance {
+  background-color: #fef3c7;
+  border-color: #fde68a;
+}
+
+.bf-link {
+  color: #1d4ed8;
+  text-decoration: underline;
+  font-size: 12px;
+}
+
+

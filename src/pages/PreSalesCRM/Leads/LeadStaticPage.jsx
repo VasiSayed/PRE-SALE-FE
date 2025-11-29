@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { useSearchParams, useNavigate, useParams } from "react-router-dom";
 import api, { BASE_URL } from "../../../api/axiosInstance";
 import { toast } from "react-hot-toast";
+import PaymentLeadCreateModal from "../../../components/Payments/PaymentLeadCreateModal"
 
 import "./LeadStaticPage.css";
 
@@ -17,7 +18,7 @@ const LeadStaticPage = () => {
   const navigate = useNavigate();
   const [stageChangeNote, setStageChangeNote] = useState("");
 const [updateStatusOptions, setUpdateStatusOptions] = useState([]);
-
+const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const { id: leadIdFromPath } = useParams();
   const leadId = searchParams.get("lead_id") || leadIdFromPath || null;
 
@@ -79,6 +80,12 @@ const projectId = lead?.project || null;
     sub_status: "",
     comment: "",
   });
+
+
+  const handlePaymentsClick = () => {
+    setPaymentModalOpen(true);
+  };
+
 
   // ---- collapsible sections ----
   const [collapsedSections, setCollapsedSections] = useState({
@@ -1565,7 +1572,7 @@ const handleConfirmStageChange = async () => {
             <button
               type="button"
               className="card-btn"
-              onClick={handleQuotationClick}
+              onClick={handlePaymentsClick}
             >
               Payments
             </button>
@@ -3618,6 +3625,22 @@ const handleConfirmStageChange = async () => {
           </div>
         </div>
       )}
+      {paymentModalOpen && (
+        <PaymentLeadCreateModal
+          isOpen={paymentModalOpen}
+          onClose={() => setPaymentModalOpen(false)}
+          // leadId ka source: agar useParams se aa raha hai to directly use karo
+          // const { leadId } = useParams();
+          leadId={parseInt(leadId, 10)}
+          defaultPaymentType="EOI"
+          onCreated={() => {
+            // yahan agar tum payments list dikhate ho to refresh call kar sakte ho
+            // example:
+            // fetchPayments();
+          }}
+        />
+      )}
+      
     </div>
   );
 };

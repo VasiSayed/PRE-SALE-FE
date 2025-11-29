@@ -1,3 +1,1847 @@
+// // src/pages/SaleAddLead.jsx
+// import React, { useState, useEffect } from "react";
+// import { SetupAPI, URLS } from "../../../api/endpoints";
+// import api from "../../../api/axiosInstance";
+// import { showToast } from "../../../utils/toast";
+// import "./SaleAddLead.css";
+
+// const SECTION_KEY = "lead_setup";
+
+// // Budget slabs (2 Cr to 7 Cr)
+// const BUDGET_OPTIONS = [
+//   { value: 20000000, label: "2 Cr – 2.5 Cr" },
+//   { value: 22500000, label: "2.5 Cr – 3 Cr" },
+//   { value: 30000000, label: "3 Cr – 3.5 Cr" },
+//   { value: 32500000, label: "3.5 Cr – 4 Cr" },
+//   { value: 40000000, label: "4 Cr – 4.5 Cr" },
+//   { value: 42500000, label: "4.5 Cr – 5 Cr" },
+//   { value: 50000000, label: "5 Cr – 5.5 Cr" },
+//   { value: 52500000, label: "5.5 Cr – 6 Cr" },
+//   { value: 60000000, label: "6 Cr – 6.5 Cr" },
+//   { value: 62500000, label: "6.5 Cr – 7 Cr" },
+// ];
+
+// // CP Mode
+// const CP_MODE = {
+//   REGISTERED: "REGISTERED",
+//   UNREGISTERED: "UNREGISTERED",
+// };
+
+// // Field config
+// const FIELDS = [
+//   // Lead Information
+//   {
+//     section: "lead",
+//     name: "first_name",
+//     label: "First Name",
+//     type: "text",
+//     required: true,
+//     span: 1,
+//     parse: "identity",
+//   },
+//   {
+//     section: "lead",
+//     name: "last_name",
+//     label: "Last Name",
+//     type: "text",
+//     required: true,
+//     span: 1,
+//     parse: "identity",
+//   },
+//   {
+//     section: "lead",
+//     name: "email",
+//     label: "Email",
+//     type: "text",
+//     required: true,
+//     span: 1,
+//     parse: "identity",
+//   },
+//   {
+//     section: "lead",
+//     name: "mobile_number",
+//     label: "Mobile Number",
+//     type: "text",
+//     required: true,
+//     span: 1,
+//     parse: "identity",
+//   },
+//   {
+//     section: "lead",
+//     name: "tel_res",
+//     label: "Tel(Res)",
+//     type: "text",
+//     required: false,
+//     span: 1,
+//     parse: "identity",
+//   },
+//   {
+//     section: "lead",
+//     name: "tel_office",
+//     label: "Tel(Office)",
+//     type: "text",
+//     required: false,
+//     span: 1,
+//     parse: "identity",
+//   },
+//   {
+//     section: "lead",
+//     name: "project_id",
+//     label: "Project",
+//     type: "select",
+//     required: true,
+//     span: 1,
+//     parse: "number",
+//     options: [],
+//   },
+//   {
+//     section: "lead",
+//     name: "walking",
+//     label: "Walk-in Lead",
+//     type: "toggle",
+//     required: false,
+//     span: 1,
+//     parse: "identity",
+//   },
+//   {
+//     section: "lead",
+//     name: "budget",
+//     label: "Budget",
+//     type: "select",
+//     required: false,
+//     span: 1,
+//     parse: "number",
+//     options: BUDGET_OPTIONS,
+//   },
+//   {
+//     section: "lead",
+//     name: "annual_income",
+//     label: "Annual Income",
+//     type: "text",
+//     required: false,
+//     span: 1,
+//     parse: "number",
+//     placeholder: "e.g., 15,00,000",
+//   },
+//   {
+//     section: "lead",
+//     name: "company",
+//     label: "Company",
+//     type: "text",
+//     required: false,
+//     span: 1,
+//     parse: "identity",
+//   },
+//   {
+//     section: "lead",
+//     name: "lead_classification_id",
+//     label: "Classification",
+//     type: "select",
+//     required: false,
+//     span: 1,
+//     parse: "number",
+//     options: [],
+//     hiddenWhen: "form.walking === true",
+//   },
+//   {
+//     section: "lead",
+//     name: "lead_subclass_id",
+//     label: "Sub Classification",
+//     type: "select",
+//     required: false,
+//     span: 1,
+//     parse: "number",
+//     options: [],
+//     hiddenWhen: "form.walking === true",
+//   },
+//   {
+//     section: "lead",
+//     name: "lead_source_id",
+//     label: "Lead Source",
+//     type: "select",
+//     required: false,
+//     span: 1,
+//     parse: "number",
+//     options: [],
+//     hiddenWhen: "form.walking === true",
+//   },
+//   {
+//     section: "lead",
+//     name: "lead_sub_source_id",
+//     label: "Lead Sub Source",
+//     type: "select",
+//     required: false,
+//     span: 1,
+//     parse: "number",
+//     options: [],
+//     hiddenWhen: "form.walking === true",
+//   },
+//   // Normal lead CP type (shown when source selected and not walk-in)
+//   {
+//     section: "lead",
+//     name: "normal_cp_type",
+//     label: "Channel Partner Type",
+//     type: "cp_type",
+//     required: false,
+//     span: 1,
+//     parse: "identity",
+//     hiddenWhen: "form.walking === true || !form.lead_source_id",
+//   },
+//   // Normal lead CP search (shown based on CP type)
+//   {
+//     section: "lead",
+//     name: "normal_cp_search",
+//     label: "Channel Partner",
+//     type: "cp_search",
+//     required: false,
+//     span: 3,
+//     parse: "identity",
+//     hiddenWhen: "form.walking === true || !form.lead_source_id",
+//   },
+//   // Walk-in CP type (shown only when walking=true)
+//   {
+//     section: "lead",
+//     name: "walkin_cp_type",
+//     label: "Channel Partner Type",
+//     type: "cp_type",
+//     required: false,
+//     span: 1,
+//     parse: "identity",
+//     hiddenWhen: "form.walking === false",
+//   },
+//   // Walk-in CP search (shown only when walking=true)
+//   {
+//     section: "lead",
+//     name: "walkin_cp_search",
+//     label: "Channel Partner",
+//     type: "cp_search",
+//     required: false,
+//     span: 3,
+//     parse: "identity",
+//     hiddenWhen: "form.walking === false",
+//   },
+//   {
+//     section: "lead",
+//     name: "status_id",
+//     label: "Categorization",
+//     type: "select",
+//     required: false,
+//     span: 1,
+//     parse: "number",
+//     options: [],
+//   },
+//   {
+//     section: "lead",
+//     name: "lead_owner_id",
+//     label: "Lead Owner",
+//     type: "select",
+//     required: false,
+//     span: 1,
+//     parse: "number",
+//     options: [],
+//   },
+//   {
+//     section: "lead",
+//     name: "assign_to_id",
+//     label: "Assign To (User / Round Robin)",
+//     type: "select",
+//     required: false,
+//     span: 1,
+//     parse: "number",
+//     options: [],
+//   },
+//   {
+//     section: "lead",
+//     name: "purpose_id",
+//     label: "Purpose",
+//     type: "select",
+//     required: false,
+//     span: 1,
+//     parse: "number",
+//     options: [],
+//   },
+//   {
+//     section: "lead",
+//     name: "offering_type",
+//     label: "Offering Type",
+//     type: "select",
+//     required: false,
+//     span: 1,
+//     parse: "identity",
+//     options: [],
+//   },
+
+//   // Address Information
+//   {
+//     section: "address",
+//     name: "flat_no",
+//     label: "Flat No/ Building",
+//     type: "text",
+//     required: false,
+//     span: 1,
+//     parse: "identity",
+//   },
+//   {
+//     section: "address",
+//     name: "area",
+//     label: "Area",
+//     type: "text",
+//     required: false,
+//     span: 1,
+//     parse: "identity",
+//   },
+//   {
+//     section: "address",
+//     name: "pin_code",
+//     label: "Pin Code",
+//     type: "text",
+//     required: false,
+//     span: 1,
+//     parse: "identity",
+//   },
+//   {
+//     section: "address",
+//     name: "city",
+//     label: "City",
+//     type: "text",
+//     required: false,
+//     span: 1,
+//     parse: "identity",
+//   },
+//   {
+//     section: "address",
+//     name: "state",
+//     label: "State",
+//     type: "text",
+//     required: false,
+//     span: 1,
+//     parse: "identity",
+//   },
+//   {
+//     section: "address",
+//     name: "country",
+//     label: "Country",
+//     type: "text",
+//     required: false,
+//     span: 1,
+//     parse: "identity",
+//   },
+
+//   // Description Information
+//   {
+//     section: "description",
+//     name: "description",
+//     label: "Description",
+//     type: "textarea",
+//     required: false,
+//     span: 3,
+//     parse: "identity",
+//   },
+// ];
+
+// // ---------- helpers ----------
+
+// const ROUND_ROBIN_VALUE = "__ROUND_ROBIN__";
+
+// const buildInitialFormState = () => {
+//   const form = {};
+//   FIELDS.forEach((field) => {
+//     if (field.type === "checkbox" || field.type === "toggle") {
+//       form[field.name] = false;
+//     } else {
+//       form[field.name] = "";
+//     }
+//   });
+//   form.round_robin = false;
+//   return form;
+// };
+
+// const evaluateExpression = (expr, { form, setup, scope }) => {
+//   if (!expr) return false;
+//   try {
+//     const fn = new Function("form", "setup", "scope", `return (${expr});`);
+//     return !!fn(form, setup, scope);
+//   } catch {
+//     return false;
+//   }
+// };
+
+// const resolvePathFromSetup = (setup, path) => {
+//   if (!path || !setup) return undefined;
+//   const keys = path.split(".").filter(Boolean);
+//   let current = setup;
+//   for (const k of keys) {
+//     if (current == null) return undefined;
+//     current = current[k];
+//   }
+//   return current;
+// };
+
+// const normalizeScalarValue = (value, field) => {
+//   if (value === "" || value === undefined || value === null) return null;
+
+//   if (field.parse === "number") {
+//     if (field.name === "annual_income" && typeof value === "string") {
+//       const cleaned = value.replace(/,/g, "");
+//       const n = Number(cleaned);
+//       return Number.isNaN(n) ? null : n;
+//     }
+//     const n = Number(value);
+//     return Number.isNaN(n) ? null : n;
+//   }
+
+//   if (field.parse === "date") return value || null;
+
+//   if (
+//     field.type === "select" &&
+//     typeof value === "string" &&
+//     /^\d+$/.test(value)
+//   ) {
+//     return Number(value);
+//   }
+
+//   return value;
+// };
+
+// // =================== MAIN COMPONENT ===================
+
+// const SaleAddLead = ({ handleLeadSubmit }) => {
+//   const [form, setForm] = useState(buildInitialFormState);
+
+//   // Email OTP
+//   const [emailOtpSending, setEmailOtpSending] = useState(false);
+//   const [emailOtpVerifying, setEmailOtpVerifying] = useState(false);
+//   const [emailOtpCode, setEmailOtpCode] = useState("");
+//   const [emailVerified, setEmailVerified] = useState(false);
+
+//   // Modal + pending body for save
+//   const [showEmailOtpModal, setShowEmailOtpModal] = useState(false);
+//   const [pendingSaveBody, setPendingSaveBody] = useState(null);
+
+//   // Collapsible groups
+//   const [openGroups, setOpenGroups] = useState({
+//     lead: true,
+//     address: true,
+//     description: true,
+//   });
+
+//   const [projects, setProjects] = useState([]);
+//   const [masters, setMasters] = useState(null);
+//   const [loadingMasters, setLoadingMasters] = useState(false);
+
+//   // CP search
+//   const [cpSearch, setCpSearch] = useState("");
+//   const [channelPartners, setChannelPartners] = useState([]);
+//   const [loadingCP, setLoadingCP] = useState(false);
+
+//   // Normal lead CP (non-walk-in)
+//   const [normalCpSearch, setNormalCpSearch] = useState("");
+//   const [normalSelectedCpId, setNormalSelectedCpId] = useState("");
+//   const [normalCpType, setNormalCpType] = useState(CP_MODE.REGISTERED);
+
+//   // Walk-in CP mode
+//   const [cpMode, setCpMode] = useState(CP_MODE.REGISTERED);
+//   const [selectedCpId, setSelectedCpId] = useState("");
+
+//   // Quick CP create
+//   const [showQuickCpModal, setShowQuickCpModal] = useState(false);
+//   const [quickCpForm, setQuickCpForm] = useState({
+//     name: "",
+//     email: "",
+//     mobile_number: "",
+//     company_name: "",
+//     pan_number: "",
+//     rera_number: "",
+//     partner_tier_id: "",
+//   });
+//   const [quickCpOtpSending, setQuickCpOtpSending] = useState(false);
+//   const [quickCpOtpVerifying, setQuickCpOtpVerifying] = useState(false);
+//   const [quickCpOtpCode, setQuickCpOtpCode] = useState("");
+//   const [quickCpEmailVerified, setQuickCpEmailVerified] = useState(false);
+
+//   // Partner tiers for quick CP
+//   const [partnerTiers, setPartnerTiers] = useState([]);
+
+//   useEffect(() => {
+//     SetupAPI.myScope()
+//       .then((data) => {
+//         const list =
+//           data?.projects || data?.project_list || data?.results || [];
+//         setProjects(list);
+
+//         // Auto-select if only 1 project
+//         if (list.length === 1) {
+//           setForm((prev) => ({ ...prev, project_id: list[0].id }));
+//         }
+//       })
+//       .catch((err) => {
+//         console.error("Failed to load scope", err);
+//         showToast("Failed to load project scope", "error");
+//       });
+//   }, []);
+
+//   useEffect(() => {
+//     if (!form.project_id) {
+//       setMasters(null);
+//       return;
+//     }
+//     setLoadingMasters(true);
+//     api
+//       .get(URLS.leadMasters, {
+//         params: { project_id: form.project_id },
+//       })
+//       .then((res) => {
+//         setMasters(res.data);
+//       })
+//       .catch((err) => {
+//         console.error("Failed to load lead masters", err);
+//         showToast("Failed to load lead masters", "error");
+//       })
+//       .finally(() => setLoadingMasters(false));
+
+//     // Load partner tiers for quick CP
+//     api
+//       .get("/channel/partner-tiers/")
+//       .then((res) => {
+//         const list = res.data?.results || res.data || [];
+//         setPartnerTiers(list);
+//       })
+//       .catch((err) => {
+//         console.error("Failed to load partner tiers", err);
+//       });
+//   }, [form.project_id]);
+
+//   // ------- CP logic: walk-in vs normal -------
+//   useEffect(() => {
+//     if (!form.project_id) {
+//       setChannelPartners([]);
+//       return;
+//     }
+
+//     // Walk-in mode
+//     if (form.walking) {
+//       if (cpMode === CP_MODE.REGISTERED) {
+//         setLoadingCP(true);
+//         api
+//           .get("/channel/partners/by-project/", {
+//             params: { project_id: form.project_id },
+//           })
+//           .then((res) => {
+//             const list = res.data?.results || res.data || [];
+//             setChannelPartners(list);
+//           })
+//           .catch((err) => {
+//             console.error("Failed to load project CPs", err);
+//             setChannelPartners([]);
+//             showToast("Failed to load channel partners", "error");
+//           })
+//           .finally(() => setLoadingCP(false));
+//       } else {
+//         setChannelPartners([]);
+//       }
+//       return;
+//     }
+
+//     // Normal lead mode (walk-in = false)
+//     const sourceId = form.lead_source_id;
+//     if (!sourceId) {
+//       setChannelPartners([]);
+//       return;
+//     }
+
+//     setLoadingCP(true);
+
+//     const params = { project_id: form.project_id };
+//     if (form.lead_sub_source_id) {
+//       params.source_id = form.lead_sub_source_id;
+//     } else {
+//       params.source_id = sourceId;
+//     }
+
+//     api
+//       .get("/channel/partners/by-project/", { params })
+//       .then((res) => {
+//         const list = res.data?.results || res.data || [];
+//         setChannelPartners(list);
+
+//         // Fallback: if sub-source returns empty, try main source
+//         if (list.length === 0 && form.lead_sub_source_id) {
+//           return api.get("/channel/partners/by-project/", {
+//             params: { project_id: form.project_id, source_id: sourceId },
+//           });
+//         }
+//         return null;
+//       })
+//       .then((fallbackRes) => {
+//         if (fallbackRes) {
+//           const list = fallbackRes.data?.results || fallbackRes.data || [];
+//           setChannelPartners(list);
+//         }
+//       })
+//       .catch((err) => {
+//         console.error("Failed to load channel partners", err);
+//         setChannelPartners([]);
+//         showToast("Failed to load channel partners", "error");
+//       })
+//       .finally(() => setLoadingCP(false));
+//   }, [
+//     form.project_id,
+//     form.walking,
+//     cpMode,
+//     form.lead_source_id,
+//     form.lead_sub_source_id,
+//   ]);
+
+//   const toggleGroup = (groupKey) => {
+//     setOpenGroups((prev) => ({ ...prev, [groupKey]: !prev[groupKey] }));
+//   };
+
+//   const handleChange = (name, value) => {
+//     setForm((prev) => {
+//       const next = { ...prev, [name]: value };
+
+//       // Email change => OTP reset
+//       if (name === "email") {
+//         setEmailVerified(false);
+//         setEmailOtpCode("");
+//       }
+
+//       // Walking toggle
+//       if (name === "walking") {
+//         if (value === true) {
+//           // Reset classification/source fields
+//           next.lead_classification_id = "";
+//           next.lead_subclass_id = "";
+//           next.lead_source_id = "";
+//           next.lead_sub_source_id = "";
+//           setCpMode(CP_MODE.REGISTERED);
+//           setSelectedCpId("");
+//         }
+//       }
+
+//       // When main source changes: reset sub-source
+//       if (name === "lead_source_id") {
+//         next.lead_sub_source_id = "";
+//         setSelectedCpId("");
+//         setCpSearch("");
+//         setNormalCpSearch("");
+//         setNormalSelectedCpId("");
+//       }
+
+//       if (name === "lead_sub_source_id") {
+//         setSelectedCpId("");
+//         setCpSearch("");
+//         setNormalCpSearch("");
+//         setNormalSelectedCpId("");
+//       }
+
+//       // assign_to → round robin state
+//       if (name === "assign_to_id") {
+//         if (value === ROUND_ROBIN_VALUE) {
+//           next.round_robin = true;
+//         } else {
+//           next.round_robin = false;
+//         }
+//       }
+
+//       return next;
+//     });
+//   };
+
+//   const handleSendEmailOtp = async () => {
+//     const email = (form.email || "").trim();
+//     if (!email) {
+//       showToast("Please enter email first.", "error");
+//       return;
+//     }
+
+//     setEmailVerified(false);
+//     setEmailOtpCode("");
+//     setEmailOtpSending(true);
+
+//     try {
+//       await api.post("/sales/sales-leads/email-otp/start/", { email });
+//       showToast("OTP sent to email.", "success");
+//     } catch (err) {
+//       console.error("Failed to send email OTP", err);
+//       let msg = "Failed to send OTP.";
+//       const data = err?.response?.data;
+//       if (data?.detail) msg = data.detail;
+//       if (data?.email)
+//         msg = Array.isArray(data.email)
+//           ? data.email.join(" ")
+//           : String(data.email);
+//       showToast(msg, "error");
+//     } finally {
+//       setEmailOtpSending(false);
+//     }
+//   };
+
+//   const saveLead = async (body) => {
+//     try {
+//       const res = await api.post(URLS.salesLeadBundleCreate, body);
+//       console.log("✅ Lead create success", res.data);
+
+//       showToast("Lead saved successfully", "success");
+
+//       if (typeof handleLeadSubmit === "function") {
+//         handleLeadSubmit(res.data);
+//       }
+
+//       setForm(buildInitialFormState());
+//       setMasters(null);
+//       setChannelPartners([]);
+//       setEmailVerified(false);
+//       setEmailOtpCode("");
+//       setCpMode(CP_MODE.REGISTERED);
+//       setSelectedCpId("");
+//       setCpSearch("");
+//       setNormalCpSearch("");
+//       setNormalSelectedCpId("");
+//       setNormalCpType(CP_MODE.REGISTERED);
+//     } catch (err) {
+//       console.error("Failed to save lead", err);
+
+//       let msg = "Failed to save lead. Please check the data.";
+//       const data = err?.response?.data;
+//       if (data) {
+//         if (typeof data === "string") msg = data;
+//         else if (data.detail) msg = data.detail;
+//         else if (data.lead && typeof data.lead === "object") {
+//           const firstKey = Object.keys(data.lead)[0];
+//           const firstVal = data.lead[firstKey];
+//           msg = Array.isArray(firstVal) ? firstVal.join(" ") : String(firstVal);
+//         }
+//       }
+
+//       showToast(msg, "error");
+//       throw err;
+//     }
+//   };
+
+//   const handleVerifyOtpAndSave = async () => {
+//     const email = (form.email || "").trim();
+//     const otp = (emailOtpCode || "").trim();
+
+//     if (!email) {
+//       showToast("Please enter email first.", "error");
+//       return;
+//     }
+//     if (!otp) {
+//       showToast("Please enter OTP.", "error");
+//       return;
+//     }
+
+//     setEmailOtpVerifying(true);
+//     try {
+//       const res = await api.post("/sales/sales-leads/email-otp/verify/", {
+//         email,
+//         otp,
+//       });
+
+//       showToast(res.data?.detail || "Email verified.", "success");
+//       setEmailVerified(true);
+
+//       if (pendingSaveBody) {
+//         await saveLead(pendingSaveBody);
+//         setPendingSaveBody(null);
+//         setShowEmailOtpModal(false);
+//       } else {
+//         setShowEmailOtpModal(false);
+//       }
+//     } catch (err) {
+//       console.error("Failed to verify email OTP", err);
+//       setEmailVerified(false);
+//       let msg = "Failed to verify OTP.";
+//       const data = err?.response?.data;
+//       if (data?.detail) msg = data.detail;
+//       showToast(msg, "error");
+//     } finally {
+//       setEmailOtpVerifying(false);
+//     }
+//   };
+
+//   // Quick CP OTP
+//   const handleSendQuickCpOtp = async () => {
+//     const email = (quickCpForm.email || "").trim();
+//     if (!email) {
+//       showToast("Please enter CP email first.", "error");
+//       return;
+//     }
+
+//     setQuickCpEmailVerified(false);
+//     setQuickCpOtpCode("");
+//     setQuickCpOtpSending(true);
+
+//     try {
+//       await api.post("/sales/sales-leads/email-otp/start/", { email });
+//       showToast("OTP sent to CP email.", "success");
+//     } catch (err) {
+//       console.error("Failed to send quick CP OTP", err);
+//       let msg = "Failed to send OTP.";
+//       const data = err?.response?.data;
+//       if (data?.detail) msg = data.detail;
+//       showToast(msg, "error");
+//     } finally {
+//       setQuickCpOtpSending(false);
+//     }
+//   };
+
+//   const handleVerifyQuickCpOtp = async () => {
+//     const email = (quickCpForm.email || "").trim();
+//     const otp = (quickCpOtpCode || "").trim();
+
+//     if (!email) {
+//       showToast("Please enter CP email first.", "error");
+//       return;
+//     }
+//     if (!otp) {
+//       showToast("Please enter OTP.", "error");
+//       return;
+//     }
+
+//     setQuickCpOtpVerifying(true);
+//     try {
+//       await api.post("/sales/sales-leads/email-otp/verify/", { email, otp });
+//       showToast("CP email verified.", "success");
+//       setQuickCpEmailVerified(true);
+//     } catch (err) {
+//       console.error("Failed to verify quick CP OTP", err);
+//       setQuickCpEmailVerified(false);
+//       let msg = "Failed to verify OTP.";
+//       const data = err?.response?.data;
+//       if (data?.detail) msg = data.detail;
+//       showToast(msg, "error");
+//     } finally {
+//       setQuickCpOtpVerifying(false);
+//     }
+//   };
+
+//   const handleQuickCpCreate = async () => {
+//     if (!quickCpEmailVerified) {
+//       showToast("Please verify CP email first.", "error");
+//       return;
+//     }
+
+//     if (
+//       !quickCpForm.name ||
+//       !quickCpForm.email ||
+//       !quickCpForm.partner_tier_id
+//     ) {
+//       showToast("Name, Email, and Partner Tier are required.", "error");
+//       return;
+//     }
+
+//     try {
+//       const body = {
+//         name: quickCpForm.name,
+//         email: quickCpForm.email,
+//         mobile_number: quickCpForm.mobile_number || "",
+//         company_name: quickCpForm.company_name || "",
+//         pan_number: quickCpForm.pan_number || "",
+//         rera_number: quickCpForm.rera_number || "",
+//         partner_tier_id: quickCpForm.partner_tier_id,
+//         project_id: form.project_id,
+//       };
+
+//       const res = await api.post("/channel/partners/quick-create/", body);
+//       showToast("Channel Partner created successfully.", "success");
+
+//       const newCp = res.data;
+
+//       // Reload project CPs
+//       const reloadRes = await api.get("/channel/partners/by-project/", {
+//         params: { project_id: form.project_id },
+//       });
+//       const list = reloadRes.data?.results || reloadRes.data || [];
+//       setChannelPartners(list);
+
+//       // Auto-select newly created CP
+//       setSelectedCpId(newCp.id);
+
+//       // Close modal
+//       setShowQuickCpModal(false);
+//       setQuickCpForm({
+//         name: "",
+//         email: "",
+//         mobile_number: "",
+//         company_name: "",
+//         pan_number: "",
+//         rera_number: "",
+//         partner_tier_id: "",
+//       });
+//       setQuickCpOtpCode("");
+//       setQuickCpEmailVerified(false);
+//     } catch (err) {
+//       console.error("Failed to create quick CP", err);
+//       let msg = "Failed to create Channel Partner.";
+//       const data = err?.response?.data;
+//       if (data?.detail) msg = data.detail;
+//       showToast(msg, "error");
+//     }
+//   };
+
+//   const isFieldHidden = (field) =>
+//     evaluateExpression(field.hiddenWhen, {
+//       form,
+//       setup: { masters, projects },
+//       scope: null,
+//     });
+
+//   const isFieldDisabled = (field) =>
+//     evaluateExpression(field.disabledWhen, {
+//       form,
+//       setup: { masters, projects },
+//       scope: null,
+//     });
+
+//   const getOptionsForField = (field) => {
+//     const toOptions = (items) =>
+//       (items || []).map((item) => ({
+//         value: item.id,
+//         label: item.name || item.label || item.title || `#${item.id}`,
+//       }));
+
+//     if (field.name === "project_id") {
+//       return (projects || []).map((p) => ({
+//         value: p.id,
+//         label: p.name || p.project_name || p.title || `Project #${p.id}`,
+//       }));
+//     }
+
+//     if (field.name === "budget") {
+//       return BUDGET_OPTIONS;
+//     }
+
+//     if (!masters) {
+//       if (field.options && field.options.length) return field.options;
+//       return [];
+//     }
+
+//     switch (field.name) {
+//       case "lead_classification_id":
+//         return toOptions(masters.classifications);
+
+//       case "lead_subclass_id": {
+//         const selectedId = form.lead_classification_id
+//           ? String(form.lead_classification_id)
+//           : null;
+//         const root = (masters.classifications || []).find(
+//           (c) => String(c.id) === selectedId
+//         );
+//         return toOptions(root?.children || root?.subclasses);
+//       }
+
+//       case "lead_source_id":
+//         return toOptions(masters.sources);
+
+//       case "lead_sub_source_id": {
+//         const selectedId = form.lead_source_id
+//           ? String(form.lead_source_id)
+//           : null;
+//         const root = (masters.sources || []).find(
+//           (s) => String(s.id) === selectedId
+//         );
+//         return toOptions(root?.children || root?.sub_sources);
+//       }
+
+//       case "status_id":
+//         return toOptions(masters.statuses);
+
+//       case "sub_status_id": {
+//         const selectedId = form.status_id ? String(form.status_id) : null;
+//         const st = (masters.statuses || []).find(
+//           (s) => String(s.id) === selectedId
+//         );
+//         return toOptions(st?.sub_statuses);
+//       }
+
+//       case "purpose_id":
+//         return toOptions(masters.purposes);
+
+//       case "offering_type":
+//         return toOptions(masters.offering_types);
+
+//       case "lead_owner_id":
+//         return (masters.assign_users || []).map((u) => ({
+//           value: u.id,
+//           label: u.name || u.username,
+//         }));
+
+//       case "assign_to_id": {
+//         const userOptions = (masters.assign_users || []).map((u) => ({
+//           value: u.id,
+//           label: u.name || u.username,
+//         }));
+//         return [
+//           { value: ROUND_ROBIN_VALUE, label: "Round Robin" },
+//           ...userOptions,
+//         ];
+//       }
+
+//       default: {
+//         if (field.options && field.options.length) return field.options;
+
+//         if (field.optionsFrom) {
+//           const src = resolvePathFromSetup(
+//             { masters, projects },
+//             field.optionsFrom
+//           );
+//           if (Array.isArray(src)) {
+//             const valueKey = field.valueKey || "id";
+//             const labelKey = field.labelKey || "name";
+//             return src.map((item) => ({
+//               value: item[valueKey],
+//               label: item[labelKey],
+//             }));
+//           }
+//         }
+//         return [];
+//       }
+//     }
+//   };
+
+//   const buildRowsForSection = (sectionName) => {
+//     const fields = FIELDS.filter((f) => f.section === sectionName);
+//     const rows = [];
+//     let currentRow = [];
+//     let currentSpan = 0;
+
+//     fields.forEach((field) => {
+//       if (isFieldHidden(field)) return;
+
+//       const span = field.span || 1;
+//       if (currentSpan + span > 3) {
+//         rows.push(currentRow);
+//         currentRow = [];
+//         currentSpan = 0;
+//       }
+//       currentRow.push(field);
+//       currentSpan += span;
+//     });
+
+//     if (currentRow.length) rows.push(currentRow);
+//     return rows;
+//   };
+
+//   const validateRequired = () => {
+//     const missing = [];
+
+//     FIELDS.forEach((field) => {
+//       if (!field.required || isFieldHidden(field)) return;
+//       const v = form[field.name];
+//       if (v === "" || v === null || v === undefined) {
+//         missing.push(field.label);
+//       }
+//     });
+
+//     // Walk-in CP validation
+//     if (form.walking && cpMode === CP_MODE.REGISTERED && !selectedCpId) {
+//       missing.push("Channel Partner (Registered)");
+//     }
+
+//     if (missing.length) {
+//       window.alert("Please fill required fields:\n" + missing.join("\n"));
+//       return false;
+//     }
+//     return true;
+//   };
+
+//   const buildPayload = () => {
+//     const payload = {};
+//     FIELDS.forEach((field) => {
+//       if (isFieldHidden(field)) return;
+//       const raw = form[field.name];
+//       payload[field.name] = normalizeScalarValue(raw, field);
+//     });
+//     return payload;
+//   };
+
+//   const onSubmit = async (e) => {
+//     e.preventDefault();
+//     if (!validateRequired()) return;
+
+//     const isRoundRobin = form.assign_to_id === ROUND_ROBIN_VALUE;
+//     const normalized = buildPayload();
+
+//     if (!normalized.project_id) {
+//       showToast("Please select a project", "error");
+//       return;
+//     }
+
+//     const leadPayload = {
+//       project: normalized.project_id,
+
+//       first_name: normalized.first_name || null,
+//       last_name: normalized.last_name || null,
+
+//       email: normalized.email,
+//       mobile_number: normalized.mobile_number,
+//       tel_res: normalized.tel_res,
+//       tel_office: normalized.tel_office,
+
+//       company: normalized.company,
+//       budget: normalized.budget,
+//       annual_income: normalized.annual_income,
+
+//       classification: normalized.lead_classification_id,
+//       sub_classification: normalized.lead_subclass_id,
+//       source: normalized.lead_source_id,
+//       sub_source: normalized.lead_sub_source_id,
+//       status: normalized.status_id,
+//       sub_status: normalized.sub_status_id,
+//       purpose: normalized.purpose_id,
+
+//       current_owner: normalized.lead_owner_id || null,
+
+//       walking: !!normalized.walking,
+//       round_robin: isRoundRobin,
+
+//       offering_types:
+//         normalized.offering_type != null && normalized.offering_type !== ""
+//           ? [normalized.offering_type]
+//           : [],
+
+//       address: {
+//         flat_or_building: normalized.flat_no || "",
+//         area: normalized.area || "",
+//         pincode: normalized.pin_code || "",
+//         city: normalized.city || "",
+//         state: normalized.state || "",
+//         country: normalized.country || "",
+//         description: normalized.description || "",
+//       },
+//     };
+
+//     // Walk-in CP logic
+//     if (form.walking) {
+//       if (cpMode === CP_MODE.REGISTERED && selectedCpId) {
+//         leadPayload.channel_partner = selectedCpId;
+//         leadPayload.unknown_channel_partner = "";
+//       } else {
+//         leadPayload.channel_partner = null;
+//         leadPayload.unknown_channel_partner = "";
+//       }
+//     } else {
+//       // Normal lead: use normalSelectedCpId if source selected
+//       if (normalSelectedCpId) {
+//         leadPayload.channel_partner = normalSelectedCpId;
+//         leadPayload.unknown_channel_partner = "";
+//       } else {
+//         leadPayload.channel_partner = null;
+//         leadPayload.unknown_channel_partner = "";
+//       }
+//     }
+
+//     if (
+//       !isRoundRobin &&
+//       normalized.assign_to_id != null &&
+//       normalized.assign_to_id !== ""
+//     ) {
+//       leadPayload.assign_to = normalized.assign_to_id;
+//     }
+
+//     const body = {
+//       lead: leadPayload,
+//       first_update: {
+//         title: "Lead created",
+//         info: `${normalized.first_name || ""} ${
+//           normalized.last_name || ""
+//         }`.trim(),
+//       },
+//     };
+
+//     // Email OTP check
+//     if (normalized.email && !emailVerified) {
+//       setPendingSaveBody(body);
+//       setShowEmailOtpModal(true);
+//       setEmailOtpCode("");
+//       handleSendEmailOtp();
+//       return;
+//     }
+
+//     await saveLead(body);
+//   };
+
+//   const handleCancel = () => {
+//     setForm(buildInitialFormState());
+//     setMasters(null);
+//     setChannelPartners([]);
+//     setEmailVerified(false);
+//     setEmailOtpCode("");
+//     setCpMode(CP_MODE.REGISTERED);
+//     setSelectedCpId("");
+//     setCpSearch("");
+//     setNormalCpSearch("");
+//     setNormalSelectedCpId("");
+//     setNormalCpType(CP_MODE.REGISTERED);
+//   };
+
+//   const renderField = (field) => {
+//     const id = `${SECTION_KEY}_${field.name}`;
+//     const disabledExpr = isFieldDisabled(field);
+
+//     const extraDisabled =
+//       (field.name !== "project_id" && !masters && loadingMasters) ||
+//       (field.name === "channel_partner_id" && loadingCP);
+
+//     const disabled = disabledExpr || extraDisabled;
+
+//     const baseInputClass =
+//       "form-input" + (disabled ? " form-input-disabled" : "");
+//     const label = (
+//       <label htmlFor={id} className="form-label">
+//         {field.label}
+//         {field.required && <span className="required">*</span>}
+//       </label>
+//     );
+
+//     if (field.type === "toggle") {
+//       return (
+//         <div
+//           key={field.name}
+//           className={field.span === 3 ? "form-field-full" : "form-field"}
+//         >
+//           <label className="form-label">{field.label}</label>
+//           <div className="toggle-container">
+//             <div
+//               className={`toggle ${form[field.name] ? "on" : "off"}`}
+//               onClick={() => handleChange(field.name, !form[field.name])}
+//             >
+//               <div className="toggle-slider"></div>
+//             </div>
+//           </div>
+//         </div>
+//       );
+//     }
+
+//     // CP Type dropdown (for normal leads)
+//     if (field.type === "cp_type") {
+//       // Determine which CP type to use based on walking
+//       const currentCpType = form.walking ? cpMode : normalCpType;
+//       const setCpTypeFunc = form.walking ? setCpMode : setNormalCpType;
+
+//       return (
+//         <div
+//           key={field.name}
+//           className={field.span === 3 ? "form-field-full" : "form-field"}
+//         >
+//           <label className="form-label">
+//             {field.label}
+//             {field.required && <span className="required">*</span>}
+//           </label>
+//           <select
+//             className="form-input"
+//             value={currentCpType}
+//             onChange={(e) => {
+//               setCpTypeFunc(e.target.value);
+//               setSelectedCpId("");
+//               setCpSearch("");
+//               setNormalSelectedCpId("");
+//               setNormalCpSearch("");
+//             }}
+//           >
+//             <option value={CP_MODE.REGISTERED}>Registered</option>
+//             <option value={CP_MODE.UNREGISTERED}>Unregistered</option>
+//           </select>
+//         </div>
+//       );
+//     }
+
+//     // CP Search field type (for both walk-in and normal leads)
+//     if (field.type === "cp_search") {
+//       // Determine which mode we're in
+//       const isWalkIn = form.walking;
+//       const currentCpType = isWalkIn ? cpMode : normalCpType;
+//       const currentSearch = isWalkIn ? cpSearch : normalCpSearch;
+//       const setCurrentSearch = isWalkIn ? setCpSearch : setNormalCpSearch;
+//       const currentSelectedId = isWalkIn ? selectedCpId : normalSelectedCpId;
+//       const setCurrentSelectedId = isWalkIn
+//         ? setSelectedCpId
+//         : setNormalSelectedCpId;
+
+//       // If unregistered, show create button
+//       if (currentCpType === CP_MODE.UNREGISTERED) {
+//         return (
+//           <div
+//             key={field.name}
+//             className={field.span === 3 ? "form-field-full" : "form-field"}
+//           >
+//             <label className="form-label">
+//               {field.label}
+//               {field.required && <span className="required">*</span>}
+//             </label>
+//             <button
+//               type="button"
+//               className="btn-primary"
+//               onClick={() => setShowQuickCpModal(true)}
+//               style={{ width: "auto" }}
+//             >
+//               + Create New Channel Partner
+//             </button>
+//           </div>
+//         );
+//       }
+
+//       // Registered mode - show search + dropdown
+//       return (
+//         <div
+//           key={field.name}
+//           className={field.span === 3 ? "form-field-full" : "form-field"}
+//         >
+//           <label className="form-label">
+//             {field.label} (Type to search)
+//             {field.required && <span className="required">*</span>}
+//           </label>
+//           <div className="searchable-select">
+//             <input
+//               type="text"
+//               className="form-input"
+//               placeholder="Search by name, company, email..."
+//               value={currentSearch}
+//               onChange={(e) => {
+//                 setCurrentSearch(e.target.value);
+//                 if (currentSelectedId && e.target.value) {
+//                   setCurrentSelectedId("");
+//                 }
+//               }}
+//               disabled={loadingCP}
+//             />
+//             <select
+//               className="form-input"
+//               style={{ marginTop: "8px" }}
+//               value={currentSelectedId}
+//               onChange={(e) => {
+//                 setCurrentSelectedId(e.target.value);
+//                 if (e.target.value) {
+//                   const selected = channelPartners.find(
+//                     (cp) => cp.id === parseInt(e.target.value)
+//                   );
+//                   if (selected) {
+//                     const fullName =
+//                       selected.full_name ||
+//                       selected.user?.full_name ||
+//                       [
+//                         selected.first_name || selected.user?.first_name,
+//                         selected.last_name || selected.user?.last_name,
+//                       ]
+//                         .filter(Boolean)
+//                         .join(" ");
+//                     const mainLabel =
+//                       fullName ||
+//                       selected.company_name ||
+//                       selected.email ||
+//                       selected.user?.email ||
+//                       `CP #${selected.id}`;
+//                     setCurrentSearch(mainLabel);
+//                   }
+//                 }
+//               }}
+//               disabled={loadingCP}
+//               size="6"
+//             >
+//               <option value="">
+//                 {loadingCP
+//                   ? "Loading..."
+//                   : currentSearch
+//                   ? "— Select from filtered results —"
+//                   : "— Start typing to search —"}
+//               </option>
+//               {channelPartners
+//                 .filter((cp) => {
+//                   if (!currentSearch) return true;
+//                   const term = currentSearch.toLowerCase();
+//                   const fullName =
+//                     cp.full_name ||
+//                     cp.user?.full_name ||
+//                     [
+//                       cp.first_name || cp.user?.first_name,
+//                       cp.last_name || cp.user?.last_name,
+//                     ]
+//                       .filter(Boolean)
+//                       .join(" ");
+//                   const companyName = cp.company_name || "";
+//                   const email = cp.email || cp.user?.email || "";
+//                   const searchString =
+//                     `${fullName} ${companyName} ${email}`.toLowerCase();
+//                   return searchString.includes(term);
+//                 })
+//                 .map((cp) => {
+//                   const fullName =
+//                     cp.full_name ||
+//                     cp.user?.full_name ||
+//                     [
+//                       cp.first_name || cp.user?.first_name,
+//                       cp.last_name || cp.user?.last_name,
+//                     ]
+//                       .filter(Boolean)
+//                       .join(" ");
+//                   const mainLabel =
+//                     fullName ||
+//                     cp.company_name ||
+//                     cp.email ||
+//                     cp.user?.email ||
+//                     `CP #${cp.id}`;
+//                   const extra =
+//                     cp.company_name && fullName ? ` (${cp.company_name})` : "";
+//                   return (
+//                     <option key={cp.id} value={cp.id}>
+//                       {mainLabel}
+//                       {extra}
+//                     </option>
+//                   );
+//                 })}
+//             </select>
+//           </div>
+//         </div>
+//       );
+//     }
+
+//     if (field.type === "checkbox") {
+//       return (
+//         <div
+//           key={field.name}
+//           className={field.span === 3 ? "form-field-full" : "form-field"}
+//         >
+//           <label className="form-label checkbox-label">
+//             <input
+//               id={id}
+//               type="checkbox"
+//               checked={!!form[field.name]}
+//               onChange={(e) => handleChange(field.name, e.target.checked)}
+//               disabled={disabled}
+//               style={{ marginRight: "8px" }}
+//             />
+//             {field.label}
+//           </label>
+//         </div>
+//       );
+//     }
+
+//     if (field.type === "textarea") {
+//       return (
+//         <div
+//           key={field.name}
+//           className={field.span === 3 ? "form-field-full" : "form-field"}
+//         >
+//           {label}
+//           <textarea
+//             id={id}
+//             className="form-textarea"
+//             value={form[field.name] || ""}
+//             onChange={(e) => handleChange(field.name, e.target.value)}
+//             disabled={disabled}
+//           />
+//         </div>
+//       );
+//     }
+
+//     if (field.type === "select") {
+//       const options = getOptionsForField(field);
+//       return (
+//         <div
+//           key={field.name}
+//           className={field.span === 3 ? "form-field-full" : "form-field"}
+//         >
+//           {label}
+//           <select
+//             id={id}
+//             className={baseInputClass}
+//             value={form[field.name] || ""}
+//             onChange={(e) => handleChange(field.name, e.target.value)}
+//             disabled={disabled}
+//           >
+//             <option value="">
+//               {field.name === "project_id"
+//                 ? "Select project"
+//                 : loadingMasters && field.name !== "project_id"
+//                 ? "Loading..."
+//                 : "Select"}
+//             </option>
+
+//             {options.map((opt) => (
+//               <option key={String(opt.value)} value={opt.value}>
+//                 {opt.label}
+//               </option>
+//             ))}
+//           </select>
+//         </div>
+//       );
+//     }
+
+//     return (
+//       <div
+//         key={field.name}
+//         className={field.span === 3 ? "form-field-full" : "form-field"}
+//       >
+//         {label}
+//         <input
+//           id={id}
+//           className={baseInputClass}
+//           type={field.type === "number" ? "number" : field.type || "text"}
+//           value={form[field.name] || ""}
+//           onChange={(e) => handleChange(field.name, e.target.value)}
+//           disabled={disabled}
+//           placeholder={field.placeholder || ""}
+//         />
+//       </div>
+//     );
+//   };
+
+//   const renderSectionGroup = (groupKey, title) => {
+//     const rows = buildRowsForSection(groupKey);
+//     if (!rows.length && groupKey !== "lead") return null;
+
+//     const open = openGroups[groupKey];
+
+//     return (
+//       <div style={{ marginBottom: "12px" }}>
+//         <button
+//           type="button"
+//           className="section-header"
+//           onClick={() => toggleGroup(groupKey)}
+//         >
+//           <div className="section-title">{title}</div>
+//           <div className={`chevron-icon ${open ? "open" : ""}`}>⌄</div>
+//         </button>
+
+//         {open && (
+//           <div style={{ marginTop: "10px" }}>
+//             {rows.map((row, idx) => {
+//               const totalSpan = row.reduce((sum, f) => sum + (f.span || 1), 0);
+//               const rowClass =
+//                 totalSpan === 2 && row.length <= 2 ? "form-row-2" : "form-row";
+
+//               return (
+//                 <div key={`${groupKey}_${idx}`} className={rowClass}>
+//                   {row.map((field) => renderField(field))}
+//                 </div>
+//               );
+//             })}
+
+//             {/* Email info for lead group */}
+//             {groupKey === "lead" && (
+//               <div className="form-row">
+//                 <div className="form-field-full">
+//                   <span
+//                     style={{
+//                       fontSize: 13,
+//                       color: form.email
+//                         ? emailVerified
+//                           ? "#16a34a"
+//                           : "#ef4444"
+//                         : "#ef4444",
+//                     }}
+//                   >
+//                     {form.email
+//                       ? emailVerified
+//                         ? "Email verified via OTP."
+//                         : "On Submit, an OTP will be sent to this email. Verification is required to save the lead."
+//                       : "Email is required. Please enter a valid email address."}
+//                   </span>
+//                 </div>
+//               </div>
+//             )}
+//           </div>
+//         )}
+//       </div>
+//     );
+//   };
+
+//   return (
+//     <div className="setup-section" id={SECTION_KEY}>
+//       <div className="section-content">
+//         <form onSubmit={onSubmit}>
+//           {renderSectionGroup("lead", "Lead Information")}
+//           {renderSectionGroup("address", "Address Information")}
+//           {renderSectionGroup("description", "Description Information")}
+
+//           <div className="form-row">
+//             <div className="form-field-full">
+//               <div
+//                 style={{
+//                   display: "flex",
+//                   justifyContent: "center",
+//                   gap: "40px",
+//                   marginTop: "40px",
+//                   marginBottom: "20px",
+//                 }}
+//               >
+//                 <button
+//                   type="button"
+//                   className="btn-secondary"
+//                   onClick={handleCancel}
+//                 >
+//                   Cancel
+//                 </button>
+
+//                 <button type="submit" className="btn-primary">
+//                   Submit
+//                 </button>
+//               </div>
+//             </div>
+//           </div>
+//         </form>
+//       </div>
+
+//       {/* Email OTP Modal */}
+//       {showEmailOtpModal && (
+//         <div className="modal-overlay">
+//           <div className="modal">
+//             <h3 className="modal-title">Verify Email</h3>
+//             <p className="modal-text">
+//               We have sent an OTP to <strong>{form.email}</strong>. Please enter
+//               it below to verify the email and save the lead.
+//             </p>
+
+//             <div className="modal-otp-row">
+//               <button
+//                 type="button"
+//                 className="btn-secondary"
+//                 onClick={handleSendEmailOtp}
+//                 disabled={emailOtpSending}
+//               >
+//                 {emailOtpSending ? "Resending..." : "Resend OTP"}
+//               </button>
+
+//               <input
+//                 type="text"
+//                 className="form-input"
+//                 style={{ maxWidth: "140px" }}
+//                 placeholder="Enter OTP"
+//                 value={emailOtpCode}
+//                 onChange={(e) => setEmailOtpCode(e.target.value)}
+//               />
+//             </div>
+
+//             <div className="modal-actions">
+//               <button
+//                 type="button"
+//                 className="btn-secondary"
+//                 onClick={() => {
+//                   setShowEmailOtpModal(false);
+//                   setPendingSaveBody(null);
+//                 }}
+//               >
+//                 Cancel
+//               </button>
+
+//               <button
+//                 type="button"
+//                 className="btn-primary"
+//                 onClick={handleVerifyOtpAndSave}
+//                 disabled={emailOtpVerifying}
+//               >
+//                 {emailOtpVerifying ? "Verifying..." : "Verify & Save"}
+//               </button>
+//             </div>
+//           </div>
+//         </div>
+//       )}
+
+//       {/* Quick CP Create Modal */}
+//       {showQuickCpModal && (
+//         <div className="modal-overlay">
+//           <div className="modal" style={{ maxWidth: "600px" }}>
+//             <h3 className="modal-title">Create New Channel Partner</h3>
+
+//             <div style={{ marginBottom: "15px" }}>
+//               <label className="form-label">
+//                 Name<span className="required">*</span>
+//               </label>
+//               <input
+//                 type="text"
+//                 className="form-input"
+//                 value={quickCpForm.name}
+//                 onChange={(e) =>
+//                   setQuickCpForm((prev) => ({ ...prev, name: e.target.value }))
+//                 }
+//               />
+//             </div>
+
+//             <div style={{ marginBottom: "15px" }}>
+//               <label className="form-label">
+//                 Email<span className="required">*</span>
+//               </label>
+//               <div style={{ display: "flex", gap: "10px" }}>
+//                 <input
+//                   type="email"
+//                   className="form-input"
+//                   style={{ flex: 1 }}
+//                   value={quickCpForm.email}
+//                   onChange={(e) => {
+//                     setQuickCpForm((prev) => ({
+//                       ...prev,
+//                       email: e.target.value,
+//                     }));
+//                     setQuickCpEmailVerified(false);
+//                     setQuickCpOtpCode("");
+//                   }}
+//                 />
+//                 <button
+//                   type="button"
+//                   className="btn-secondary"
+//                   onClick={handleSendQuickCpOtp}
+//                   disabled={quickCpOtpSending}
+//                   style={{ whiteSpace: "nowrap" }}
+//                 >
+//                   {quickCpOtpSending ? "Sending..." : "Send OTP"}
+//                 </button>
+//               </div>
+//             </div>
+
+//             <div style={{ marginBottom: "15px" }}>
+//               <label className="form-label">
+//                 OTP<span className="required">*</span>
+//               </label>
+//               <div style={{ display: "flex", gap: "10px" }}>
+//                 <input
+//                   type="text"
+//                   className="form-input"
+//                   style={{ flex: 1 }}
+//                   placeholder="Enter OTP"
+//                   value={quickCpOtpCode}
+//                   onChange={(e) => setQuickCpOtpCode(e.target.value)}
+//                 />
+//                 <button
+//                   type="button"
+//                   className="btn-secondary"
+//                   onClick={handleVerifyQuickCpOtp}
+//                   disabled={quickCpOtpVerifying}
+//                   style={{ whiteSpace: "nowrap" }}
+//                 >
+//                   {quickCpOtpVerifying ? "Verifying..." : "Verify"}
+//                 </button>
+//               </div>
+//               {quickCpEmailVerified && (
+//                 <span style={{ fontSize: 12, color: "#16a34a" }}>
+//                   ✓ Email verified
+//                 </span>
+//               )}
+//             </div>
+
+//             <div style={{ marginBottom: "15px" }}>
+//               <label className="form-label">
+//                 Partner Tier<span className="required">*</span>
+//               </label>
+//               <select
+//                 className="form-input"
+//                 value={quickCpForm.partner_tier_id}
+//                 onChange={(e) =>
+//                   setQuickCpForm((prev) => ({
+//                     ...prev,
+//                     partner_tier_id: e.target.value,
+//                   }))
+//                 }
+//               >
+//                 <option value="">Select Partner Tier</option>
+//                 {partnerTiers.map((tier) => (
+//                   <option key={tier.id} value={tier.id}>
+//                     {tier.name || tier.title || `Tier #${tier.id}`}
+//                   </option>
+//                 ))}
+//               </select>
+//             </div>
+
+//             <div style={{ marginBottom: "15px" }}>
+//               <label className="form-label">Mobile Number</label>
+//               <input
+//                 type="text"
+//                 className="form-input"
+//                 value={quickCpForm.mobile_number}
+//                 onChange={(e) =>
+//                   setQuickCpForm((prev) => ({
+//                     ...prev,
+//                     mobile_number: e.target.value,
+//                   }))
+//                 }
+//               />
+//             </div>
+
+//             <div style={{ marginBottom: "15px" }}>
+//               <label className="form-label">Company Name</label>
+//               <input
+//                 type="text"
+//                 className="form-input"
+//                 value={quickCpForm.company_name}
+//                 onChange={(e) =>
+//                   setQuickCpForm((prev) => ({
+//                     ...prev,
+//                     company_name: e.target.value,
+//                   }))
+//                 }
+//               />
+//             </div>
+
+//             <div style={{ marginBottom: "15px" }}>
+//               <label className="form-label">PAN Number</label>
+//               <input
+//                 type="text"
+//                 className="form-input"
+//                 value={quickCpForm.pan_number}
+//                 onChange={(e) =>
+//                   setQuickCpForm((prev) => ({
+//                     ...prev,
+//                     pan_number: e.target.value,
+//                   }))
+//                 }
+//               />
+//             </div>
+
+//             <div style={{ marginBottom: "15px" }}>
+//               <label className="form-label">RERA Number</label>
+//               <input
+//                 type="text"
+//                 className="form-input"
+//                 value={quickCpForm.rera_number}
+//                 onChange={(e) =>
+//                   setQuickCpForm((prev) => ({
+//                     ...prev,
+//                     rera_number: e.target.value,
+//                   }))
+//                 }
+//               />
+//             </div>
+
+//             <div className="modal-actions">
+//               <button
+//                 type="button"
+//                 className="btn-secondary"
+//                 onClick={() => {
+//                   setShowQuickCpModal(false);
+//                   setQuickCpForm({
+//                     name: "",
+//                     email: "",
+//                     mobile_number: "",
+//                     company_name: "",
+//                     pan_number: "",
+//                     rera_number: "",
+//                     partner_tier_id: "",
+//                   });
+//                   setQuickCpOtpCode("");
+//                   setQuickCpEmailVerified(false);
+//                 }}
+//               >
+//                 Cancel
+//               </button>
+
+//               <button
+//                 type="button"
+//                 className="btn-primary"
+//                 onClick={handleQuickCpCreate}
+//               >
+//                 Create CP
+//               </button>
+//             </div>
+//           </div>
+//         </div>
+//       )}
+//     </div>
+//   );
+// };
+
+// export default SaleAddLead;
+
 // src/pages/SaleAddLead.jsx
 import React, { useState, useEffect } from "react";
 import { SetupAPI, URLS } from "../../../api/endpoints";
@@ -356,12 +2200,30 @@ const buildInitialFormState = () => {
   return form;
 };
 
-const evaluateExpression = (expr, { form, setup, scope }) => {
+/*const evaluateExpression = (expr, { form, setup, scope }) => {
   if (!expr) return false;
   try {
     const fn = new Function("form", "setup", "scope", `return (${expr});`);
     return !!fn(form, setup, scope);
   } catch {
+    return false;
+  }
+};*/
+const evaluateExpression = (expr, { form, setup, scope }) => {
+  if (!expr || typeof expr !== "string") return false;
+
+  // Convert any "true"/"false" strings to real booleans  
+  const normalizedForm = JSON.parse(JSON.stringify(form), (key, value) => {
+    if (value === "true") return true;
+    if (value === "false") return false;
+    return value;
+  });
+
+  try {
+    const fn = new Function("form", "setup", "scope", `return (${expr});`);
+    return !!fn(normalizedForm, setup, scope);
+  } catch (err) {
+    console.error("Expression error:", expr, err);
     return false;
   }
 };
@@ -881,12 +2743,20 @@ const SaleAddLead = ({ handleLeadSubmit }) => {
     }
   };
 
-  const isFieldHidden = (field) =>
+  /* const isFieldHidden = (field) =>
     evaluateExpression(field.hiddenWhen, {
       form,
       setup: { masters, projects },
       scope: null,
-    });
+    });*/
+  const isFieldHidden = (field) =>
+  typeof field.hiddenWhen === "string"
+    ? evaluateExpression(field.hiddenWhen, {
+        form,
+        setup: { masters, projects },
+        scope: null,
+      })
+    : false;
 
   const isFieldDisabled = (field) =>
     evaluateExpression(field.disabledWhen, {

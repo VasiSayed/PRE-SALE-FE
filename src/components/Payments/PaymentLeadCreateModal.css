@@ -1,0 +1,297 @@
+/* Full-screen overlay */
+.payment-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55); /* dark bluish overlay */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1300;
+}
+
+/* Modal card */
+.payment-modal {
+  background: #ffffff;
+  border-radius: 10px;
+  width: 520px;
+  max-width: 96vw;
+  max-height: 92vh;
+  box-shadow: 0 14px 45px rgba(15, 23, 42, 0.25),
+              0 10px 18px rgba(15, 23, 42, 0.20);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+/* Header */
+.payment-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.payment-modal-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.payment-modal-header .close-btn {
+  border: none;
+  background: transparent;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  color: #9ca3af;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+
+.payment-modal-header .close-btn:hover:not(:disabled) {
+  background: #e5e7eb;
+  color: #4b5563;
+  transform: scale(1.04);
+}
+
+.payment-modal-header .close-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Body */
+.payment-modal-body {
+  padding: 14px 20px 10px;
+  overflow-y: auto;
+  background: #ffffff;
+}
+
+/* Form group */
+.payment-modal-body .form-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 10px;
+}
+
+.payment-modal-body label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 4px;
+}
+
+.payment-modal-body .required {
+  color: #ef4444;
+  margin-left: 2px;
+  font-weight: 600;
+}
+
+/* Inputs / selects / textarea */
+.payment-modal-body input[type="text"],
+.payment-modal-body input[type="number"],
+.payment-modal-body input[type="date"],
+.payment-modal-body select,
+.payment-modal-body textarea {
+  font-size: 13px;
+  padding: 7px 9px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background-color: #ffffff;
+  color: #111827;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.payment-modal-body input[type="file"] {
+  font-size: 13px;
+  padding: 4px 0;
+}
+
+.payment-modal-body input::placeholder,
+.payment-modal-body textarea::placeholder {
+  color: #9ca3af;
+}
+
+.payment-modal-body input:focus,
+.payment-modal-body select:focus,
+.payment-modal-body textarea:focus {
+  border-color: #19376d; /* primary */
+  box-shadow: 0 0 0 1px rgba(25, 55, 109, 0.25);
+}
+
+/* Textarea sizing */
+.payment-modal-body textarea {
+  resize: vertical;
+  min-height: 70px;
+}
+
+/* Footer buttons */
+.payment-modal-footer {
+  padding: 10px 20px 12px;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Button styles scoped to this modal
+   (won't disturb global .btn-primary/.btn-secondary if already exist) */
+.payment-modal .btn-primary,
+.payment-modal .btn-secondary {
+  border-radius: 6px;
+  border: none;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 7px 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background 0.15s ease, color 0.15s ease,
+    box-shadow 0.15s ease, transform 0.1s ease;
+}
+
+.payment-modal .btn-primary.small,
+.payment-modal .btn-secondary.small {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+/* Primary = #19376D */
+.payment-modal .btn-primary {
+  background-color: #19376d;
+  color: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.15);
+}
+
+.payment-modal .btn-primary:hover:not(:disabled) {
+  background-color: #1f3f7e;
+  box-shadow: 0 3px 6px rgba(15, 23, 42, 0.25);
+  transform: translateY(-0.5px);
+}
+
+/* Secondary = light gray */
+.payment-modal .btn-secondary {
+  background-color: #e5e7eb;
+  color: #111827;
+}
+
+.payment-modal .btn-secondary:hover:not(:disabled) {
+  background-color: #d1d5db;
+}
+
+/* Disabled state */
+.payment-modal .btn-primary:disabled,
+.payment-modal .btn-secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+/* Small helper for spacing below last form element when scrollable */
+.payment-modal-body::after {
+  content: "";
+  display: block;
+  height: 4px;
+}
+
+/* Mobile */
+@media (max-width: 640px) {
+  .payment-modal {
+    width: 96vw;
+    max-height: 94vh;
+    border-radius: 10px;
+  }
+
+  .payment-modal-header,
+  .payment-modal-body,
+  .payment-modal-footer {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+}
+
+
+/* ---- Pill checkbox-style buttons ---- */
+
+.pill-group {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.pill-group-wrap {
+  flex-wrap: wrap;
+}
+
+.pill-option-btn {
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  background-color: #ffffff;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, color 0.15s ease,
+    border-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+}
+
+.pill-option-btn:hover:not(:disabled) {
+  border-color: #19376d;
+  background-color: #f3f4ff;
+  color: #19376d;
+}
+
+.pill-option-btn-active {
+  background-color: #19376d;
+  color: #ffffff;
+  border-color: #19376d;
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.25);
+}
+
+.pill-option-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+
+.amount-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.amount-prefix {
+  font-size: 13px;
+  color: #4b5563;
+  padding: 7px 8px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background-color: #f9fafb;
+}
+
+.amount-input-wrapper input[type="text"] {
+  flex: 1;
+}
+
+
+
