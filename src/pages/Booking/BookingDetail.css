@@ -706,3 +706,34 @@
     align-items: flex-start;
   }
 }
+
+.booking-custom-plan {
+  margin-top: 4px;
+}
+
+.booking-custom-plan-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.booking-custom-plan-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.booking-custom-plan-table th,
+.booking-custom-plan-table td {
+  border: 1px solid #eee;
+  padding: 4px 8px;
+  text-align: left;
+}
+
+.booking-custom-plan-table th {
+  background-color: #f5f5f7;
+  font-weight: 600;
+}
+

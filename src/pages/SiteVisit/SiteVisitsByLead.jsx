@@ -21,11 +21,11 @@ export default function SiteVisitsByLead() {
       const res = await axiosInstance.get(
         `/sales/site-visits/by-lead/${leadId}/`
       );
-      setVisits(res.data || []);
+      const rows = res.data || [];
+      setVisits(rows);
 
-      // Extract lead info from first visit
-      if (res.data && res.data.length > 0) {
-        const firstVisit = res.data[0];
+      if (rows.length > 0) {
+        const firstVisit = rows[0];
         setLeadInfo({
           name: firstVisit.member_name || firstVisit.lead?.full_name,
           mobile:
@@ -55,6 +55,8 @@ export default function SiteVisitsByLead() {
     switch (status) {
       case "SCHEDULED":
         return "#3b82f6";
+      case "RESCHEDULED":
+        return "#6366f1"; // thoda alag blue-violet
       case "COMPLETED":
         return "#059669";
       case "CANCELLED":
@@ -66,9 +68,19 @@ export default function SiteVisitsByLead() {
     }
   };
 
+  // 👇 Unit display logic
+  const formatUnit = (visit) => {
+    if (visit.inventory) {
+      return `${visit.inventory.tower_name} / ${visit.inventory.floor_number} / ${visit.inventory.unit_no}`;
+    }
+    if (visit.unit_config) {
+      return visit.unit_config.name || visit.unit_config.code || "NA";
+    }
+    return "NA";
+  };
+
   return (
     <div className="projects-page">
-      {/* Back Button */}
       {/* Header + Back Button */}
       <div className="visit-header">
         <h1 className="visit-title">📋 Visit History</h1>
@@ -78,7 +90,16 @@ export default function SiteVisitsByLead() {
         </button>
       </div>
 
-      <p className="visit-subtitle">All site visits for this lead</p>
+      <p className="visit-subtitle">
+        All site visits for this lead
+        {leadInfo && (
+          <>
+            {" "}
+            – <strong>{leadInfo.name}</strong> ({leadInfo.mobile}) –{" "}
+            {leadInfo.project}
+          </>
+        )}
+      </p>
 
       {/* Table */}
       <div className="table-wrapper">
@@ -90,8 +111,7 @@ export default function SiteVisitsByLead() {
               <th>Project</th>
               <th>Unit</th>
               <th>Status</th>
-              <th>Feedback</th>
-              <th>Next Action</th>
+              <th>Reschedules</th>
             </tr>
           </thead>
 
@@ -99,7 +119,7 @@ export default function SiteVisitsByLead() {
             {loading ? (
               <tr>
                 <td
-                  colSpan={7}
+                  colSpan={6}
                   style={{ textAlign: "center", padding: "40px" }}
                 >
                   <div className="loading-spinner"></div>
@@ -133,12 +153,9 @@ export default function SiteVisitsByLead() {
                   </td>
 
                   <td>{formatDT(visit.scheduled_at)}</td>
-                  <td>{visit.project?.name}</td>
-                  <td>
-                    {visit.inventory
-                      ? `${visit.inventory.tower_name} / ${visit.inventory.floor_number} / ${visit.inventory.unit_no}`
-                      : "-"}
-                  </td>
+                  <td>{visit.project?.name || "NA"}</td>
+                  <td>{formatUnit(visit)}</td>
+
                   <td>
                     <span
                       className="status-badge"
@@ -150,20 +167,29 @@ export default function SiteVisitsByLead() {
                       {visit.status}
                     </span>
                   </td>
+
                   <td>
-                    <div className="feedback-cell">{visit.feedback || "-"}</div>
-                  </td>
-                  <td>
-                    <div className="next-action-cell">
-                      {visit.next_action || "-"}
-                    </div>
+                    {visit.reschedule_count > 0 ? (
+                      <button
+                        className="link-button"
+                        type="button"
+                        onClick={() =>
+                          navigate(`/sales/lead/site-visit/${visit.id}`)
+                        }
+                      >
+                        {visit.reschedule_count} time
+                        {visit.reschedule_count > 1 ? "s" : ""}
+                      </button>
+                    ) : (
+                      <span>0</span>
+                    )}
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
                 <td
-                  colSpan={7}
+                  colSpan={6}
                   style={{ textAlign: "center", padding: "40px" }}
                 >
                   <div style={{ fontSize: "48px", marginBottom: "12px" }}>

@@ -112,11 +112,6 @@ export default function App() {
               />
 
               <Route
-                path="/sales/lead/site-visit/by-lead/:leadId"
-                element={<SiteVisitsByLead />}
-              />
-
-              <Route
                 path="/inventory/unit/:unitId"
                 element={<InventoryUnitDetail />}
               />
@@ -165,12 +160,7 @@ export default function App() {
                 path="/costsheet/templates"
                 element={<CostSheetTemplatesList />}
               />
-              <Route
-                path="/sales/opportunities"
-                element={
-                    <OppurnityList />
-                }
-              />
+              <Route path="/sales/opportunities" element={<OppurnityList />} />
               <Route
                 path="/costsheet/templates/:id"
                 element={<CostSheetTemplateCreate />}
@@ -180,6 +170,10 @@ export default function App() {
               <Route
                 path="/sales/lead/site-visit"
                 element={<SiteVisitList />}
+              />
+              <Route
+                path="/sales/lead/site-visit/by-lead/:leadId"
+                element={<SiteVisitsByLead />}
               />
               <Route
                 path="/sales/lead/site-visit/create"

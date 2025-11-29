@@ -1,0 +1,164 @@
+/* ---- Backdrop ---- */
+.sv-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45); /* dark blur */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+/* ---- Modal box ---- */
+.sv-modal {
+  width: 480px;
+  max-width: 95vw;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.25);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: sv-modal-zoom-in 0.18s ease-out;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+@keyframes sv-modal-zoom-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ---- Header ---- */
+.sv-modal-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sv-modal-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.sv-modal-close {
+  border: none;
+  background: transparent;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  color: #6b7280;
+  padding: 4px;
+  border-radius: 999px;
+}
+
+.sv-modal-close:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+/* ---- Body ---- */
+.sv-modal-body {
+  padding: 16px 18px 4px 18px;
+}
+
+/* ---- Footer ---- */
+.sv-modal-footer {
+  padding: 12px 18px 16px 18px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ---- Form fields ---- */
+.sv-field {
+  margin-bottom: 12px;
+}
+
+.sv-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #4b5563;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.sv-input {
+  width: 100%;
+  font-size: 14px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  outline: none;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease,
+    background-color 0.12s ease;
+  background-color: #f9fafb;
+}
+
+.sv-input:focus {
+  border-color: #19376d; /* tumhara blue */
+  box-shadow: 0 0 0 1px rgba(25, 55, 109, 0.2);
+  background-color: #ffffff;
+}
+
+.sv-input::placeholder {
+  color: #9ca3af;
+}
+
+/* Textarea base */
+.sv-input[type="textarea"],
+.sv-input textarea {
+  resize: vertical;
+}
+
+/* ---- Buttons (agar detail css me already nahi hai to yeh use karlo) ---- */
+.sv-btn-primary,
+.sv-btn-secondary {
+  font-size: 14px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.sv-btn-primary {
+  background: #19376d;
+  color: #ffffff;
+}
+
+.sv-btn-primary:hover:not(:disabled) {
+  background: #132854;
+}
+
+.sv-btn-secondary {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.sv-btn-secondary:hover:not(:disabled) {
+  background: #d1d5db;
+}
+
+.sv-btn-primary:disabled,
+.sv-btn-secondary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

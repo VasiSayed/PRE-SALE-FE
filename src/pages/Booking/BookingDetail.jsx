@@ -2,11 +2,11 @@
 import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import axiosInstance from "../../api/axiosInstance";
-
+import { toTitleCase } from "../../utils/text";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-
 import "./BookingDetail.css";
+
 
 const formatAmount = (value) => {
   if (value === null || value === undefined || value === "") return "";
@@ -18,6 +18,15 @@ const formatAmount = (value) => {
   });
 };
 
+const formatPercentage = (value) => {
+  if (value === null || value === undefined || value === "") return "-";
+  const num = Number(value);
+  if (Number.isNaN(num)) return `${value}%`;
+  const trimmed = num.toFixed(2).replace(/\.00$/, "");
+  return `${trimmed}%`;
+};
+
+
 const niceStatus = (status) => {
   if (!status) return "-";
   return status
@@ -27,13 +36,6 @@ const niceStatus = (status) => {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 };
 
-const toTitleCase = (value) => {
-  if (!value) return "";
-  return value
-    .toString()
-    .toLowerCase()
-    .replace(/\b\w/g, (c) => c.toUpperCase());
-};
 
 const niceLabel = (text) => {
   if (!text) return "-";
@@ -111,13 +113,14 @@ const BookingDetail = () => {
       };
     }
 
-    const rawCustomer =
-      booking.customer_name ||
-      booking.primary_full_name ||
-      booking.primary_name ||
-      "-";
+const rawCustomer =
+  booking.customer_name ||
+  booking.primary_full_name ||
+  booking.primary_name ||
+  "-";
 
-    const customer = toTitleCase(rawCustomer);
+const customer = toTitleCase(rawCustomer);
+
 
     const projectName = booking.project || "";
     const towerName = booking.tower || "";
@@ -207,6 +210,20 @@ const BookingDetail = () => {
         </div>
       </div>
     );
+  }
+
+  // 🔹 Custom payment plan ko normalize karo (string ya object dono handle)
+  let customPlan = null;
+  if (booking.custom_payment_plan) {
+    if (typeof booking.custom_payment_plan === "string") {
+      try {
+        customPlan = JSON.parse(booking.custom_payment_plan);
+      } catch (e) {
+        console.error("Unable to parse custom_payment_plan JSON", e);
+      }
+    } else if (typeof booking.custom_payment_plan === "object") {
+      customPlan = booking.custom_payment_plan;
+    }
   }
 
   const amount =
@@ -671,15 +688,56 @@ const BookingDetail = () => {
                   {niceLabel(booking.payment_plan_type) || "-"}
                 </span>
               </div>
-
-              {booking.custom_payment_plan && (
+              {customPlan && (
                 <div className="booking-field booking-field-full">
                   <span className="booking-field-label">
                     Custom Payment Plan
                   </span>
-                  <span className="booking-field-value">
-                    {booking.custom_payment_plan}
-                  </span>
+
+                  <div className="booking-custom-plan">
+                    <div className="booking-custom-plan-head">
+                      <div>
+                        <strong>Plan Name:&nbsp;</strong>
+                        {customPlan.name || "-"}
+                      </div>
+                      {customPlan.base_payment_plan_id && (
+                        <div>
+                          <strong>Base Plan ID:&nbsp;</strong>
+                          {customPlan.base_payment_plan_id}
+                        </div>
+                      )}
+                    </div>
+
+                    {Array.isArray(customPlan.slabs) &&
+                      customPlan.slabs.length > 0 && (
+                        <table className="booking-custom-plan-table">
+                          <thead>
+                            <tr>
+                              <th>#</th>
+                              <th>Milestone</th>
+                              <th>Percentage</th>
+                              <th>Days</th>
+                              <th>Due Date</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {customPlan.slabs.map((slab, index) => (
+                              <tr key={slab.order_index || index}>
+                                <td>{slab.order_index || index + 1}</td>
+                                <td>{slab.name || "-"}</td>
+                                <td>{formatPercentage(slab.percentage)}</td>
+                                <td>
+                                  {slab.days !== null && slab.days !== undefined
+                                    ? slab.days
+                                    : "-"}
+                                </td>
+                                <td>{slab.due_date || "-"}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                  </div>
                 </div>
               )}
 
