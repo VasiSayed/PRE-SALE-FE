@@ -345,6 +345,12 @@ export default function SalesNavigation() {
           route: "/documents",
           section: "pre-sales",
         },
+        {
+          id: "on-site",
+          label: "Onsite Registration",
+          route: "/onsite-registration",
+          section: "pre-sales",
+        },
       ];
     }
 

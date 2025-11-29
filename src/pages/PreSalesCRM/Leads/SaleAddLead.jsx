@@ -141,7 +141,7 @@
 //     span: 1,
 //     parse: "number",
 //     options: [],
-//     hiddenWhen: "form.walking === true",
+//     hiddenWhen: (form) => form.walking === true,
 //   },
 //   {
 //     section: "lead",
@@ -152,7 +152,7 @@
 //     span: 1,
 //     parse: "number",
 //     options: [],
-//     hiddenWhen: "form.walking === true",
+//     hiddenWhen: (form) => form.walking === true,
 //   },
 //   {
 //     section: "lead",
@@ -163,7 +163,7 @@
 //     span: 1,
 //     parse: "number",
 //     options: [],
-//     hiddenWhen: "form.walking === true",
+//     hiddenWhen: (form) => form.walking === true,
 //   },
 //   {
 //     section: "lead",
@@ -174,7 +174,7 @@
 //     span: 1,
 //     parse: "number",
 //     options: [],
-//     hiddenWhen: "form.walking === true",
+//     hiddenWhen: (form) => form.walking === true,
 //   },
 //   // Normal lead CP type (shown when source selected and not walk-in)
 //   {
@@ -1985,7 +1985,7 @@ const FIELDS = [
     span: 1,
     parse: "number",
     options: [],
-    hiddenWhen: "form.walking === true",
+    hiddenWhen: (form) => form.walking === true,
   },
   {
     section: "lead",
@@ -1996,7 +1996,7 @@ const FIELDS = [
     span: 1,
     parse: "number",
     options: [],
-    hiddenWhen: "form.walking === true",
+    hiddenWhen: (form) => form.walking === true,
   },
   {
     section: "lead",
@@ -2007,7 +2007,7 @@ const FIELDS = [
     span: 1,
     parse: "number",
     options: [],
-    hiddenWhen: "form.walking === true",
+    hiddenWhen: (form) => form.walking === true,
   },
   {
     section: "lead",
@@ -2018,7 +2018,7 @@ const FIELDS = [
     span: 1,
     parse: "number",
     options: [],
-    hiddenWhen: "form.walking === true",
+    hiddenWhen: (form) => form.walking === true,
   },
   // Normal lead CP type (shown when source selected and not walk-in)
   {
@@ -2212,7 +2212,7 @@ const buildInitialFormState = () => {
 const evaluateExpression = (expr, { form, setup, scope }) => {
   if (!expr || typeof expr !== "string") return false;
 
-  // Convert any "true"/"false" strings to real booleans  
+  // Convert any "true"/"false" strings to real booleans
   const normalizedForm = JSON.parse(JSON.stringify(form), (key, value) => {
     if (value === "true") return true;
     if (value === "false") return false;
@@ -2749,14 +2749,16 @@ const SaleAddLead = ({ handleLeadSubmit }) => {
       setup: { masters, projects },
       scope: null,
     });*/
+  // const isFieldHidden = (field) =>
+  // typeof field.hiddenWhen === "string"
+  //   ? evaluateExpression(field.hiddenWhen, {
+  //       form,
+  //       setup: { masters, projects },
+  //       scope: null,
+  //     })
+  //   : false;
   const isFieldHidden = (field) =>
-  typeof field.hiddenWhen === "string"
-    ? evaluateExpression(field.hiddenWhen, {
-        form,
-        setup: { masters, projects },
-        scope: null,
-      })
-    : false;
+    typeof field.hiddenWhen === "function" ? field.hiddenWhen(form) : false;
 
   const isFieldDisabled = (field) =>
     evaluateExpression(field.disabledWhen, {

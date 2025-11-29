@@ -36,6 +36,7 @@ import CostSheetCreate from "./pages/CostSheet/CostSheetCreate";
 import CostSheetList from "./pages/CostSheet/CostSheetList";
 import QuotationPreview from "./pages/CostSheet/QuotationPreview";
 import DocumentBrowser from "./pages/Documents/DocumentBrowser";
+import OnsiteRegistration from "./pages/OnsiteRegistration";
 
 import { Toaster } from "react-hot-toast";
 
@@ -81,6 +82,12 @@ export default function App() {
               <Route
                 path="/sales/projects/:projectId"
                 element={<ProjectSetupDetail />}
+              />
+              <Route
+                path="/onsite-registration"
+                element={
+                      <OnsiteRegistration />
+                }
               />
 
               {/* Master Setup */}
