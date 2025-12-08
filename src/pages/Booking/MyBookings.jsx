@@ -58,6 +58,34 @@ const MyBookings = () => {
       .replace(/\b\w/g, (c) => c.toUpperCase());
   };
 
+  const getStatusColor = (status) => {
+    if (!status) return {};
+    const statusLower = status.toString().toLowerCase().replace(/_/g, "");
+    
+    if (statusLower === "booked" || statusLower === "confirmed") {
+      return {
+        backgroundColor: "#dcfce7", // green-100
+        color: "#166534", // green-800
+      };
+    } else if (statusLower === "draft") {
+      return {
+        backgroundColor: "#fef3c7", // yellow-100
+        color: "#92400e", // yellow-800
+      };
+    } else if (statusLower === "cancelled" || statusLower === "canceled" || statusLower === "rejected") {
+      return {
+        backgroundColor: "#fee2e2", // red-100
+        color: "#991b1b", // red-800
+      };
+    }
+    
+    // Default styling
+    return {
+      backgroundColor: "#f3f4f6", // gray-100
+      color: "#374151", // gray-700
+    };
+  };
+
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     if (!term) return bookings;
@@ -225,7 +253,10 @@ const MyBookings = () => {
                           </td>
 
                           <td>
-                            <span className="booking-status-pill">
+                            <span
+                              className="booking-status-pill"
+                              style={getStatusColor(b.status)}
+                            >
                               {getStatusLabel(b.status)}
                             </span>
                           </td>

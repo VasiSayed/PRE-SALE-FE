@@ -1876,8 +1876,12 @@ const handleSaveBooking = async () => {
     toast.error("Please select a Payment Plan.");
     return;
   }
-  if (paymentPlanType === "CUSTOM" && customTotalPercentage !== 100) {
-    toast.error("Custom payment plan slabs must total 100%.");
+  if (paymentPlanType === "MASTER" && selectedPaymentPlanId && Math.abs(masterTotalPercentage - 100) > 0.001) {
+    toast.error("Master payment plan slabs must total exactly 100%.");
+    return;
+  }
+  if (paymentPlanType === "CUSTOM" && Math.abs(customTotalPercentage - 100) > 0.001) {
+    toast.error("Custom payment plan slabs must total exactly 100%.");
     return;
   }
 
@@ -1956,6 +1960,7 @@ const handleSaveBooking = async () => {
     fd.append("agreement_value", agreementValue || "");
     fd.append("agreement_value_words", agreementValueWords || "");
     fd.append("agreement_done", agreementDone);
+    fd.append("customer_base_price_psf", baseRateDisplay || "");
 
     // ✅ PARKING - Calculate ALL values first, then append
     const parkingCountNum = parkingRequired === "YES" ? Number(parkingCount || 0) : 0;
@@ -2350,12 +2355,55 @@ const handleSaveBooking = async () => {
     console.log("BOOKING CREATED:", res.data);
   } catch (err) {
     console.error("❌ Booking save failed:", err);
-    const errorMsg =
-      err?.response?.data?.message ||
-      err?.response?.data?.error ||
-      err?.message ||
-      "Unknown error occurred";
-    toast.error(`Booking Failed: ${errorMsg}`);
+    
+    // ✅ Show all errors clearly from API response
+    const errorData = err?.response?.data;
+    let errorMessages = [];
+    
+    if (errorData) {
+      // Handle field-specific errors (e.g., {"unit_id": ["Error message"]})
+      if (typeof errorData === 'object') {
+        Object.keys(errorData).forEach((field) => {
+          // Skip message and error keys - we'll handle them separately
+          if (field === 'message' || field === 'error') return;
+          
+          const fieldErrors = errorData[field];
+          if (Array.isArray(fieldErrors)) {
+            fieldErrors.forEach((msg) => {
+              errorMessages.push(`${field}: ${msg}`);
+            });
+          } else if (typeof fieldErrors === 'string') {
+            errorMessages.push(`${field}: ${fieldErrors}`);
+          }
+        });
+      }
+      
+      // Handle general error messages
+      if (errorData.message) {
+        if (Array.isArray(errorData.message)) {
+          errorData.message.forEach((msg) => errorMessages.push(msg));
+        } else {
+          errorMessages.push(errorData.message);
+        }
+      }
+      if (errorData.error) {
+        if (Array.isArray(errorData.error)) {
+          errorData.error.forEach((msg) => errorMessages.push(msg));
+        } else {
+          errorMessages.push(errorData.error);
+        }
+      }
+    }
+    
+    // Fallback to generic error
+    if (errorMessages.length === 0) {
+      errorMessages.push(err?.message || "Unknown error occurred");
+    }
+    
+    // Show all errors
+    errorMessages.forEach((msg) => {
+      toast.error(`Booking Failed: ${msg}`);
+    });
   } finally {
     setSaving(false);
   }
@@ -3332,6 +3380,7 @@ const handleSaveBooking = async () => {
                             const inventoryStatus =
                               u.inventory?.availability_status ||
                               u.inventory?.unit_status;
+                            const availabilityStatus = u.inventory?.availability_status;
 
                             // Check if unit is BOOKED or BLOCKED
                             const isBooked =
@@ -3341,7 +3390,9 @@ const handleSaveBooking = async () => {
                               unitStatus === "BLOCKED" ||
                               inventoryStatus === "BLOCKED" ||
                               inventoryStatus === "BLOCKED_BY_ADMIN";
+                            // ✅ Must have availability_status === "AVAILABLE" to be selectable
                             const isAvailable =
+                              availabilityStatus === "AVAILABLE" &&
                               !isBooked &&
                               !isBlocked &&
                               (unitStatus === "RELEASED" ||
@@ -3575,13 +3626,13 @@ const handleSaveBooking = async () => {
                     </label>
                     <input
                       className="bf-input"
-                      type="number"
-                      value={discountAmount}
+                      type="text"
+                      value={formatINR(discountAmount)}
                       onChange={(e) => {
-                        setDiscountAmount(e.target.value);
+                        setDiscountAmount(stripAmount(e.target.value));
                         setDiscountPercent(""); // Clear % when amount changes
                       }}
-                      placeholder="e.g., 50000"
+                      placeholder="e.g., 50,000"
                     />
                   </div>
                 </div>
@@ -3596,12 +3647,12 @@ const handleSaveBooking = async () => {
                     <input
                       className="bf-input"
                       type="text"
-                      value={agreementValue}
+                      value={formatINR(agreementValue)}
                       onChange={(e) => {
                         setAgreementTouched(true);
                         setAgreementValue(stripAmount(e.target.value));
                       }}
-                      placeholder="Enter agreement value e.g. 12500000"
+                      placeholder="Enter agreement value e.g. 1,25,00,000"
                     />
                   </div>
 
@@ -3727,14 +3778,14 @@ const handleSaveBooking = async () => {
                         Parking Amount (Per Parking)
                       </label>
                       <input
-                        type="number"
+                        type="text"
                         className="bf-input"
-                        value={parkingAmount}
-                        onChange={(e) => setParkingAmount(e.target.value)}
+                        value={formatINR(parkingAmount)}
+                        onChange={(e) => setParkingAmount(stripAmount(e.target.value))}
                         placeholder="Enter parking price"
                       />
                       <div className="bf-helper">
-                        {project?.price_per_parking}
+                        {project?.price_per_parking ? formatINR(project.price_per_parking) : ""}
                       </div>
                     </div>
                   )}
@@ -3746,9 +3797,9 @@ const handleSaveBooking = async () => {
                         Total Parking Amount (₹)
                       </label>
                       <input
-                        type="number"
-                        className="bf-input"
-                        value={parkingTotal}
+                        type="text"
+                        className="bf-input bf-input-readonly"
+                        value={formatINR(parkingTotal)}
                         readOnly
                       />
                     </div>
@@ -3853,8 +3904,8 @@ const handleSaveBooking = async () => {
 
                             <input
                               className="bf-input bf-input-readonly"
-                              type="number"
-                              value={charge.amount.toFixed(2)}
+                              type="text"
+                              value={formatINR(charge.amount)}
                               readOnly
                             />
 
@@ -4858,10 +4909,11 @@ const handleSaveBooking = async () => {
                         style={{
                           marginTop: "12px",
                           padding: "8px",
-                          backgroundColor: "#f0fdf4",
+                          backgroundColor: Math.abs(masterTotalPercentage - 100) > 0.001 ? "#fee2e2" : "#f0fdf4",
                           borderRadius: "4px",
                           fontSize: "14px",
                           fontWeight: "600",
+                          color: Math.abs(masterTotalPercentage - 100) > 0.001 ? "#dc2626" : "#166534",
                         }}
                       >
                         Total: {masterTotalPercentage.toFixed(3)}%
@@ -4990,12 +5042,13 @@ const handleSaveBooking = async () => {
                       <div
                         style={{
                           marginTop: "12px",
-                          color: "#dc2626",
+                          color: Math.abs(customTotalPercentage - 100) > 0.001 ? "#dc2626" : "#166534",
                           fontSize: "14px",
+                          fontWeight: "600",
                         }}
                       >
                         Total Percentage: {customTotalPercentage.toFixed(2)}%
-                        (should be 100%)
+                        {Math.abs(customTotalPercentage - 100) > 0.001 && " (should be 100%)"}
                       </div>
 
                       <button
@@ -5529,7 +5582,14 @@ const handleSaveBooking = async () => {
                   type="button"
                   className="bf-btn-primary"
                   onClick={handleSaveBooking}
-                  disabled={saving}
+                  disabled={
+                    saving ||
+                    (paymentPlanType === "MASTER" &&
+                      selectedPaymentPlanId &&
+                      Math.abs(masterTotalPercentage - 100) > 0.001) ||
+                    (paymentPlanType === "CUSTOM" &&
+                      Math.abs(customTotalPercentage - 100) > 0.001)
+                  }
                 >
                   {saving ? "Saving..." : "Save Booking"}
                 </button>

@@ -65,6 +65,16 @@
   user-select: none;
 }
 
+.cancelled-watermark {
+  font-size: 100px;
+  font-weight: 900;
+  color: rgba(220, 38, 38, 0.12);
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  transform: rotate(-45deg);
+  user-select: none;
+}
+
 .logo-watermark {
   opacity: 0.06;
 }
@@ -81,6 +91,7 @@
 .booking-card-header {
   display: flex;
   justify-content: space-between;
+  align-items: center;   /* 👈 vertical center */
   gap: 24px;
   padding: 24px 28px;
   background: #0f265a;
@@ -93,7 +104,7 @@
 .booking-header-left {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -309,6 +320,9 @@
   border: 1px solid #e5e7eb;
   padding: 11px 13px 10px;
   background: #f9fafb;
+  /* FIX: Prevent applicant card from breaking across pages in PDF/print */
+  break-inside: avoid;
+  page-break-inside: avoid;
 }
 
 .booking-applicant-header {
@@ -581,20 +595,24 @@
     align-items: flex-start;
     flex-wrap: wrap;
   }
-  
+
   .booking-watermark-container {
     grid-template-columns: repeat(2, 1fr);
     grid-auto-rows: minmax(250px, auto);
   }
-  
+
   .booking-watermark {
     min-height: 250px;
   }
-  
+
   .draft-watermark {
     font-size: 70px;
   }
-  
+
+  .cancelled-watermark {
+    font-size: 70px;
+  }
+
   .logo-watermark img {
     max-width: 180px;
     max-height: 180px;
@@ -627,20 +645,24 @@
   .booking-btn-secondary {
     width: 100%;
   }
-  
+
   .booking-watermark-container {
     grid-template-columns: 1fr;
     grid-auto-rows: minmax(200px, auto);
   }
-  
+
   .booking-watermark {
     min-height: 200px;
   }
-  
+
   .draft-watermark {
     font-size: 50px;
   }
-  
+
+  .cancelled-watermark {
+    font-size: 50px;
+  }
+
   .logo-watermark img {
     max-width: 120px;
     max-height: 120px;
@@ -667,7 +689,7 @@
   max-width: 60%;
   max-height: 60%;   /* height bhi ~60% card ki */
   object-fit: contain;
-  opacity: 0.5;     /* 0.6 bahut dark ho jayega, print pe bhi – 0.1–0.15 best */
+  opacity: 0.15;     /* 0.6 bahut dark ho jayega, print pe bhi – 0.1–0.15 best */
 }
 
 /* ---- BRAND IN HEADER ---- */
@@ -704,6 +726,9 @@
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 20px;
   align-items: flex-end;
+  /* 👇 FIX: Prevent signature grid from breaking across pages */
+  break-inside: avoid;
+  page-break-inside: avoid;
 }
 
 .booking-signature-block {
@@ -807,6 +832,7 @@
 }
 
 
+/* Re-defined booking-card-header, keeping the `align-items: center` */
 .booking-card-header {
   display: flex;
   justify-content: space-between;

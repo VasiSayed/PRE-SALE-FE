@@ -22,6 +22,7 @@ const toSentenceCase = (value) => {
 
 export default function BookingApprovals() {
   const [activeTab, setActiveTab] = useState("BOOKING"); // "BOOKING" | "PAYMENT"
+  const [bookingSection, setBookingSection] = useState("BELOW_LIMIT_PRICE"); // "BELOW_LIMIT_PRICE" | "PENDING"
 
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -75,7 +76,13 @@ export default function BookingApprovals() {
       if (projectId) params.project_id = projectId;
       if (kycOnly) params.kyc_only = "1";
 
-      const data = await BookingAPI.listPending(params);
+      let data;
+      if (bookingSection === "BELOW_LIMIT_PRICE") {
+        data = await BookingAPI.listBelowLimitPrice(params);
+      } else {
+        data = await BookingAPI.listPending(params);
+      }
+
       const list = Array.isArray(data) ? data : data.results ?? [];
       setRows(list);
     } catch (err) {
@@ -87,7 +94,7 @@ export default function BookingApprovals() {
     } finally {
       setLoading(false);
     }
-  }, [projectId, kycOnly]);
+  }, [projectId, kycOnly, bookingSection]);
 
   // ---------- Fetch PAYMENT pending approvals ----------
   const fetchPendingPayments = useCallback(async () => {
@@ -119,7 +126,7 @@ export default function BookingApprovals() {
     } else {
       fetchPendingPayments();
     }
-  }, [activeTab, fetchPendingBookings, fetchPendingPayments]);
+  }, [activeTab, bookingSection, fetchPendingBookings, fetchPendingPayments]);
 
   // ---------- Client-side search filter ----------
   const filteredRows = useMemo(() => {
@@ -344,7 +351,9 @@ export default function BookingApprovals() {
 
   const headerTitle =
     activeTab === "BOOKING"
-      ? "Pending Booking Approvals"
+      ? bookingSection === "BELOW_LIMIT_PRICE"
+        ? "Below Limit Price Bookings"
+        : "Pending Booking Approvals"
       : "Pending Payment Approvals";
 
   return (
@@ -360,8 +369,18 @@ export default function BookingApprovals() {
             <p style={{ fontSize: 13, color: "#555" }}>
               {activeTab === "BOOKING" ? (
                 <>
-                  Only <strong>DRAFT</strong> bookings are shown here. You can
-                  view full details and then confirm or reject them.
+                  {bookingSection === "BELOW_LIMIT_PRICE" ? (
+                    <>
+                      Bookings with prices <strong>below limit</strong> are
+                      shown here. You can view full details and then confirm or
+                      reject them.
+                    </>
+                  ) : (
+                    <>
+                      Only <strong>DRAFT</strong> bookings are shown here. You
+                      can view full details and then confirm or reject them.
+                    </>
+                  )}
                 </>
               ) : (
                 <>
@@ -411,6 +430,19 @@ export default function BookingApprovals() {
 
         {/* Filters */}
         <div className="ba-filters">
+          {activeTab === "BOOKING" && (
+            <div className="ba-filter-item">
+              <label>Section</label>
+              <select
+                value={bookingSection}
+                onChange={(e) => setBookingSection(e.target.value)}
+              >
+                <option value="BELOW_LIMIT_PRICE">Below Limit Price</option>
+                <option value="PENDING">Pending Approvals</option>
+              </select>
+            </div>
+          )}
+
           <div className="ba-filter-item">
             <label>Project</label>
             <select
@@ -488,8 +520,6 @@ export default function BookingApprovals() {
                   <th>Status</th>
                   <th>Created At</th>
                 </tr>
-
-                
               </thead>
               <tbody>
                 {filteredRows.map((b) => {

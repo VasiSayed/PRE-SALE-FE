@@ -266,6 +266,13 @@ export const BookingAPI = {
       .then((res) => res.data);
   },
 
+  // 🔹 Below limit price drafts list
+  listBelowLimitPrice(params = {}) {
+    return api
+      .get(`${CLIENT_BOOKINGS_PREFIX}/drafts-below-limit-price/`, { params })
+      .then((res) => res.data);
+  },
+
   // 🔹 Confirm booking
   confirm(id, body = {}) {
     return api
