@@ -25,30 +25,26 @@ export async function createPaymentLead(payload) {
   return res.data;
 }
 
-// Create KYC payment against a booking
-export async function createKycPayment(bookingId, payload) {
+
+export async function createKycPayment(bookingId, kycRequestId, payload) {
   const formData = new FormData();
 
-  Object.entries(payload).forEach(([key, value]) => {
-    if (
-      value !== null &&
-      value !== undefined &&
-      value !== "" &&
-      !(Array.isArray(value) && value.length === 0)
-    ) {
-      formData.append(key, value);
-    }
+  const finalPayload = {
+    ...payload,
+    kyc_request_id: kycRequestId,
+  };
+
+  Object.entries(finalPayload).forEach(([key, value]) => {
+    if (value === null || value === undefined || value === "") return;
+    formData.append(key, value);
   });
 
-  const res = await axiosInstance.post(
-    `/book/bookings/${bookingId}/kyc-payment/`,
-    formData,
-    {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    }
-  );
+  const url = `/book/bookings/${bookingId}/kyc-payment/`;
+  console.log("[API] createKycPayment ->", url, "payload:", finalPayload);
+
+  const res = await axiosInstance.post(url, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
 
   return res.data;
 }

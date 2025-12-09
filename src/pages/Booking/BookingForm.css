@@ -1,27 +1,50 @@
-/* ============================================
-   BOOKING FORM - CLEAN WHITE THEME
-   Primary Color: #102a54 (Dark Blue)
-   ============================================ */
+/* ============================
+   TOP HEADER BLUE BAR
+============================ */
 
-/* Page Container */
-.booking-form-page {
-  max-width: 1400px;
-  margin: 24px auto 48px;
-  padding: 16px 24px 40px;
-  background: #f8f9fa;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  color: #111827;
+.bf-top-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 24px;
+  padding: 18px 22px;
+  background: #102a54;
+  border-radius: 10px;
+  box-shadow: 0 4px 18px rgba(16, 42, 84, 0.22);
 }
 
-/* Cards */
-.bf-card {
+/* Company Title */
+.bf-top-title {
+  flex: 1;
+  text-align: right;
+  font-size: 20px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.4px;
+}
+
+/* Logo Circle */
+.bf-logo-circle {
+  width: 100px;
+  height: 100px;
+  border-radius: 90%;
   background: #ffffff;
-  border-radius: 12px;
-  border: 1px solid #e5e7eb;
-  padding: 20px 20px 8px;
-  margin-bottom: 20px;
-  box-shadow: 0 1px 3px rgba(16, 42, 84, 0.05);
+  border: 3px solid #ffffff;
+  box-shadow: 0 3px 14px rgba(16,42,84,0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
+
+/* logo image */
+.bf-logo-circle img {
+  width: 90%;
+  height: 90%;
+  object-fit: contain;
+}
+
 
 /* Rows and Columns */
 .bf-row {
@@ -957,6 +980,8 @@
 .bf-screen-only {
   /* visible on screen */
 }
+
+
 
 @media print {
   .bf-screen-only {
