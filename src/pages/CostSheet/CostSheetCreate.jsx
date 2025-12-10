@@ -2177,7 +2177,7 @@ const CostSheetCreate = () => {
   ]);
 
   // Parking
-  const [hasParking, setHasParking] = useState(false);
+  const [parkingRequired, setParkingRequired] = useState("NO"); // YES / NO
   const [parkingCount, setParkingCount] = useState("");
   const [parkingPrice, setParkingPrice] = useState("");
   const [parkingPriceFocused, setParkingPriceFocused] = useState(false);
@@ -2185,8 +2185,12 @@ const CostSheetCreate = () => {
   // Possession charges
   const [isPossessionCharges, setIsPossessionCharges] = useState(false);
   const [possessionGstPercent, setPossessionGstPercent] = useState(0);
-  const [provisionalMaintenanceMonths, setProvisionalMaintenanceMonths] =
-    useState(0);
+
+  // Tax checkboxes (to enable/disable taxes)
+  const [gstEnabled, setGstEnabled] = useState(true);
+  const [stampDutyEnabled, setStampDutyEnabled] = useState(true);
+  const [registrationEnabled, setRegistrationEnabled] = useState(true);
+  const [legalFeeEnabled, setLegalFeeEnabled] = useState(true);
 
   const additionalChargesTotal = useMemo(
     () => charges.reduce((sum, c) => sum + (parseFloat(c.amount || 0) || 0), 0),
@@ -2197,32 +2201,60 @@ const CostSheetCreate = () => {
   const effectiveBaseRate =
     baseAreaNum && netBaseValue ? netBaseValue / baseAreaNum : 0;
 
+  // Helper function to strip formatting from amount
+  const stripAmount = (value) => {
+    return value.replace(/,/g, "").replace(/₹/g, "").trim();
+  };
+
+  // Calculate parking total when parking price or count changes
+  useEffect(() => {
+    if (parkingRequired !== "YES" || !parkingCount || !parkingPrice) {
+      return;
+    }
+
+    const amt = Number(stripAmount(parkingPrice)) || 0;
+    const count = Number(parkingCount) || 0;
+    // parkingAmount is calculated in the useMemo, so no need to set it here
+  }, [parkingPrice, parkingCount, parkingRequired]);
+
   // ========== COST CALCULATIONS ==========
+  // ✅ Match BookingForm: Base for taxes = baseValue (before discount) + additional charges + parking
+  const agreementValue = baseValue; // Unit cost before discount (equivalent to BookingForm's agreementValue)
 
   const { parkingAmount, stampAmount, gstAmount, mainCostTotal } =
     useMemo(() => {
+      if (!template) {
+        return {
+          parkingAmount: 0,
+          stampAmount: 0,
+          gstAmount: 0,
+          mainCostTotal: 0,
+        };
+      }
+
       const pricePerParking = parseFloat(parkingPrice) || 0;
       const parkingCountNum = Number(parkingCount || 0) || 0;
       const parkingAmt = pricePerParking * parkingCountNum;
 
-      const baseForTaxes =
-        (netBaseValue || 0) + (additionalChargesTotal || 0) + parkingAmt;
+      // Base for GST and Stamp Duty: unit cost (before discount) + additional charges + parking total
+      const unitCost = Number(agreementValue || 0);
+      const additionalTotal = Number(additionalChargesTotal || 0);
+      const parkingTotalNumber = parkingRequired === "YES" ? parkingAmt : 0;
+      const baseForTaxes = unitCost + additionalTotal + parkingTotalNumber;
 
-      const stampPercent = template?.stamp_duty_percent
-        ? parseFloat(template.stamp_duty_percent) || 0
-        : 0;
+      const gstPercent = Number(template.gst_percent) || 0;
+      const stampPercent = Number(template.stamp_duty_percent) || 0;
+
+      const calcGst = gstEnabled ? (baseForTaxes * gstPercent) / 100 : 0;
+      const calcStamp = stampDutyEnabled ? (baseForTaxes * stampPercent) / 100 : 0;
+
       // ✅ Round to 2 decimal places
-      const stampAmt =
-        Math.round(((baseForTaxes * stampPercent) / 100) * 100) / 100;
+      const stampAmt = Math.round(calcStamp * 100) / 100;
+      const gstAmt = Math.round(calcGst * 100) / 100;
 
-      const gstPercent = template?.gst_percent
-        ? parseFloat(template.gst_percent) || 0
-        : 0;
-      // ✅ Round to 2 decimal places
-      const gstAmt =
-        Math.round(((baseForTaxes * gstPercent) / 100) * 100) / 100;
-
-      const mainTotal = baseForTaxes + stampAmt + gstAmt;
+      // Total Cost (1) = unit cost + additional charges + parking + stamp duty + gst
+      const mainTotal =
+        unitCost + additionalTotal + parkingTotalNumber + stampAmt + gstAmt;
 
       return {
         parkingAmount: parkingAmt,
@@ -2231,11 +2263,14 @@ const CostSheetCreate = () => {
         mainCostTotal: mainTotal,
       };
     }, [
-      netBaseValue,
+      agreementValue,
       additionalChargesTotal,
       parkingPrice,
       parkingCount,
+      parkingRequired,
       template,
+      gstEnabled,
+      stampDutyEnabled,
     ]);
 
   const {
@@ -2278,7 +2313,7 @@ const CostSheetCreate = () => {
 
     const legalAmt =
       template && template.legal_fee_amount
-        ? Number(template.legal_fee_amount)
+        ? (legalFeeEnabled ? Number(template.legal_fee_amount) : 0)
         : 0;
 
     const devRate =
@@ -2296,15 +2331,19 @@ const CostSheetCreate = () => {
       template && template.provisional_maintenance_psf
         ? Number(template.provisional_maintenance_psf)
         : 0;
-    const provAmt = provRate * carpetAreaSqft;
+    const provMonths = template && template.provisional_maintenance_months
+      ? Number(template.provisional_maintenance_months)
+      : 0;
+    const provAmt = provRate * carpetAreaSqft * provMonths;
 
-    const subtotal = membershipAmt + legalAmt + devAmt + elecAmt + provAmt;
-
-    // ✅ Round to 2 decimal places
-    const gstAmt =
-      Math.round(((subtotal * possessionGstPercent) / 100) * 100) / 100;
-
-    const total = subtotal + gstAmt;
+    // Base for GST: Legal + Development + Electrical + Provisional Maintenance (Share Fee NOT included in GST base)
+    const baseForGst = legalAmt + devAmt + elecAmt + provAmt;
+    
+    // GST on possession (18%) - applied on baseForGst (hardcoded as per BookingForm)
+    const gstAmt = Math.round(((baseForGst * 18) / 100) * 100) / 100;
+    
+    // Total with GST (includes shareFee which is not in GST base)
+    const total = membershipAmt + baseForGst + gstAmt;
 
     return {
       membershipAmount: membershipAmt,
@@ -2312,7 +2351,7 @@ const CostSheetCreate = () => {
       developmentChargesAmount: devAmt,
       electricalChargesAmount: elecAmt,
       provisionalMaintenanceAmount: provAmt,
-      possessionSubtotal: subtotal,
+      possessionSubtotal: baseForGst,
       possessionGstAmount: gstAmt,
       possessionTotal: total,
     };
@@ -2323,17 +2362,19 @@ const CostSheetCreate = () => {
     inventoryMap,
     baseAreaSqft,
     possessionGstPercent,
+    legalFeeEnabled,
   ]);
 
   const registrationAmount = useMemo(() => {
-    return template && template.registration_amount
-      ? parseFloat(template.registration_amount) || 0
-      : 0;
-  }, [template]);
+    if (!template) return 0;
+    const regAmount = Number(template.registration_amount) || 0;
+    return registrationEnabled ? regAmount : 0;
+  }, [template, registrationEnabled]);
 
+  // ✅ Match BookingForm: finalAmount = mainCostTotal (Total Cost 1)
   const finalAmount = useMemo(() => {
-    return mainCostTotal + possessionTotal + registrationAmount;
-  }, [mainCostTotal, possessionTotal, registrationAmount]);
+    return mainCostTotal;
+  }, [mainCostTotal]);
 
   // ----------- Text sections -----------
   const [termsAndConditions, setTermsAndConditions] = useState("");
@@ -2418,7 +2459,17 @@ const CostSheetCreate = () => {
 
         setLead(data.lead);
         setProject(data.project);
-        setTemplate(data.template);
+        // Make template editable (similar to costTemplate in BookingForm)
+        if (data.template) {
+          setTemplate({
+            ...data.template,
+            gst_percent: data.template.gst_percent || 0,
+            stamp_duty_percent: data.template.stamp_duty_percent || 0,
+            provisional_maintenance_months: data.template.provisional_maintenance_months || 0,
+          });
+        } else {
+          setTemplate(data.template);
+        }
         setPaymentPlans(data.payment_plans || []);
         setOffers(data.offers || []);
 
@@ -2434,9 +2485,6 @@ const CostSheetCreate = () => {
           );
           setPossessionGstPercent(
             parseFloat(data.template.possessional_gst_percent) || 0
-          );
-          setProvisionalMaintenanceMonths(
-            parseInt(data.template.provisional_maintenance_months) || 0
           );
           setTermsAndConditions(data.template.terms_and_conditions || "");
         }
@@ -3005,6 +3053,7 @@ const CostSheetCreate = () => {
         date: quotationDate,
         valid_till: validTill,
         status,
+        prepared_by: preparedBy || null,
 
         customer_name: customerName,
         customer_contact_person: customerContactPerson,
@@ -3041,8 +3090,8 @@ const CostSheetCreate = () => {
         registration_amount: registrationAmount || null,
         legal_fee_amount: template?.legal_fee_amount || null,
 
-        parking_count: hasParking ? Number(parkingCount) || 0 : 0,
-        per_parking_price: hasParking ? parkingPrice || null : null,
+        parking_count: parkingRequired === "YES" ? Number(parkingCount) || 0 : 0,
+        per_parking_price: parkingRequired === "YES" ? parkingPrice || null : null,
         parking_amount: parkingAmount
           ? Math.round(parkingAmount * 100) / 100
           : null,
@@ -3182,16 +3231,6 @@ const CostSheetCreate = () => {
                 <option value="ACCEPTED">Accepted</option>
                 <option value="REJECTED">Rejected</option>
               </select>
-            </div>
-            <div className="cs-field cs-field--full">
-              <label className="cs-label">Prepared By</label>
-              <input
-                type="text"
-                className="cs-input"
-                value={preparedBy}
-                readOnly
-                placeholder="Will be auto set from logged-in user"
-              />
             </div>
           </div>
         </SectionCard>
@@ -3488,6 +3527,201 @@ const CostSheetCreate = () => {
           </div>
         </SectionCard>
 
+        {/* TAX & CHARGES CONFIGURATION */}
+        {template && (
+          <SectionCard title="Tax & Charges Configuration">
+            <div className="cs-grid-3">
+              <div className="cs-field">
+                <label className="cs-label">GST Percent (%)</label>
+                <select
+                  className="cs-select"
+                  value={template.gst_percent || 0}
+                  onChange={(e) => {
+                    const currentValue = Number(template.gst_percent || 0);
+                    const newValue = Number(e.target.value);
+                    setTemplate((prev) => ({
+                      ...prev,
+                      gst_percent: newValue,
+                    }));
+                  }}
+                >
+                  {(() => {
+                    const currentValue = Number(template.gst_percent || 0);
+                    const min = Math.max(0, currentValue - 3);
+                    const max = currentValue + 4;
+                    const options = [];
+                    for (let i = min; i <= max; i++) {
+                      options.push(
+                        <option key={i} value={i}>
+                          {i}%
+                        </option>
+                      );
+                    }
+                    return options;
+                  })()}
+                </select>
+              </div>
+
+              <div className="cs-field">
+                <label className="cs-label">Stamp Duty Percent (%)</label>
+                <select
+                  className="cs-select"
+                  value={template.stamp_duty_percent || 0}
+                  onChange={(e) => {
+                    const newValue = Number(e.target.value);
+                    setTemplate((prev) => ({
+                      ...prev,
+                      stamp_duty_percent: newValue,
+                    }));
+                  }}
+                >
+                  {(() => {
+                    const currentValue = Number(template.stamp_duty_percent || 0);
+                    const min = Math.max(0, currentValue - 3);
+                    const max = currentValue + 4;
+                    const options = [];
+                    for (let i = min; i <= max; i++) {
+                      options.push(
+                        <option key={i} value={i}>
+                          {i}%
+                        </option>
+                      );
+                    }
+                    return options;
+                  })()}
+                </select>
+              </div>
+
+              <div className="cs-field">
+                <label className="cs-label">Provisional Maintenance Months</label>
+                <select
+                  className="cs-select"
+                  value={template.provisional_maintenance_months || 0}
+                  onChange={(e) => {
+                    const newValue = Number(e.target.value);
+                    setTemplate((prev) => ({
+                      ...prev,
+                      provisional_maintenance_months: newValue,
+                    }));
+                  }}
+                >
+                  {(() => {
+                    const currentValue = Number(template.provisional_maintenance_months || 0);
+                    const min = Math.max(0, currentValue - 3);
+                    const max = currentValue + 4;
+                    const options = [];
+                    for (let i = min; i <= max; i++) {
+                      options.push(
+                        <option key={i} value={i}>
+                          {i} {i === 1 ? "month" : "months"}
+                        </option>
+                      );
+                    }
+                    return options;
+                  })()}
+                </select>
+              </div>
+            </div>
+          </SectionCard>
+        )}
+
+        {/* PARKING SECTION */}
+        <SectionCard title="Parking">
+          <div className="cs-grid-3">
+            <div className="cs-field">
+              <label className="cs-label">Parking</label>
+              <select
+                className="cs-select"
+                value={parkingRequired}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setParkingRequired(val);
+
+                  if (val === "NO") {
+                    setParkingCount("");
+                    setParkingPrice("");
+                  }
+                }}
+              >
+                <option value="NO">No</option>
+                <option value="YES">Yes</option>
+              </select>
+            </div>
+
+            {/* No of Parking */}
+            {parkingRequired === "YES" && (
+              <div className="cs-field">
+                <label className="cs-label">No. of Parking</label>
+                <select
+                  className="cs-select"
+                  value={parkingCount}
+                  onChange={(e) => {
+                    setParkingCount(e.target.value);
+                  }}
+                >
+                  <option value="">Select</option>
+                  {Array.from({ length: 10 }).map((_, i) => (
+                    <option key={i + 1} value={i + 1}>
+                      {i + 1}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Parking Amount (Per Parking) */}
+            {parkingRequired === "YES" && parkingCount && (
+              <div className="cs-field">
+                <label className="cs-label">Parking Amount (Per Parking)</label>
+                <input
+                  type="text"
+                  className="cs-input"
+                  value={
+                    parkingPriceFocused
+                      ? parkingPrice
+                      : parkingPrice === ""
+                      ? ""
+                      : formatINRNoDecimals(parkingPrice)
+                  }
+                  onFocus={() => setParkingPriceFocused(true)}
+                  onBlur={() => setParkingPriceFocused(false)}
+                  onChange={(e) => {
+                    const input = e.target.value;
+                    const raw = stripAmount(input);
+                    if (raw === "") {
+                      setParkingPrice("");
+                      return;
+                    }
+                    const num = Number(raw);
+                    if (!Number.isNaN(num)) {
+                      setParkingPrice(String(Math.round(num)));
+                    }
+                  }}
+                  placeholder="Enter parking price"
+                />
+                {project?.price_per_parking && (
+                  <p className="cs-hint">
+                    Default: ₹{formatINRNoDecimals(project.price_per_parking)}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Total Parking Amount */}
+            {parkingRequired === "YES" && parkingCount && parkingAmount > 0 && (
+              <div className="cs-field">
+                <label className="cs-label">Total Parking Amount (₹)</label>
+                <input
+                  type="text"
+                  className="cs-input cs-input--currency"
+                  value={formatINR(parkingAmount)}
+                  readOnly
+                />
+              </div>
+            )}
+          </div>
+        </SectionCard>
+
         {/* ADDITIONAL CHARGES */}
         <SectionCard title="Additional Charges">
           <div className="cs-table">
@@ -3563,239 +3797,242 @@ const CostSheetCreate = () => {
 
         {/* COST BREAKDOWN */}
         <SectionCard title="Cost Breakdown">
-          {/* Section 1: Main Cost */}
-          <div className="cs-cost-section">
-            <h3 className="cs-cost-section-title">Unit Cost Calculation</h3>
+          {!template ? (
+            <div className="cs-subcard">
+              <p style={{ color: "#6b7280" }}>
+                Cost breakdown will be available after selecting a unit and lead.
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* ================== UNIT COST CALCULATION ================== */}
+              <div className="cost-breakdown-section cost-breakdown-unit">
+                <div className="cost-breakdown-header">
+                  Unit Cost Calculation
+                </div>
 
-            <div className="cs-cost-breakdown">
-              <div className="cs-cost-line">
-                <span>Unit Cost after Discount</span>
-                <span className="cs-cost-amount">
-                  {formatINR(netBaseValue || 0)}
-                </span>
-              </div>
+                <div className="cost-breakdown-row">
+                  <span>Unit Cost</span>
+                  <span>{formatINR(agreementValue || 0)}</span>
+                </div>
 
-              <div className="cs-cost-line">
-                <span>Additional Charges</span>
-                <span className="cs-cost-amount">
-                  {formatINR(additionalChargesTotal || 0)}
-                </span>
-              </div>
+                {additionalChargesTotal > 0 && (
+                  <div className="cost-breakdown-row">
+                    <span>Additional Charges</span>
+                    <span>{formatINR(additionalChargesTotal)}</span>
+                  </div>
+                )}
 
-              {/* Parking */}
-              <div className="cs-parking-section">
-                <div className="cs-parking-header">
-                  <span className="cs-label">Car Parking Required?</span>
-                  <div className="cs-parking-controls">
-                    <label className="cs-radio">
-                      <input
-                        type="radio"
-                        value="no"
-                        checked={!hasParking}
-                        onChange={() => {
-                          setHasParking(false);
-                          setParkingCount("0");
-                        }}
-                      />
-                      <span>No</span>
-                    </label>
-                    <label className="cs-radio">
-                      <input
-                        type="radio"
-                        value="yes"
-                        checked={hasParking}
-                        onChange={() => {
-                          setHasParking(true);
-                          if (!parkingCount || parkingCount === "0") {
-                            setParkingCount("1");
-                          }
-                        }}
-                      />
-                      <span>Yes</span>
-                    </label>
+                {/* Parking - Shown in Unit Cost section */}
+                {parkingRequired === "YES" && parkingAmount > 0 && (
+                  <div className="cost-breakdown-row">
+                    <span>
+                      Parking ({parkingCount} × ₹
+                      {formatINR(parseFloat(parkingPrice) || 0)})
+                    </span>
+                    <span>{formatINR(parkingAmount)}</span>
+                  </div>
+                )}
 
-                    {hasParking && (
-                      <>
-                        <select
-                          className="cs-select cs-parking-count"
-                          value={parkingCount}
-                          onChange={(e) => setParkingCount(e.target.value)}
-                        >
-                          <option value="">Count</option>
-                          {Array.from({ length: 10 }).map((_, idx) => (
-                            <option key={idx + 1} value={idx + 1}>
-                              {idx + 1}
-                            </option>
-                          ))}
-                        </select>
+                {stampDutyEnabled && stampAmount > 0 && (
+                  <div className="cost-breakdown-row">
+                    <span>
+                      Stamp Duty ({template.stamp_duty_percent || 0}%)
+                    </span>
+                    <span>{formatINR(stampAmount)}</span>
+                  </div>
+                )}
 
-                        <input
-                          type="text"
-                          className="cs-input cs-parking-price"
-                          placeholder="Price per parking"
-                          value={
-                            parkingPriceFocused
-                              ? parkingPrice
-                              : parkingPrice === ""
-                              ? ""
-                              : formatINRNoDecimals(parkingPrice)
-                          }
-                          onFocus={() => setParkingPriceFocused(true)}
-                          onBlur={() => setParkingPriceFocused(false)}
-                          onChange={(e) => {
-                            const input = e.target.value;
-                            const raw = input.replace(/,/g, "");
-                            if (raw === "") {
-                              setParkingPrice("");
-                              return;
-                            }
-                            const num = Number(raw);
-                            if (!Number.isNaN(num)) {
-                              setParkingPrice(String(Math.round(num)));
-                            }
-                          }}
-                        />
-                      </>
+                {gstEnabled && gstAmount > 0 && (
+                  <div className="cost-breakdown-row">
+                    <span>GST ({template.gst_percent || 0}%)</span>
+                    <span>{formatINR(gstAmount)}</span>
+                  </div>
+                )}
+
+                <div className="cost-breakdown-row cost-breakdown-total">
+                  <span>Total Cost (1)</span>
+                  <span>
+                    {formatINR(
+                      Number(agreementValue || 0) +
+                        Number(additionalChargesTotal || 0) +
+                        (parkingRequired === "YES" ? Number(parkingAmount || 0) : 0) +
+                        Number(stampAmount || 0) +
+                        Number(gstAmount || 0)
                     )}
+                  </span>
+                </div>
+              </div>
+
+              {/* ================== POSSESSION RELATED CHARGES ================== */}
+              {isPossessionCharges && possessionTotal > 0 && (
+                <div className="cost-breakdown-section cost-breakdown-possession">
+                  <div className="cost-breakdown-header">
+                    Possession Related Charges
+                  </div>
+
+                  {membershipAmount > 0 && (
+                    <div className="cost-breakdown-row">
+                      <span>
+                        Share Application Money & Membership Fees
+                      </span>
+                      <span>{formatINR(membershipAmount)}</span>
+                    </div>
+                  )}
+
+                  {legalFeeEnabled &&
+                    template.legal_fee_amount > 0 && (
+                      <div className="cost-breakdown-row">
+                        <span>Legal & Compliance Charges</span>
+                        <span>
+                          {formatINR(template.legal_fee_amount)}
+                        </span>
+                      </div>
+                    )}
+
+                  {developmentChargesAmount > 0 && (
+                    <div className="cost-breakdown-row">
+                      <span>
+                        Development Charges @ Rs.{" "}
+                        {formatINR(template?.development_charges_psf || 0)} PSF ×{" "}
+                        {formatINR(
+                          (selectedInventory && selectedInventory.carpet_sqft) || baseAreaSqft || 0
+                        )}{" "}
+                        sq. ft.
+                      </span>
+                      <span>
+                        {formatINR(developmentChargesAmount)}
+                      </span>
+                    </div>
+                  )}
+
+                  {electricalChargesAmount > 0 && (
+                    <div className="cost-breakdown-row">
+                      <span>
+                        Electrical, Water & Piped Gas Connection Charges
+                      </span>
+                      <span>
+                        {formatINR(electricalChargesAmount)}
+                      </span>
+                    </div>
+                  )}
+
+                  {Number(provisionalMaintenanceAmount || 0) > 0 && (
+                    <div className="cost-breakdown-row">
+                      <span>
+                        Provisional Maintenance for{" "}
+                        {template?.provisional_maintenance_months || 0} months @ Rs.{" "}
+                        {formatINR(template?.provisional_maintenance_psf || 0)}
+                      </span>
+                      <span>
+                        {formatINR(provisionalMaintenanceAmount || 0)}
+                      </span>
+                    </div>
+                  )}
+
+                  {possessionGstAmount > 0 && (
+                    <div className="cost-breakdown-row">
+                      <span>GST on Possession Charges (18%)</span>
+                      <span>
+                        {formatINR(possessionGstAmount)}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="cost-breakdown-row cost-breakdown-subtotal">
+                    <span>Total Possession Related Charges (2)</span>
+                    <span>
+                      {formatINR(possessionTotal)}
+                    </span>
                   </div>
                 </div>
+              )}
+
+              {/* ================== REGISTRATION ================== */}
+              {registrationEnabled &&
+                template.registration_amount > 0 && (
+                  <div className="cost-breakdown-section">
+                    <div className="cost-breakdown-row">
+                      <span>Registration Amount</span>
+                      <span>
+                        {formatINR(template.registration_amount)}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+              {/* ================== SUMMARY ================== */}
+              <div className="cost-breakdown-section cost-breakdown-summary">
+                <div className="cost-breakdown-row">
+                  <span>Total Cost</span>
+                  <span>{formatINR(finalAmount)}</span>
+                </div>
+
+                {isPossessionCharges &&
+                  possessionTotal > 0 && (
+                    <div className="cost-breakdown-row">
+                      <span>Total Possession Related Charges</span>
+                      <span>
+                        {formatINR(possessionTotal)}
+                      </span>
+                    </div>
+                  )}
               </div>
 
-              <div className="cs-cost-line">
-                <span>Car Parking Amount</span>
-                <span className="cs-cost-amount">
-                  {formatINR(parkingAmount || 0)}
+              {/* ================== GRAND TOTAL ================== */}
+              <div className="cost-breakdown-grand-total">
+                <span>GRAND TOTAL</span>
+                <span>
+                  {formatINR(
+                    Number(finalAmount || 0) +
+                      (isPossessionCharges ? possessionTotal : 0) +
+                      (registrationEnabled
+                        ? Number(template.registration_amount || 0)
+                        : 0)
+                  )}
                 </span>
               </div>
 
-              <div className="cs-cost-line">
-                <span>Stamp Duty ({template?.stamp_duty_percent || 0}%)</span>
-                <span className="cs-cost-amount">
-                  {formatINR(stampAmount || 0)}
-                </span>
-              </div>
-
-              <div className="cs-cost-line">
-                <span>GST ({template?.gst_percent || 0}%)</span>
-                <span className="cs-cost-amount">
-                  {formatINR(gstAmount || 0)}
-                </span>
-              </div>
-
-              <div className="cs-cost-line cs-cost-subtotal">
-                <span>Total Cost (1)</span>
-                <span className="cs-cost-amount">
-                  {formatINR(mainCostTotal || 0)}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Section 2: Possession Charges */}
-          {isPossessionCharges && (
-            <div className="cs-cost-section cs-possession-section">
-              <h3 className="cs-cost-section-title">
-                Possession Related Charges
-              </h3>
-
-              <div className="cs-cost-breakdown">
-                <div className="cs-cost-line">
-                  <span>Share Application Money & Membership Fees</span>
-                  <span className="cs-cost-amount">
-                    {formatINR(membershipAmount || 0)}
-                  </span>
+              {/* Terms & Conditions */}
+              {termsList.length > 0 && (
+                <div
+                  style={{
+                    marginTop: "24px",
+                    padding: "16px",
+                    background: "#f9fafb",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "8px",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      color: "#374151",
+                      marginBottom: "12px",
+                    }}
+                  >
+                    Terms & Conditions
+                  </div>
+                  <ol
+                    style={{
+                      margin: 0,
+                      paddingLeft: "20px",
+                      fontSize: "13px",
+                      color: "#4b5563",
+                      lineHeight: "1.6",
+                    }}
+                  >
+                    {termsList.map((t, idx) => (
+                      <li key={idx} style={{ marginBottom: "8px" }}>
+                        {t}
+                      </li>
+                    ))}
+                  </ol>
                 </div>
-
-                <div className="cs-cost-line">
-                  <span>Legal & Compliance Charges</span>
-                  <span className="cs-cost-amount">
-                    {formatINR(legalComplianceAmount || 0)}
-                  </span>
-                </div>
-
-                <div className="cs-cost-line">
-                  <span>
-                    Development Charges @ Rs.{" "}
-                    {template?.development_charges_psf || 0} PSF
-                  </span>
-                  <span className="cs-cost-amount">
-                    {formatINR(developmentChargesAmount || 0)}
-                  </span>
-                </div>
-
-                <div className="cs-cost-line">
-                  <span>Electrical, Water & Piped Gas Connection Charges</span>
-                  <span className="cs-cost-amount">
-                    {formatINR(electricalChargesAmount || 0)}
-                  </span>
-                </div>
-
-                <div className="cs-cost-line">
-                  <span>
-                    Provisional Maintenance for {provisionalMaintenanceMonths}{" "}
-                    months @ Rs. {template?.provisional_maintenance_psf || 0}
-                  </span>
-                  <span className="cs-cost-amount">
-                    {formatINR(provisionalMaintenanceAmount || 0)}
-                  </span>
-                </div>
-
-                <div className="cs-cost-line">
-                  <span>
-                    GST on Possession Charges ({possessionGstPercent}%)
-                  </span>
-                  <span className="cs-cost-amount">
-                    {formatINR(possessionGstAmount || 0)}
-                  </span>
-                </div>
-
-                <div className="cs-cost-line cs-cost-subtotal">
-                  <span>Total Possession Related Charges (2)</span>
-                  <span className="cs-cost-amount">
-                    {formatINR(possessionTotal || 0)}
-                  </span>
-                </div>
-              </div>
-            </div>
+              )}
+            </>
           )}
-
-          {/* Section 3: Registration */}
-          <div className="cs-cost-section">
-            <div className="cs-cost-breakdown">
-              <div className="cs-cost-line">
-                <span>Registration Amount</span>
-                <span className="cs-cost-amount">
-                  {formatINR(registrationAmount || 0)}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Summary */}
-          <div className="cs-cost-summary">
-            <div className="cs-cost-summary-line">
-              <span>Total Cost</span>
-              <span className="cs-cost-amount">
-                {formatINR(mainCostTotal || 0)}
-              </span>
-            </div>
-            {isPossessionCharges && (
-              <div className="cs-cost-summary-line">
-                <span>Total Possession Related Charges</span>
-                <span className="cs-cost-amount">
-                  {formatINR(possessionTotal || 0)}
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Final Total */}
-          <div className="cs-cost-final">
-            <span>Grand Total</span>
-            <span className="cs-cost-amount">
-              {formatINR(finalAmount || 0)}
-            </span>
-          </div>
         </SectionCard>
 
         {/* PAYMENT PLAN */}
