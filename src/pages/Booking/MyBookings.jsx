@@ -280,6 +280,7 @@ import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import axiosInstance from "../../api/axiosInstance";
 import SearchBar from "../../common/SearchBar";
+import PaymentLeadCreateModal from "../../components/Payments/PaymentLeadCreateModal";
 import "./MyBookings.css";
 import "../PreSalesCRM/Leads/LeadsList.css";
 
@@ -312,6 +313,11 @@ const MyBookings = () => {
   const fileInputRef = useRef(null);
   const [uploadBookingId, setUploadBookingId] = useState(null);
   const [uploadingId, setUploadingId] = useState(null);
+
+  // 🔹 payment related
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [selectedBookingLeadId, setSelectedBookingLeadId] = useState(null);
+  const [selectedBookingId, setSelectedBookingId] = useState(null);
 
   const navigate = useNavigate();
 
@@ -437,6 +443,17 @@ const MyBookings = () => {
     if (fileInputRef.current) {
       fileInputRef.current.value = ""; // reset old file
       fileInputRef.current.click();
+    }
+  };
+
+  // 🔹 Handle payment click
+  const handlePaymentClick = (booking) => {
+    // Get lead_id from booking (sales_id is the field in booking object)
+    const leadId = booking.sales_id || booking.sales_lead || booking.lead_id || booking.lead || null;
+    if (leadId) {
+      setSelectedBookingLeadId(leadId);
+      setSelectedBookingId(booking.id); // Store booking ID
+      setPaymentModalOpen(true);
     }
   };
 
@@ -582,6 +599,18 @@ const MyBookings = () => {
                             >
                               👁
                             </button>
+
+                            {/* Payment button - only show if booking has a lead */}
+                            {(b.sales_id || b.sales_lead || b.lead_id || b.lead) && (
+                              <button
+                                type="button"
+                                className="booking-icon-btn"
+                                title="Make payment"
+                                onClick={() => handlePaymentClick(b)}
+                              >
+                                💳
+                              </button>
+                            )}
                           </td>
 
                           <td>{bookingId}</td>
@@ -663,6 +692,24 @@ const MyBookings = () => {
         {/* Pagination Info */}
         <div className="pagination-info">{rangeLabel}</div>
       </div>
+
+      {/* Payment Modal */}
+      {paymentModalOpen && selectedBookingLeadId && (
+        <PaymentLeadCreateModal
+          isOpen={paymentModalOpen}
+          onClose={() => {
+            setPaymentModalOpen(false);
+            setSelectedBookingLeadId(null);
+            setSelectedBookingId(null);
+          }}
+          leadId={parseInt(selectedBookingLeadId, 10)}
+          bookingId={selectedBookingId ? parseInt(selectedBookingId, 10) : null}
+          defaultPaymentType="BOOKING"
+          onCreated={() => {
+            // Payment created successfully
+          }}
+        />
+      )}
     </div>
   );
 };

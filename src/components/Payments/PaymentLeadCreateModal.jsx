@@ -64,6 +64,7 @@ export default function PaymentLeadCreateModal({
   isOpen,
   onClose,
   leadId,
+  bookingId = null,
   defaultPaymentType = "EOI",
   onCreated,
 }) {
@@ -172,6 +173,11 @@ export default function PaymentLeadCreateModal({
         amount: numericAmountStr, // backend ko plain number milega
         notes: form.notes,
       };
+
+      // Add booking ID if provided
+      if (bookingId) {
+        payload.booking = bookingId;
+      }
 
       // ONLINE / POS
       if (currentMethod === "ONLINE" || currentMethod === "POS") {
