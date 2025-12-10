@@ -510,6 +510,9 @@ const SaleAddLead = ({ handleLeadSubmit, leadId: propLeadId }) => {
   const [checkingPhone, setCheckingPhone] = useState(false);
   const [showLookupModal, setShowLookupModal] = useState(false);
 
+  // Pincode lookup
+  const [loadingPincode, setLoadingPincode] = useState(false);
+
   // Field validation errors
   const [fieldErrors, setFieldErrors] = useState({});
 
@@ -590,6 +593,36 @@ const SaleAddLead = ({ handleLeadSubmit, leadId: propLeadId }) => {
       setLookupResult(null);
     }
   }, [form.mobile_number, form.project_id, isEditing]);
+
+  // -------- Pincode lookup (6 digits) --------
+  useEffect(() => {
+    const pincodeDigits = (form.pin_code || "").replace(/\D/g, "");
+
+    if (pincodeDigits.length === 6) {
+      setLoadingPincode(true);
+      fetch(`https://api.postalpincode.in/pincode/${pincodeDigits}`)
+        .then((res) => res.json())
+        .then((dataArray) => {
+          // Response is an array: [{"Message":"...","Status":"Success","PostOffice":[...]}]
+          const response = dataArray?.[0];
+          if (response?.Status === "Success" && response?.PostOffice?.length > 0) {
+            const postOffice = response.PostOffice[0]; // Use first post office
+            setForm((prev) => ({
+              ...prev,
+              city: postOffice.District || prev.city,
+              state: postOffice.State || prev.state,
+              country: postOffice.Country || prev.country,
+              area: postOffice.Name || prev.area,
+            }));
+          }
+        })
+        .catch((err) => {
+          console.error("pincode lookup failed", err);
+          // Silent fail - manual entry still available
+        })
+        .finally(() => setLoadingPincode(false));
+    }
+  }, [form.pin_code]);
 
   // -------- masters (classification, source, status, etc.) --------
   useEffect(() => {
@@ -1944,6 +1977,56 @@ const SaleAddLead = ({ handleLeadSubmit, leadId: propLeadId }) => {
 
     // Add class for tel fields to prevent height increase
     const isTelField = field.name === "tel_res" || field.name === "tel_office";
+    const isPincodeField = field.name === "pin_code";
+    
+    // Special handling for pin_code field
+    if (isPincodeField) {
+      return (
+        <div
+          key={field.name}
+          className={field.span === 3 ? "form-field-full" : "form-field"}
+        >
+          <label htmlFor={id} className="form-label">
+            {field.label}
+            {field.required && <span className="required">*</span>}
+            {loadingPincode && (
+              <span style={{ fontSize: 12, color: "#6b7280", marginLeft: 4, fontWeight: "normal" }}>
+                (Looking up...)
+              </span>
+            )}
+          </label>
+          <input
+            id={id}
+            className={baseInputClass + (fieldErrors[field.name] ? " form-input-error" : "")}
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            value={form[field.name] || ""}
+            onChange={(e) => {
+              const digits = e.target.value.replace(/\D/g, "");
+              handleChange(field.name, digits);
+              // Clear error on change
+              if (fieldErrors[field.name]) {
+                setFieldErrors((prev) => {
+                  const next = { ...prev };
+                  delete next[field.name];
+                  return next;
+                });
+              }
+            }}
+            onBlur={(e) => handleBlur(field.name, e.target.value)}
+            disabled={disabled}
+            placeholder="Enter 6-digit pincode"
+            maxLength={6}
+          />
+          {fieldErrors[field.name] && (
+            <div style={{ fontSize: "12px", color: "#ef4444", marginTop: "4px" }}>
+              {fieldErrors[field.name]}
+            </div>
+          )}
+        </div>
+      );
+    }
     
     return (
       <div
@@ -1977,7 +2060,13 @@ const SaleAddLead = ({ handleLeadSubmit, leadId: propLeadId }) => {
           }}
           onBlur={(e) => handleBlur(field.name, e.target.value)}
           disabled={disabled}
-          placeholder={isTelField ? "6-15 digits" : (field.placeholder || "")}
+          placeholder={
+            isTelField
+              ? "6-15 digits"
+              : field.name === "city" || field.name === "state" || field.name === "country" || field.name === "area"
+              ? "Auto-filled from pincode"
+              : field.placeholder || ""
+          }
           maxLength={isTelField ? 15 : undefined}
         />
         {fieldErrors[field.name] && (

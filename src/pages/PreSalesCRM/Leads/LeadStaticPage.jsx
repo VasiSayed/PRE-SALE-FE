@@ -136,6 +136,14 @@ const LeadStaticPage = () => {
   const [proposalFiles, setProposalFiles] = useState([]);
   const [savingExtra, setSavingExtra] = useState(false);
 
+  // ---- Pincode lookup loading states ----
+  const [loadingAddressPincode, setLoadingAddressPincode] = useState(false);
+  const [loadingOfficePincode, setLoadingOfficePincode] = useState(false);
+
+  // Refs to track initial pincode values (to prevent API call on mount/prefill)
+  const initialAddressPincodeRef = useRef(null);
+  const initialOfficePincodeRef = useRef(null);
+
   // ---- Lead Information inline edit ----
   const [leadInfoForm, setLeadInfoForm] = useState({
     first_name: "",
@@ -329,10 +337,12 @@ const LeadStaticPage = () => {
     if (!lead) return;
 
     const a = lead.address || {};
+    const initialAddressPincode = a.pincode || "";
+    initialAddressPincodeRef.current = initialAddressPincode;
     setAddressForm({
       flat_or_building: a.flat_or_building || "",
       area: a.area || "",
-      pincode: a.pincode || "",
+      pincode: initialAddressPincode,
       city: a.city || "",
       state: a.state || "",
       country: a.country || "",
@@ -372,11 +382,13 @@ const LeadStaticPage = () => {
     });
 
     const pr = lead.professional_info || {};
+    const initialOfficePincode = pr.office_pincode || "";
+    initialOfficePincodeRef.current = initialOfficePincode;
     setProfessionalForm({
       occupation: (pr.occupation && pr.occupation.id) || pr.occupation || "",
       organization_name: pr.organization_name || "",
       office_location: pr.office_location || "",
-      office_pincode: pr.office_pincode || "",
+      office_pincode: initialOfficePincode,
       designation:
         (pr.designation && pr.designation.id) || pr.designation || "",
     });
@@ -391,6 +403,113 @@ const LeadStaticPage = () => {
       annual_income: lead.annual_income ?? "",
     });
   }, [lead]);
+
+  // Pincode lookup for Address Information (only when user changes pincode, not on mount)
+  useEffect(() => {
+    const pincodeDigits = (addressForm.pincode || "").replace(/\D/g, "");
+    const initialPincode = initialAddressPincodeRef.current || "";
+
+    // Skip API call if this is the initial prefill or if pincode hasn't changed
+    if (!pincodeDigits || pincodeDigits === initialPincode) {
+      return;
+    }
+
+    if (pincodeDigits.length === 6) {
+      setLoadingAddressPincode(true);
+      fetch(`https://api.postalpincode.in/pincode/${pincodeDigits}`)
+        .then((response) => response.json())
+        .then((dataArray) => {
+          if (
+            dataArray &&
+            dataArray.length > 0 &&
+            dataArray[0].Status === "Success" &&
+            dataArray[0].PostOffice &&
+            dataArray[0].PostOffice.length > 0
+          ) {
+            const postOffice = dataArray[0].PostOffice[0];
+            // Override existing data with API response
+            setAddressForm((prev) => ({
+              ...prev,
+              city: postOffice.District || "",
+              state: postOffice.State || "",
+              country: postOffice.Country || "",
+              area: postOffice.Name || "",
+            }));
+            // Update ref so subsequent changes can trigger API
+            initialAddressPincodeRef.current = pincodeDigits;
+          } else {
+            toast.error("Pincode lookup failed. Please enter details manually.", {
+              duration: 2000,
+            });
+            // Update ref even on failure to prevent re-triggering
+            initialAddressPincodeRef.current = pincodeDigits;
+          }
+        })
+        .catch((err) => {
+          console.error("Pincode lookup failed", err);
+          toast.error("Pincode lookup failed. Please enter details manually.", {
+            duration: 2000,
+          });
+          // Update ref even on error to prevent re-triggering
+          initialAddressPincodeRef.current = pincodeDigits;
+        })
+        .finally(() => setLoadingAddressPincode(false));
+    } else {
+      setLoadingAddressPincode(false);
+    }
+  }, [addressForm.pincode]);
+
+  // Pincode lookup for Professional Information (Office Address) (only when user changes pincode, not on mount)
+  useEffect(() => {
+    const pincodeDigits = (professionalForm.office_pincode || "").replace(/\D/g, "");
+    const initialPincode = initialOfficePincodeRef.current || "";
+
+    // Skip API call if this is the initial prefill or if pincode hasn't changed
+    if (!pincodeDigits || pincodeDigits === initialPincode) {
+      return;
+    }
+
+    if (pincodeDigits.length === 6) {
+      setLoadingOfficePincode(true);
+      fetch(`https://api.postalpincode.in/pincode/${pincodeDigits}`)
+        .then((response) => response.json())
+        .then((dataArray) => {
+          if (
+            dataArray &&
+            dataArray.length > 0 &&
+            dataArray[0].Status === "Success" &&
+            dataArray[0].PostOffice &&
+            dataArray[0].PostOffice.length > 0
+          ) {
+            const postOffice = dataArray[0].PostOffice[0];
+            // Override existing data with API response
+            setProfessionalForm((prev) => ({
+              ...prev,
+              office_location: postOffice.Name || "",
+            }));
+            // Update ref so subsequent changes can trigger API
+            initialOfficePincodeRef.current = pincodeDigits;
+          } else {
+            toast.error("Pincode lookup failed. Please enter details manually.", {
+              duration: 2000,
+            });
+            // Update ref even on failure to prevent re-triggering
+            initialOfficePincodeRef.current = pincodeDigits;
+          }
+        })
+        .catch((err) => {
+          console.error("Pincode lookup failed", err);
+          toast.error("Pincode lookup failed. Please enter details manually.", {
+            duration: 2000,
+          });
+          // Update ref even on error to prevent re-triggering
+          initialOfficePincodeRef.current = pincodeDigits;
+        })
+        .finally(() => setLoadingOfficePincode(false));
+    } else {
+      setLoadingOfficePincode(false);
+    }
+  }, [professionalForm.office_pincode]);
   const formatUpdateType = (val) => {
     if (!val) return "-";
     return val
@@ -405,8 +524,8 @@ const LeadStaticPage = () => {
     if (!update) return "No status";
 
     // 1) Direct label from backend (preferred)
-    if (update.activity_status_label) return update.activity_status_label;
-    if (update.activity_status_name) return update.activity_status_name;
+    if (update.activity_status_label) return toTitleCase(update.activity_status_label);
+    if (update.activity_status_name) return toTitleCase(update.activity_status_name);
 
     // 2) Latest from history (by event_date / created_at / id)
     if (Array.isArray(update.status_history) && update.status_history.length) {
@@ -421,12 +540,12 @@ const LeadStaticPage = () => {
         return (item.id || 0) > (latest.id || 0) ? item : latest;
       }, update.status_history[0]);
 
-      if (latest.new_status_label) return latest.new_status_label;
+      if (latest.new_status_label) return toTitleCase(latest.new_status_label);
 
       // fallback: use id → lookup
       if (latest.new_status && updateStatusOptions.length) {
         const st = updateStatusOptions.find((s) => s.id === latest.new_status);
-        if (st) return st.label || st.code || `#${st.id}`;
+        if (st) return toTitleCase(st.label || st.code || `#${st.id}`);
       }
     }
 
@@ -435,7 +554,7 @@ const LeadStaticPage = () => {
       const st = updateStatusOptions.find(
         (s) => s.id === update.activity_status
       );
-      if (st) return st.label || st.code || `#${st.id}`;
+      if (st) return toTitleCase(st.label || st.code || `#${st.id}`);
     }
 
     return "No status";
@@ -662,14 +781,14 @@ const LeadStaticPage = () => {
     if (!lookups?.lead_statuses || !lead?.project) return [];
     return lookups.lead_statuses
       .filter((s) => s.project_id === lead.project)
-      .map((s) => ({ value: s.id, label: s.name }));
+      .map((s) => ({ value: s.id, label: toTitleCase(s.name || "") }));
   }, [lookups, lead]);
 
   const leadSubStatusOptions = React.useMemo(() => {
     if (!lookups?.lead_sub_statuses || !leadStatusForm.status) return [];
     return lookups.lead_sub_statuses
       .filter((ss) => ss.status_id === leadStatusForm.status)
-      .map((ss) => ({ value: ss.id, label: ss.name }));
+      .map((ss) => ({ value: ss.id, label: toTitleCase(ss.name || "") }));
   }, [lookups, leadStatusForm.status]);
 
   const handleStatusFormChange = (field, value) => {
@@ -851,7 +970,7 @@ const LeadStaticPage = () => {
     if (!lookups || !lookups[key]) return [];
     return lookups[key].map((item) => ({
       value: item.id,
-      label: item.name || item.code || `#${item.id}`,
+      label: toTitleCase(item.name || item.code || `#${item.id}`),
     }));
   };
 
@@ -1482,7 +1601,7 @@ const LeadStaticPage = () => {
               <label>Lead Owner:</label>
               <input
                 type="text"
-                value={lead?.current_owner_name || lead?.owner || ""}
+                value={toTitleCase(lead?.current_owner_name || lead?.owner || "")}
                 readOnly
               />
             </div>
@@ -1721,7 +1840,7 @@ const LeadStaticPage = () => {
                   }
                 />
               ) : (
-                <input value={lead.first_name || ""} readOnly />
+                <input value={toTitleCase(lead.first_name || "")} readOnly />
               )}
             </div>
             <div className="field-compact">
@@ -1734,7 +1853,7 @@ const LeadStaticPage = () => {
                   }
                 />
               ) : (
-                <input value={lead.last_name || ""} readOnly />
+                <input value={toTitleCase(lead.last_name || "")} readOnly />
               )}
             </div>
             <div className="field-compact">
@@ -1747,7 +1866,7 @@ const LeadStaticPage = () => {
                   }
                 />
               ) : (
-                <input value={lead.company || ""} readOnly />
+                <input value={toTitleCase(lead.company || "")} readOnly />
               )}
             </div>
             <div className="field-compact">
@@ -1794,11 +1913,11 @@ const LeadStaticPage = () => {
 
             <div className="field-compact">
               <label>Project:</label>
-              <input value={lead.project_name || `#${lead.project}`} readOnly />
+              <input value={toTitleCase(lead.project_name || `#${lead.project}`)} readOnly />
             </div>
             <div className="field-compact">
               <label>Purpose:</label>
-              <input value={lead.purpose_name || ""} readOnly />
+              <input value={toTitleCase(lead.purpose_name || "")} readOnly />
             </div>
           </div>
         </div>
@@ -1994,14 +2113,14 @@ const LeadStaticPage = () => {
                         <div className="activity-icon info">i</div>
                         <div className="activity-strip">
                           <div className="strip-title">
-                            {u.title || "(No title)"}
+                            {toTitleCase(u.title || "(No title)")}
                           </div>
 
-                          {body && <div className="strip-sub">{body}</div>}
+                          {body && <div className="strip-sub">{toTitleCase(body)}</div>}
 
                           <div className="strip-sub small">
                             {formatUpdateType(u.update_type)}
-                            {u.created_by_name && ` • ${u.created_by_name}`}
+                            {u.created_by_name && ` • ${toTitleCase(u.created_by_name)}`}
                             {when &&
                               ` • ${new Date(when).toLocaleString("en-GB")}`}
                           </div>
@@ -2027,11 +2146,11 @@ const LeadStaticPage = () => {
                                 {u.status_history.map((sh) => (
                                   <div key={sh.id} className="status-log-line">
                                     <div className="status-log-badge">
-                                      {sh.old_status_label || "-"} →{" "}
-                                      {sh.new_status_label || "-"}
+                                      {toTitleCase(sh.old_status_label || "-")} →{" "}
+                                      {toTitleCase(sh.new_status_label || "-")}
                                     </div>
                                     <div className="status-log-meta">
-                                      {sh.changed_by_name || "Staff"}
+                                      {toTitleCase(sh.changed_by_name || "Staff")}
                                       {sh.event_date &&
                                         ` • ${new Date(
                                           sh.event_date
@@ -2039,7 +2158,7 @@ const LeadStaticPage = () => {
                                     </div>
                                     {sh.comment && (
                                       <div className="status-log-comment">
-                                        {sh.comment}
+                                        {toTitleCase(sh.comment)}
                                       </div>
                                     )}
                                   </div>
@@ -2072,7 +2191,7 @@ const LeadStaticPage = () => {
                       </option>
                       {stages.map((s) => (
                         <option key={s.id} value={s.id}>
-                          {s.order}. {s.name}
+                          {s.order}. {toTitleCase(String(s.name || "").replace(/_/g, " "))}
                         </option>
                       ))}
                     </select>
@@ -2112,15 +2231,15 @@ const LeadStaticPage = () => {
                   </div>
                 ) : (
                   comments.map((c) => (
-                    <div key={c.id} className="comment-item">
+                      <div key={c.id} className="comment-item">
                       <div className="comment-meta">
                         <span className="comment-author">
-                          {c.created_by_name || "Staff"}
+                          {toTitleCase(c.created_by_name || "Staff")}
                         </span>
 
                         {c.stage_at_time_name && (
                           <span className="comment-stage-pill">
-                            {c.stage_at_time_name}
+                            {toTitleCase(c.stage_at_time_name)}
                           </span>
                         )}
 
@@ -2131,7 +2250,7 @@ const LeadStaticPage = () => {
                         )}
                       </div>
 
-                      <div className="comment-text">{c.text}</div>
+                      <div className="comment-text">{toTitleCase(c.text)}</div>
                     </div>
                   ))
                 )}
@@ -2238,11 +2357,11 @@ const LeadStaticPage = () => {
                         <div key={log.id} className="email-log-item">
                           <div className="email-log-header">
                             <span className="email-log-subject">
-                              {log.subject || "(no subject)"}
+                              {toTitleCase(log.subject || "(no subject)")}
                             </span>
                             {log.email_type && (
                               <span className="email-log-chip">
-                                {log.email_type}
+                                {toTitleCase(log.email_type)}
                               </span>
                             )}
                           </div>
@@ -2250,15 +2369,15 @@ const LeadStaticPage = () => {
                           {log.body && (
                             <div className="email-log-body">
                               {log.body.length > 120
-                                ? log.body.slice(0, 120) + "…"
-                                : log.body}
+                                ? toTitleCase(log.body.slice(0, 120) + "…")
+                                : toTitleCase(log.body)}
                             </div>
                           )}
 
                           <div className="email-log-meta">
                             {log.created_at &&
                               new Date(log.created_at).toLocaleString("en-GB")}
-                            {log.sent_by_name ? ` • ${log.sent_by_name}` : ""}
+                            {log.sent_by_name ? ` • ${toTitleCase(log.sent_by_name)}` : ""}
                           </div>
                         </div>
                       ))}
@@ -2336,13 +2455,13 @@ const LeadStaticPage = () => {
                       >
                         <div className="activity-icon info">🧾</div>
                         <div className="activity-strip">
-                          <div className="strip-title">{title}</div>
+                          <div className="strip-title">{toTitleCase(title)}</div>
 
-                          {desc && <div className="strip-sub">{desc}</div>}
+                          {desc && <div className="strip-sub">{toTitleCase(desc)}</div>}
 
                           <div className="strip-sub small">
                             {typeLabel && `${typeLabel} • `}
-                            {who && `${who} • `}
+                            {who && `${toTitleCase(who)} • `}
                             {when && new Date(when).toLocaleString("en-GB")}
                           </div>
                         </div>
@@ -2380,7 +2499,7 @@ const LeadStaticPage = () => {
                           }}
                         >
                           <div className="doc-icon" />
-                          <div className="doc-label">{label}</div>
+                          <div className="doc-label">{toTitleCase(label)}</div>
                         </div>
                       );
                     })}
@@ -2390,7 +2509,7 @@ const LeadStaticPage = () => {
 
               <div className="documents-subtitle">Lead Documents</div>
               <div className="documents-row">
-                {documents.map((doc) => {
+                    {documents.map((doc) => {
                   const label =
                     doc.title && doc.title.trim()
                       ? doc.title.trim()
@@ -2404,7 +2523,7 @@ const LeadStaticPage = () => {
                       style={{ cursor: doc.file_url ? "pointer" : "default" }}
                     >
                       <div className="doc-icon" />
-                      <div className="doc-label">{label}</div>
+                      <div className="doc-label">{toTitleCase(label)}</div>
                     </div>
                   );
                 })}
@@ -2455,12 +2574,12 @@ const LeadStaticPage = () => {
               <div className="field-full">
                 <label>Channel Partner</label>
                 <input
-                  value={
+                  value={toTitleCase(
                     (channelPartner &&
                       (channelPartner.user_name ||
                         channelPartner.company_name)) ||
-                    channelPartnerLabel
-                  }
+                    channelPartnerLabel || ""
+                  )}
                   readOnly
                 />
               </div>
@@ -2472,11 +2591,11 @@ const LeadStaticPage = () => {
                   <div className="field-full">
                     <label>CP Name / Company</label>
                     <input
-                      value={
+                      value={toTitleCase(
                         channelPartner.company_name ||
                         channelPartner.user_name ||
-                        channelPartnerLabel
-                      }
+                        channelPartnerLabel || ""
+                      )}
                       readOnly
                     />
                   </div>
@@ -2496,12 +2615,12 @@ const LeadStaticPage = () => {
                   </div>
                   <div className="field-full">
                     <label>CP Status</label>
-                    <input value={channelPartner.status || "-"} readOnly />
+                    <input value={toTitleCase(channelPartner.status || "-")} readOnly />
                   </div>
                   <div className="field-full">
                     <label>Onboarding Status</label>
                     <input
-                      value={channelPartner.onboarding_status || "-"}
+                      value={toTitleCase(channelPartner.onboarding_status || "-")}
                       readOnly
                     />
                   </div>
@@ -2619,12 +2738,12 @@ const LeadStaticPage = () => {
                     <div className="interested-list">
                       {interestedUnits.map((iu) => (
                         <div key={iu.id} className="interested-item">
-                          <div className="interested-info">
+                            <div className="interested-info">
                             <div className="interested-label">
-                              {iu.unit_label || `Unit #${iu.unit}`}
+                              {toTitleCase(iu.unit_label || `Unit #${iu.unit}`)}
                             </div>
                             <div className="interested-meta">
-                              {iu.project_name || `Project #${iu.project_id}`} •{" "}
+                              {toTitleCase(iu.project_name || `Project #${iu.project_id}`)} •{" "}
                               {iu.created_at
                                 ? new Date(iu.created_at).toLocaleDateString(
                                     "en-GB"
@@ -2673,10 +2792,10 @@ const LeadStaticPage = () => {
                         <div key={u.id} className="interested-item">
                           <div className="interested-info">
                             <div className="interested-label">
-                              {u.label || u.inventory_name}
+                              {toTitleCase(u.label || u.inventory_name || "")}
                             </div>
                             <div className="interested-meta">
-                              {u.tower_name} • {u.floor_name} • {u.unit_no}
+                              {toTitleCase(u.tower_name || "")} • {toTitleCase(u.floor_name || "")} • {toTitleCase(u.unit_no || "")}
                             </div>
                           </div>
                         </div>
@@ -2746,7 +2865,7 @@ const LeadStaticPage = () => {
               </div>
               <div className="field-full">
                 <label>Project Name</label>
-                <input value={lead.project_name || ""} readOnly />
+                <input value={toTitleCase(lead.project_name || "")} readOnly />
               </div>
 
               <div className="field-full">
@@ -2992,6 +3111,7 @@ const LeadStaticPage = () => {
                       organization_name: e.target.value,
                     }))
                   }
+                  placeholder={professionalForm.organization_name ? toTitleCase(professionalForm.organization_name) : ""}
                 />
               </div>
               <div className="field-full">
@@ -3028,18 +3148,29 @@ const LeadStaticPage = () => {
                       office_location: e.target.value,
                     }))
                   }
+                  placeholder={professionalForm.office_location ? toTitleCase(professionalForm.office_location) : "Auto-filled from pincode"}
                 />
               </div>
               <div className="field-full">
-                <label>Pin Code</label>
+                <label>
+                  Pin Code
+                  {loadingOfficePincode && (
+                    <span style={{ fontSize: 12, color: "#6b7280", marginLeft: 4 }}>
+                      (Looking up...)
+                    </span>
+                  )}
+                </label>
                 <input
+                  type="text"
+                  maxLength={6}
                   value={professionalForm.office_pincode}
                   onChange={(e) =>
                     setProfessionalForm((prev) => ({
                       ...prev,
-                      office_pincode: e.target.value,
+                      office_pincode: e.target.value.replace(/\D/g, ""),
                     }))
                   }
+                  placeholder="Enter 6-digit pincode"
                 />
               </div>
             </div>
@@ -3072,6 +3203,7 @@ const LeadStaticPage = () => {
                       flat_or_building: e.target.value,
                     }))
                   }
+                  placeholder={addressForm.flat_or_building ? toTitleCase(addressForm.flat_or_building) : ""}
                 />
               </div>
               <div className="field-full">
@@ -3084,18 +3216,29 @@ const LeadStaticPage = () => {
                       area: e.target.value,
                     }))
                   }
+                  placeholder={addressForm.area ? toTitleCase(addressForm.area) : "Auto-filled from pincode"}
                 />
               </div>
               <div className="field-full">
-                <label>Pin Code</label>
+                <label>
+                  Pin Code
+                  {loadingAddressPincode && (
+                    <span style={{ fontSize: 12, color: "#6b7280", marginLeft: 4 }}>
+                      (Looking up...)
+                    </span>
+                  )}
+                </label>
                 <input
+                  type="text"
+                  maxLength={6}
                   value={addressForm.pincode}
                   onChange={(e) =>
                     setAddressForm((prev) => ({
                       ...prev,
-                      pincode: e.target.value,
+                      pincode: e.target.value.replace(/\D/g, ""),
                     }))
                   }
+                  placeholder="Enter 6-digit pincode"
                 />
               </div>
               <div className="field-full">
@@ -3108,6 +3251,7 @@ const LeadStaticPage = () => {
                       city: e.target.value,
                     }))
                   }
+                  placeholder={addressForm.city ? toTitleCase(addressForm.city) : "Auto-filled from pincode"}
                 />
               </div>
             </div>
@@ -3122,6 +3266,7 @@ const LeadStaticPage = () => {
                       state: e.target.value,
                     }))
                   }
+                  placeholder={addressForm.state ? toTitleCase(addressForm.state) : "Auto-filled from pincode"}
                 />
               </div>
               <div className="field-full">
@@ -3134,6 +3279,7 @@ const LeadStaticPage = () => {
                       country: e.target.value,
                     }))
                   }
+                  placeholder={addressForm.country ? toTitleCase(addressForm.country) : "Auto-filled from pincode"}
                 />
               </div>
             </div>
@@ -3345,7 +3491,7 @@ const LeadStaticPage = () => {
               <div className="field-full">
                 <label>Activity</label>
                 <div className="modal-activity-title">
-                  {activityStatusModal.update.title || "(No title)"}
+                  {toTitleCase(activityStatusModal.update.title || "(No title)")}
                 </div>
               </div>
 
@@ -3363,7 +3509,7 @@ const LeadStaticPage = () => {
                   <option value="">Select status</option>
                   {updateStatusOptions.map((s) => (
                     <option key={s.id} value={s.id}>
-                      {s.label || s.code}
+                      {toTitleCase(s.label || s.code || "")}
                     </option>
                   ))}
                 </select>
@@ -3435,7 +3581,7 @@ const LeadStaticPage = () => {
                         {/* top row: stage + chips + dates */}
                         <div className="stage-history-header-row">
                           <div className="stage-history-left">
-                            <div className="stage-history-stage">{label}</div>
+                            <div className="stage-history-stage">{toTitleCase(label)}</div>
 
                             <div className="stage-history-chips">
                               {h.status_name && (
@@ -3474,13 +3620,13 @@ const LeadStaticPage = () => {
 
                         {/* meta row */}
                         <div className="stage-history-meta">
-                          <span className="stage-history-author">{author}</span>
+                          <span className="stage-history-author">{toTitleCase(author)}</span>
                           {h.id && <span> • ID: {h.id}</span>}
                         </div>
 
                         {/* notes */}
                         {h.notes && (
-                          <div className="stage-history-notes">{h.notes}</div>
+                          <div className="stage-history-notes">{toTitleCase(h.notes)}</div>
                         )}
                       </li>
                     );
@@ -3553,19 +3699,23 @@ const LeadStaticPage = () => {
                     {inventoryTree.map((tower) => (
                       <div key={tower.id} className="inventory-tower">
                         <div className="inventory-tower-title">
-                          {tower.name ||
+                          {toTitleCase(
+                            tower.name ||
                             tower.tower_name ||
-                            `Tower #${tower.id}`}
+                            `Tower #${tower.id}`
+                          )}
                         </div>
 
                         {(tower.floors || tower.children || []).map((floor) => (
                           <div key={floor.id} className="inventory-floor">
                             <div className="inventory-floor-title">
-                              {floor.name ||
+                              {toTitleCase(
+                                floor.name ||
                                 floor.floor_name ||
                                 (floor.number
                                   ? `Floor ${floor.number}`
-                                  : `Floor #${floor.id}`)}
+                                  : `Floor #${floor.id}`)
+                              )}
                             </div>
 
                             <div className="inventory-units-row">
@@ -3592,11 +3742,12 @@ const LeadStaticPage = () => {
                                     return null;
                                   }
 
-                                  const label =
+                                  const label = toTitleCase(
                                     unit.label ||
                                     unit.unit_no ||
                                     unit.inventory_name ||
-                                    `Unit #${unit.id}`;
+                                    `Unit #${unit.id}`
+                                  );
 
                                   // 🔍 local search (text + tower + floor)
                                   const combined = (
@@ -3644,9 +3795,9 @@ const LeadStaticPage = () => {
                                       </span>
                                       {!isAvailable && (
                                         <span className="inventory-unit-pill-tag">
-                                          {status === "BOOKED"
+                                          {toTitleCase(status === "BOOKED"
                                             ? "Booked"
-                                            : status}
+                                            : status || "")}
                                         </span>
                                       )}
                                     </button>
@@ -3673,35 +3824,43 @@ const LeadStaticPage = () => {
                     ) : selectedUnitInfo ? (
                       <div className="unit-detail-card">
                         <div className="unit-detail-title">
-                          {selectedUnitInfo.unit_label ||
+                          {toTitleCase(
+                            selectedUnitInfo.unit_label ||
                             selectedUnitInfo.unit_no ||
-                            `Unit #${selectedUnitId}`}
+                            `Unit #${selectedUnitId}`
+                          )}
                         </div>
 
                         <div className="unit-detail-row">
                           <span>Project</span>
                           <strong>
-                            {selectedUnitInfo.project_name ||
+                            {toTitleCase(
+                              selectedUnitInfo.project_name ||
                               selectedUnitInfo.project?.name ||
-                              "-"}
+                              "-"
+                            )}
                           </strong>
                         </div>
 
                         <div className="unit-detail-row">
                           <span>Tower</span>
                           <strong>
-                            {selectedUnitInfo.tower_name ||
+                            {toTitleCase(
+                              selectedUnitInfo.tower_name ||
                               selectedUnitInfo.tower?.name ||
-                              "-"}
+                              "-"
+                            )}
                           </strong>
                         </div>
 
                         <div className="unit-detail-row">
                           <span>Floor</span>
                           <strong>
-                            {selectedUnitInfo.floor_name ||
+                            {toTitleCase(
+                              selectedUnitInfo.floor_name ||
                               selectedUnitInfo.floor?.number ||
-                              "-"}
+                              "-"
+                            )}
                           </strong>
                         </div>
 

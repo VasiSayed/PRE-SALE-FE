@@ -1598,6 +1598,9 @@ export default function OnsiteRegistration() {
   const [brandLogo, setBrandLogo] = useState("");
   const [companyName, setCompanyName] = useState("");
 
+  // Pincode lookup
+  const [loadingPincode, setLoadingPincode] = useState(false);
+
   // ---------- CP state (REGISTERED vs UNREGISTERED) ----------
   const [cpMode, setCpMode] = useState(CP_MODE.REGISTERED);
 
@@ -1653,6 +1656,34 @@ export default function OnsiteRegistration() {
       setLookupResult(null);
     }
   }, [form.mobile_number, form.project_id]);
+
+  // ---------- Pincode lookup (6 digits) ----------
+  useEffect(() => {
+    const pincodeDigits = (form.residence_pincode || "").replace(/\D/g, "");
+
+    if (pincodeDigits.length === 6) {
+      setLoadingPincode(true);
+      fetch(`https://api.postalpincode.in/pincode/${pincodeDigits}`)
+        .then((res) => res.json())
+        .then((dataArray) => {
+          // Response is an array: [{"Message":"...","Status":"Success","PostOffice":[...]}]
+          const response = dataArray?.[0];
+          if (response?.Status === "Success" && response?.PostOffice?.length > 0) {
+            const postOffice = response.PostOffice[0]; // Use first post office
+            setForm((prev) => ({
+              ...prev,
+              residence_city: postOffice.District || prev.residence_city,
+              residence_locality: postOffice.Name || prev.residence_locality,
+            }));
+          }
+        })
+        .catch((err) => {
+          console.error("pincode lookup failed", err);
+          // Silent fail - manual entry still available
+        })
+        .finally(() => setLoadingPincode(false));
+    }
+  }, [form.residence_pincode]);
 
   // ---------- Load scope with projects (MY_SCOPE) ----------
   useEffect(() => {
@@ -2449,14 +2480,23 @@ export default function OnsiteRegistration() {
           {/* Pin Code / City / Locality */}
           <div className="onsite-row-3 onsite-row-tight">
             <div className="onsite-field">
-              <label className="onsite-label">Pin Code</label>
+              <label className="onsite-label">
+                Pin Code
+                {loadingPincode && (
+                  <span style={{ fontSize: 12, color: "#6b7280", marginLeft: 4 }}>
+                    (Looking up...)
+                  </span>
+                )}
+              </label>
               <input
                 className="onsite-input"
                 type="text"
+                maxLength={6}
                 value={form.residence_pincode}
                 onChange={(e) =>
-                  handleChange("residence_pincode", e.target.value)
+                  handleChange("residence_pincode", e.target.value.replace(/\D/g, ""))
                 }
+                placeholder="Enter 6-digit pincode"
               />
             </div>
 
@@ -2467,6 +2507,7 @@ export default function OnsiteRegistration() {
                 type="text"
                 value={form.residence_city}
                 onChange={(e) => handleChange("residence_city", e.target.value)}
+                placeholder="Auto-filled from pincode"
               />
             </div>
 
@@ -2479,6 +2520,7 @@ export default function OnsiteRegistration() {
                 onChange={(e) =>
                   handleChange("residence_locality", e.target.value)
                 }
+                placeholder="Auto-filled from pincode"
               />
             </div>
           </div>

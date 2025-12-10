@@ -4321,7 +4321,17 @@ const BookingForm = () => {
 
                       <div className="cost-breakdown-row cost-breakdown-total">
                         <span>Total Cost (1)</span>
-                        <span>{formatINR(finalAmount)}</span>
+                        <span>
+                          {formatINR(
+                            Number(agreementValue || 0) +
+                              Number(additionalChargesTotal || 0) +
+                              (parkingRequired === "YES"
+                                ? Number(parkingTotal || 0)
+                                : 0) +
+                              Number(stampAmount || 0) +
+                              Number(gstAmount || 0)
+                          )}
+                        </span>
                       </div>
                     </div>
 

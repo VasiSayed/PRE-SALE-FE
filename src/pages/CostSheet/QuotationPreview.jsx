@@ -526,6 +526,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import axiosInstance from "../../api/axiosInstance";
+import { toTitleCase } from "../../utils/text";
 import "./QuotationPreview.css";
 
 function fmt(val) {
@@ -781,7 +782,7 @@ const QuotationPreview = () => {
               <span className="qp-meta-label">Prepared By:&nbsp;</span>
               <span className="qp-meta-value">
                 {preparedDisplay !== "-"
-                  ? `Sales Executive: ${preparedDisplay}`
+                  ? `Sales Executive: ${toTitleCase(preparedDisplay)}`
                   : "-"}
               </span>
             </div>
@@ -794,7 +795,7 @@ const QuotationPreview = () => {
 
           <div className="qp-panel qp-panel-soft">
             <div className="qp-cust-name">
-              {customer_name || customer_contact_person || "-"}
+              {toTitleCase(customer_name || customer_contact_person || "-")}
             </div>
             <div className="qp-cust-address">
               {customer_phone || customer_email
@@ -808,7 +809,7 @@ const QuotationPreview = () => {
               <div className="qp-cust-col">
                 <div className="qp-label-value">
                   <span className="qp-label">Project:&nbsp;</span>
-                  <span className="qp-value">{project_name || "-"}</span>
+                  <span className="qp-value">{toTitleCase(project_name || "-")}</span>
                 </div>
                 <div className="qp-label-value">
                   <span className="qp-label">Unit No:&nbsp;</span>
@@ -825,7 +826,7 @@ const QuotationPreview = () => {
               <div className="qp-cust-col qp-cust-col-right">
                 <div className="qp-label-value">
                   <span className="qp-label">Tower:&nbsp;</span>
-                  <span className="qp-value">{tower_name || "-"}</span>
+                  <span className="qp-value">{toTitleCase(tower_name || "-")}</span>
                 </div>
                 <div className="qp-label-value">
                   <span className="qp-label">Floor:&nbsp;</span>
@@ -844,7 +845,7 @@ const QuotationPreview = () => {
 
         {/* ============= UNIT NUMBER (show only in print) ============= */}
         <section className="qp-section qp-print-only qp-unit-print-header">
-          <div className="qp-unit-number">Unit No: {unit_no || "-"}</div>
+          <div className="qp-unit-number">Unit No: {toTitleCase(unit_no || "-")}</div>
         </section>
 
         {/* ============= COST BREAKDOWN ============= */}
@@ -1007,7 +1008,7 @@ const QuotationPreview = () => {
               <div className="qp-plan-meta">
                 Payment Plan:&nbsp;
                 <strong>
-                  {payment_plan_detail.name} ({payment_plan_detail.code})
+                  {toTitleCase(payment_plan_detail.name || "")} ({payment_plan_detail.code || ""})
                 </strong>
               </div>
             )}
@@ -1025,7 +1026,7 @@ const QuotationPreview = () => {
                 <tbody>
                   {paymentRows.map((row) => (
                     <tr key={row.key}>
-                      <td>{row.name}</td>
+                      <td>{toTitleCase(row.name || "")}</td>
                       <td className="qp-align-right">
                         {row.percentage != null ? `${row.percentage}%` : "-"}
                       </td>

@@ -422,7 +422,7 @@ const BookingDetail = () => {
                   <div className="booking-field">
                     <span className="booking-field-label">Status Label</span>
                     <span className="booking-field-value">
-                      {booking.status_label}
+                      {toTitleCase(booking.status_label)}
                     </span>
                   </div>
                 )}
@@ -444,7 +444,7 @@ const BookingDetail = () => {
                 <div className="booking-field">
                   <span className="booking-field-label">Channel Partner</span>
                   <span className="booking-field-value">
-                    {channelPartnerName}
+                    {toTitleCase(channelPartnerName)}
                   </span>
                 </div>
 
@@ -465,7 +465,7 @@ const BookingDetail = () => {
                   <div className="booking-field">
                     <span className="booking-field-label">Title</span>
                     <span className="booking-field-value">
-                      {booking.primary_title}
+                      {toTitleCase(booking.primary_title)}
                     </span>
                   </div>
                 )}
@@ -535,7 +535,7 @@ const BookingDetail = () => {
                       Permanent Address
                     </span>
                     <span className="booking-field-value">
-                      {booking.permanent_address}
+                      {toTitleCase(booking.permanent_address)}
                     </span>
                   </div>
                 )}
@@ -546,7 +546,7 @@ const BookingDetail = () => {
                       Correspondence Address
                     </span>
                     <span className="booking-field-value">
-                      {booking.correspondence_address}
+                      {toTitleCase(booking.correspondence_address)}
                     </span>
                   </div>
                 )}
@@ -555,7 +555,7 @@ const BookingDetail = () => {
                   <div className="booking-field booking-field-full">
                     <span className="booking-field-label">Office Address</span>
                     <span className="booking-field-value">
-                      {booking.office_address || booking.office}
+                      {toTitleCase(booking.office_address || booking.office)}
                     </span>
                   </div>
                 )}
@@ -581,7 +581,7 @@ const BookingDetail = () => {
                 {booking.tower && (
                   <div className="booking-field">
                     <span className="booking-field-label">Tower</span>
-                    <span className="booking-field-value">{booking.tower}</span>
+                    <span className="booking-field-value">{toTitleCase(booking.tower)}</span>
                   </div>
                 )}
 
@@ -595,7 +595,7 @@ const BookingDetail = () => {
                 {booking.unit && (
                   <div className="booking-field">
                     <span className="booking-field-label">Flat Number</span>
-                    <span className="booking-field-value">{booking.unit}</span>
+                    <span className="booking-field-value">{toTitleCase(booking.unit)}</span>
                   </div>
                 )}
 
@@ -666,7 +666,7 @@ const BookingDetail = () => {
                   <div className="booking-field booking-field-full">
                     <span className="booking-field-label">Parking Details</span>
                     <span className="booking-field-value">
-                      {booking.parking_details}
+                      {toTitleCase(booking.parking_details)}
                     </span>
                   </div>
                 )}
@@ -754,7 +754,7 @@ const BookingDetail = () => {
                       <div className="booking-custom-plan-head">
                         <div>
                           <strong>Plan Name:&nbsp;</strong>
-                          {customPlan.name || "NA"}
+                          {toTitleCase(customPlan.name || "NA")}
                         </div>
                         {customPlan.base_payment_plan_id && (
                           <div>
@@ -781,7 +781,7 @@ const BookingDetail = () => {
                               {customPlan.slabs.map((slab, index) => (
                                 <tr key={slab.order_index || index}>
                                   <td>{slab.order_index || index + 1}</td>
-                                  <td>{slab.name || "NA"}</td>
+                                  <td>{toTitleCase(slab.name || "NA")}</td>
                                   <td>{formatPercentage(slab.percentage)}</td>
                                   <td>
                                     <span className="rupee-symbol">₹</span>
@@ -818,7 +818,7 @@ const BookingDetail = () => {
                   <div className="booking-field">
                     <span className="booking-field-label">Loan Bank Name</span>
                     <span className="booking-field-value">
-                      {booking.loan_bank_name}
+                      {toTitleCase(booking.loan_bank_name)}
                     </span>
                   </div>
                 )}
@@ -846,7 +846,7 @@ const BookingDetail = () => {
                     <div className="booking-field">
                       <span className="booking-field-label">Plan Name</span>
                       <span className="booking-field-value">
-                        {paymentPlan.name}
+                        {toTitleCase(paymentPlan.name)}
                       </span>
                     </div>
                   )}
@@ -1069,7 +1069,7 @@ const BookingDetail = () => {
                       >
                         <div className="booking-attachment-main">
                           <span className="booking-attachment-label">
-                            {att.label || docNice || "NA"}
+                            {toTitleCase(att.label || docNice || "NA")}
                           </span>
 
                           <span className="booking-attachment-type">
@@ -1117,7 +1117,7 @@ const BookingDetail = () => {
                               {att.bank_name && (
                                 <div className="booking-attachment-meta-item">
                                   <span>Bank</span>
-                                  <strong>{att.bank_name}</strong>
+                                  <strong>{toTitleCase(att.bank_name)}</strong>
                                 </div>
                               )}
                               {att.payment_amount && (
@@ -1140,7 +1140,7 @@ const BookingDetail = () => {
                               {att.remarks && (
                                 <div className="booking-attachment-meta-item booking-attachment-meta-remarks">
                                   <span>Remarks</span>
-                                  <strong>{att.remarks}</strong>
+                                  <strong>{toTitleCase(att.remarks)}</strong>
                                 </div>
                               )}
                               {att.created_at && (
