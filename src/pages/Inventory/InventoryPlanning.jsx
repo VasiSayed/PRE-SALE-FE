@@ -73,6 +73,7 @@ const InventoryPlanning = () => {
       setTree(null);
       setLoading(false);
       setError("");
+      setExpandedTowers(new Set());
       return;
     }
 
@@ -87,12 +88,22 @@ const InventoryPlanning = () => {
         params: { project_id: selectedProjectId },
       })
       .then((res) => {
-        setTree(res.data || null);
+        const treeData = res.data || null;
+        setTree(treeData);
+
+        // Auto-expand if only one tower exists
+        if (treeData && treeData.towers && treeData.towers.length === 1) {
+          setExpandedTowers(new Set([treeData.towers[0].id]));
+        } else {
+          // Multiple towers or no towers - keep all closed
+          setExpandedTowers(new Set());
+        }
       })
       .catch((err) => {
         console.error("Failed to load inventory tree", err);
         setTree(null);
         setError("Failed to load inventory data.");
+        setExpandedTowers(new Set());
       })
       .finally(() => setLoading(false));
   }, [selectedProjectId]);

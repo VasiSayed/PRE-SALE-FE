@@ -56,7 +56,7 @@ const InventoryUnitDetail = () => {
 
   const handleBack = () => {
     if (projectId) {
-      navigate(`/inventory/planning?project_id=${projectId}`);
+      navigate(`/inventory-planning/`);
     } else {
       navigate(-1);
     }
@@ -146,16 +146,28 @@ const InventoryUnitDetail = () => {
           ⟵ Back to Inventory Plan
         </button>
 
-        <div>
-          <h1 className="detail-title">
-            Unit {unit_no || unitId} – {project_name || "Project"}
-          </h1>
-          <div className="detail-breadcrumb">
-            {project_name && <span>{project_name}</span>}
-            {tower_name && <span>› {tower_name}</span>}
-            {floor_number && <span>› Floor {floor_number}</span>}
-            {unit_no && <span>› Unit {unit_no}</span>}
+        <div className="header-content">
+          <div className="header-title-section">
+            <h1 className="detail-title">
+              Unit {unit_no || unitId} – {project_name || "Project"}
+            </h1>
+            <div className="detail-breadcrumb">
+              {project_name && <span>{project_name}</span>}
+              {tower_name && <span>› {tower_name}</span>}
+              {floor_number && <span>› Floor {floor_number}</span>}
+              {unit_no && <span>› Unit {unit_no}</span>}
+            </div>
           </div>
+          {/* <div className={`header-status-badge status-${availability_status || "default"}`}>
+            <span className="header-status-icon">
+              {availability_status === "AVAILABLE" && "✓"}
+              {availability_status === "BOOKED" && "✕"}
+              {availability_status === "BLOCKED" && "⚠"}
+            </span>
+            <span className="header-status-text">
+              {availability_status_label || availability_status || "Unknown"}
+            </span>
+          </div> */}
         </div>
       </div>
 
@@ -195,28 +207,37 @@ const InventoryUnitDetail = () => {
           </div>
         </div>
 
-        <div className="card status-card">
+        <div className={`card status-card status-card-${availability_status || "default"}`}>
           <div className="card-title">Status</div>
 
-          <div className="status-row">
-            <span className="badge-label">Inventory</span>
-            <span className="badge badge-soft">
-              {status_label || status || "-"}
-            </span>
+          <div className="status-primary-badge">
+            <div className="status-primary-label">Availability Status</div>
+            <div className={`status-primary-value status-${availability_status || "default"}`}>
+              <span className="status-icon">
+                {availability_status === "AVAILABLE" && "✓"}
+                {availability_status === "BOOKED" && "✕"}
+                {availability_status === "BLOCKED" && "⚠"}
+              </span>
+              <span className="status-text">
+                {availability_status_label || availability_status || "Unknown"}
+              </span>
+            </div>
           </div>
 
-          <div className="status-row">
-            <span className="badge-label">Availability</span>
-            <span className={`badge badge-${availability_status || "default"}`}>
-              {availability_status_label || availability_status || "-"}
-            </span>
-          </div>
+          <div className="status-secondary-group">
+            <div className="status-row">
+              <span className="badge-label">Inventory</span>
+              <span className="badge badge-soft">
+                {status_label || status || "-"}
+              </span>
+            </div>
 
-          <div className="status-row">
-            <span className="badge-label">Unit Status</span>
-            <span className="badge badge-soft">
-              {unit_status_label || unit_status || "-"}
-            </span>
+            <div className="status-row">
+              <span className="badge-label">Unit Status</span>
+              <span className="badge badge-soft">
+                {unit_status_label || unit_status || "-"}
+              </span>
+            </div>
           </div>
 
           <div className="meta-row">
