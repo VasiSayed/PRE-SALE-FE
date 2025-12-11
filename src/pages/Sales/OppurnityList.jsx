@@ -5,6 +5,7 @@ import axiosInstance from "../../api/axiosInstance";
 import SearchBar from "../../common/SearchBar";
 import "../PreSalesCRM/Leads/LeadsList.css"; // Use LeadsList CSS for consistent styling
 import { toast } from "react-toastify";
+import { getBrandTheme, getFontFamily, applyThemeToRoot } from "../../utils/theme";
 
 function debounce(fn, delay) {
   let timeoutId;
@@ -44,6 +45,7 @@ export default function OppurnityList() {
   const [rows, setRows] = useState([]);
   const [projects, setProjects] = useState([]);
   const [excelUploading, setExcelUploading] = useState(false);
+  const [theme, setTheme] = useState(() => getBrandTheme());
 
   // filters
   const [q, setQ] = useState("");
@@ -301,6 +303,13 @@ const downloadSampleExcel = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [status, selectedProjectIds, startDate, endDate]
   );
+
+  // ---- load theme on mount ----
+  useEffect(() => {
+    const currentTheme = getBrandTheme();
+    setTheme(currentTheme);
+    applyThemeToRoot(currentTheme);
+  }, []);
 
   // ---- load my-scope projects + initial fetch ----
   useEffect(() => {
@@ -618,9 +627,18 @@ const downloadSampleExcel = () => {
   );
 
   const totalOpp = summary?.total ?? count;
+  const fontFamilyStr = getFontFamily(theme.font_family);
 
   return (
-    <div className="leads-list-page">
+    <div 
+      className="leads-list-page"
+      style={{
+        backgroundColor: theme.background_color,
+        fontFamily: fontFamilyStr,
+        fontSize: `${theme.base_font_size}px`,
+        color: theme.heading_color,
+      }}
+    >
       <div className="leads-list-container">
         {/* Header */}
         <div className="list-header">
@@ -648,6 +666,11 @@ const downloadSampleExcel = () => {
               type="button"
               className="filter-btn"
               onClick={() => setModalOpen(true)}
+              style={{
+                backgroundColor: theme.button_primary_bg,
+                color: theme.button_primary_text,
+                fontFamily: fontFamilyStr,
+              }}
             >
               <i className="fa fa-filter" /> Filters
             </button>
@@ -656,6 +679,11 @@ const downloadSampleExcel = () => {
               type="button"
               className="filter-btn"
               onClick={downloadSampleExcel}
+              style={{
+                backgroundColor: theme.button_primary_bg,
+                color: theme.button_primary_text,
+                fontFamily: fontFamilyStr,
+              }}
             >
               ⬇ Sample excel
             </button>
@@ -667,6 +695,11 @@ const downloadSampleExcel = () => {
                 document.getElementById("opp-excel-input")?.click()
               }
               disabled={excelUploading}
+              style={{
+                backgroundColor: theme.button_primary_bg,
+                color: theme.button_primary_text,
+                fontFamily: fontFamilyStr,
+              }}
             >
               {excelUploading ? "Importing..." : "📥 Import excel"}
             </button>
@@ -674,6 +707,11 @@ const downloadSampleExcel = () => {
             <button
               className="filter-btn"
               onClick={() => navigate("/sales/opportunities/add")}
+              style={{
+                backgroundColor: theme.button_primary_bg,
+                color: theme.button_primary_text,
+                fontFamily: fontFamilyStr,
+              }}
             >
               <i className="fa fa-plus"  />
               Add opportunity
@@ -950,10 +988,22 @@ const downloadSampleExcel = () => {
             </div>
 
             <div className="filter-actions">
-              <button className="btn-secondary" onClick={resetFilters}>
+              <button 
+                className="btn-secondary" 
+                onClick={resetFilters}
+                style={{ fontFamily: fontFamilyStr }}
+              >
                 Reset
               </button>
-              <button className="btn-primary" onClick={applyFilters}>
+              <button 
+                className="btn-primary" 
+                onClick={applyFilters}
+                style={{
+                  backgroundColor: theme.button_primary_bg,
+                  color: theme.button_primary_text,
+                  fontFamily: fontFamilyStr,
+                }}
+              >
                 Apply filters
               </button>
             </div>
@@ -1032,10 +1082,19 @@ const downloadSampleExcel = () => {
               <button
                 className="btn-secondary"
                 onClick={() => setStatusModalOpen(false)}
+                style={{ fontFamily: fontFamilyStr }}
               >
                 Cancel
               </button>
-              <button className="btn-primary" onClick={submitStatusChange}>
+              <button 
+                className="btn-primary" 
+                onClick={submitStatusChange}
+                style={{
+                  backgroundColor: theme.button_primary_bg,
+                  color: theme.button_primary_text,
+                  fontFamily: fontFamilyStr,
+                }}
+              >
                 Update status
               </button>
             </div>

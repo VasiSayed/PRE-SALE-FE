@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import api from "../../api/axiosInstance";
 import profileImg from "../../assets/profile.jpg";
 import "./Navbar.css";
+import { useAuth } from "../../context/AuthContext";
+import { getBrandTheme, getFontFamily, applyThemeToRoot } from "../../utils/theme";
 
-// Inline SVG icons
+
 const BellIcon = ({ className = "", size = 20 }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -67,55 +68,47 @@ const ProfileIcon = ({ className = "", size = 20 }) => (
 
 // Navbar Component
 function Navbar({ currentUser, onLogout, showLogout = true }) {
+  const { brand: brandFromAuth } = useAuth();
+
+  // Defaults: when no brand exists
   const [brandLogo, setBrandLogo] = useState(profileImg);
-  const [brandName, setBrandName] = useState(
-    "Shree Ram Krushna Developer – Deep Shikhar"
-  );
+  const [brandName, setBrandName] = useState("Myciti.life");
+  const [theme, setTheme] = useState(() => getBrandTheme());
 
-  const [primaryColor, setPrimaryColor] = useState('#102a54'); // Default color
-  const [fontFamily, setFontFamily] = useState("'Inter', 'Segoe UI', 'Roboto', 'Open Sans', sans-serif"); // Default font
-
-  // Load brand details (logo + name + colors + font) from my-scope once after login
   useEffect(() => {
-    let isMounted = true;
+    const fallbackName = "myciti.life";
+    const fallbackLogo = profileImg;
 
-    // First try to load from localStorage
-    try {
-      const myScopeStr = localStorage.getItem('MY_SCOPE');
-      if (myScopeStr) {
-        const myScope = JSON.parse(myScopeStr);
-        const brand = myScope?.brand || {};
-        
-        if (!isMounted) return;
-        
-        if (brand.logo_url) setBrandLogo(brand.logo_url);
-        if (brand.company_name) setBrandName(brand.company_name);
-        if (brand.primary_color) setPrimaryColor(brand.primary_color);
-        if (brand.font) setFontFamily(brand.font);
+    let effectiveBrand = brandFromAuth || null;
+
+    // If context empty (e.g. fresh reload), try localStorage
+    if (!effectiveBrand) {
+      try {
+        const stored = localStorage.getItem("BRAND_THEME");
+        if (stored) {
+          effectiveBrand = JSON.parse(stored);
+        }
+      } catch (err) {
+        console.error("Failed to parse BRAND_THEME from localStorage", err);
       }
-    } catch (err) {
-      console.error("Failed to load brand info from localStorage", err);
     }
 
-    // Also fetch from API as fallback/update
-    api
-      .get("/client/my-scope/")
-      .then((res) => {
-        const brand = res?.data?.brand || {};
-        if (!isMounted) return;
-        if (brand.logo_url) setBrandLogo(brand.logo_url);
-        if (brand.company_name) setBrandName(brand.company_name);
-        if (brand.primary_color) setPrimaryColor(brand.primary_color);
-        if (brand.font) setFontFamily(brand.font);
-      })
-      .catch((err) => {
-        console.error("Failed to load brand info", err);
-      });
+    // Get theme with defaults
+    const currentTheme = getBrandTheme();
+    setTheme(currentTheme);
 
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+    // Apply CSS variables to root
+    applyThemeToRoot(currentTheme);
+
+    // Set brand logo and name
+    if (effectiveBrand) {
+      setBrandLogo(effectiveBrand.logo || fallbackLogo);
+      setBrandName(effectiveBrand.company_name || fallbackName);
+    } else {
+      setBrandLogo(fallbackLogo);
+      setBrandName(fallbackName);
+    }
+  }, [brandFromAuth]);
 
   // Convert "SUPER_ADMIN" → "Super Admin"
   const formatLabel = (val) => {
@@ -130,6 +123,8 @@ function Navbar({ currentUser, onLogout, showLogout = true }) {
   const roleLabel = formatLabel(currentUser?.role);
   const username = currentUser?.username || currentUser?.email || "";
 
+  const fontFamilyStr = getFontFamily(theme.font_family);
+
   return (
     <nav
       className="custom-navbar"
@@ -137,12 +132,13 @@ function Navbar({ currentUser, onLogout, showLogout = true }) {
         margin: 0,
         padding: "12px 32px 12px 12px",
         width: "100%",
-        backgroundColor: primaryColor,
+        backgroundColor: theme.primary_color,
         borderRadius: 0,
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        fontFamily: fontFamily,
+        fontFamily: fontFamilyStr,
+        fontSize: `${theme.base_font_size}px`,
       }}
     >
       {/* LEFT SECTION */}
@@ -158,7 +154,8 @@ function Navbar({ currentUser, onLogout, showLogout = true }) {
           style={{
             fontSize: "1.8rem",
             fontWeight: "600",
-            fontFamily: fontFamily,
+            fontFamily: fontFamilyStr,
+            color: theme.secondary_color,
             letterSpacing: "-0.5px",
             marginLeft: 8,
           }}
@@ -171,31 +168,44 @@ function Navbar({ currentUser, onLogout, showLogout = true }) {
       <div className="ms-auto d-flex align-items-center gap-3">
         {currentUser && (
           <div className="nav-user-block me-2">
-            {roleLabel && <div className="nav-user-role">{roleLabel}</div>}
-            {username && <div className="nav-user-name">{username}</div>}
+            {roleLabel && (
+              <div className="nav-user-role" style={{ color: theme.secondary_color }}>
+                {roleLabel}
+              </div>
+            )}
+            {username && (
+              <div className="nav-user-name" style={{ color: theme.secondary_color }}>
+                {username}
+              </div>
+            )}
           </div>
         )}
 
         {/* Notification */}
-        <BellIcon className="icon" />
+        <BellIcon className="icon" style={{ color: theme.secondary_color }} />
 
         {/* Settings */}
         <Link to="/setup" aria-label="Open Setup">
-          <GearIcon className="icon" />
+          <GearIcon className="icon" style={{ color: theme.secondary_color }} />
         </Link>
 
-        {/* PROFILE (NOW WORKING) */}
+        {/* Profile */}
         <Link to="/profile" aria-label="Profile Page">
-          <ProfileIcon className="icon" />
+          <ProfileIcon className="icon" style={{ color: theme.secondary_color }} />
         </Link>
 
         {/* Logout */}
         {showLogout && (
-          <button 
-            onClick={onLogout} 
-            className="logout-btn" 
+          <button
+            onClick={onLogout}
+            className="logout-btn"
             title="Logout"
-            style={{ fontFamily: fontFamily }}
+            style={{
+              fontFamily: fontFamilyStr,
+              backgroundColor: "transparent",
+              borderColor: theme.secondary_color,
+              color: theme.secondary_color,
+            }}
           >
             Logout
           </button>

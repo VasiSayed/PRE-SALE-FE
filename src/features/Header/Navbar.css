@@ -5,8 +5,8 @@
 }
 
 .custom-navbar {
-  background-color: #102a54 !important;
-   padding: 12px 32px 12px 12px;
+  background-color: var(--theme-primary-color, #102a54) !important;
+  padding: 12px 32px 12px 12px;
   margin: 0;
   border: none;
   display: flex;
@@ -14,6 +14,8 @@
   justify-content: space-between;
   width: 100%;
   box-sizing: border-box;
+  font-family: var(--theme-font-family, 'Inter', system-ui, -apple-system, 'Segoe UI', 'Roboto', 'Open Sans', sans-serif);
+  font-size: var(--theme-base-font-size, 14px);
 }
 
 .custom-navbar .d-flex {
@@ -35,10 +37,10 @@
 
 
 .custom-navbar .text-white {
-  color: #ffffff;
+  color: var(--theme-secondary-color, #ffffff);
   font-size: 1.8rem;
   font-weight: 600;
-  font-family: 'Inter', 'Segoe UI', 'Roboto', 'Open Sans', sans-serif;
+  font-family: var(--theme-font-family, 'Inter', 'Segoe UI', 'Roboto', 'Open Sans', sans-serif);
   letter-spacing: -0.5px;
   margin-left: 8px;
   line-height: 1.2;
@@ -71,14 +73,14 @@
 .nav-user-role {
   font-size: 0.8rem;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--theme-secondary-color, #ffffff);
   opacity: 0.85;
   text-transform: none; 
 }
 
 .nav-user-name {
   font-size: 0.75rem;
-  color: #ffffff;
+  color: var(--theme-secondary-color, #ffffff);
   opacity: 0.8;
 }
 
@@ -93,33 +95,33 @@
 .icon {
   width: 22px;
   height: 22px;
-  color: #ffffff;
+  color: var(--theme-secondary-color, #ffffff);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .icon:hover {
-  color: #f1c40f;
+  color: var(--theme-accent-color, #f1c40f);
   transform: translateY(-1px) scale(1.05);
 }
 
 .logout-btn {
   background-color: transparent;
-  border: 1px solid #ffffff;
-  color: #ffffff;
+  border: 1px solid var(--theme-secondary-color, #ffffff);
+  color: var(--theme-secondary-color, #ffffff);
   padding: 6px 16px;
   border-radius: 6px;
   font-size: 0.9rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.3s ease;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: var(--theme-font-family, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif);
   margin-left: 8px;
 }
 
 .logout-btn:hover {
-  background-color: #ffffff;
-  color: #102a54;
+  background-color: var(--theme-secondary-color, #ffffff);
+  color: var(--theme-primary-color, #102a54);
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(255, 255, 255, 0.2);
 }

@@ -1,5 +1,5 @@
 // src/components/Auth/Auth.jsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import Navbar from "../Header/Navbar";
@@ -97,7 +97,7 @@ const MailIcon = ({ size = 24 }) => (
 );
 
 export default function Auth() {
-  const { login, loginWithOtp, user } = useAuth();
+  const { login, loginWithOtp, user, brand: brandFromAuth } = useAuth();
   const nav = useNavigate();
   const loc = useLocation();
   const from = loc.state?.from || "/dashboard";
@@ -121,6 +121,55 @@ export default function Auth() {
   const [otpSending, setOtpSending] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [error, setError] = useState("");
+
+  // 🆕 brand for Auth page header
+  const [brandLogo, setBrandLogo] = useState(profileImg);
+  const [brandName, setBrandName] = useState("myciti.life");
+  const [brandFont, setBrandFont] = useState(
+    "'Inter', system-ui, -apple-system, 'Segoe UI', 'Roboto', 'Open Sans', sans-serif"
+  );
+  const [brandAccent, setBrandAccent] = useState("#102a54");
+
+  // Load brand from AuthContext or localStorage
+  useEffect(() => {
+    const fallbackName = "myciti.life";
+    const fallbackLogo = profileImg;
+    const fallbackFont =
+      "'Inter', system-ui, -apple-system, 'Segoe UI', 'Roboto', 'Open Sans', sans-serif";
+    const fallbackAccent = "#102a54";
+
+    let effectiveBrand = brandFromAuth || null;
+
+    if (!effectiveBrand) {
+      try {
+        const stored = localStorage.getItem("BRAND_THEME");
+        if (stored) {
+          effectiveBrand = JSON.parse(stored);
+        }
+      } catch (err) {
+        console.error("Failed to parse BRAND_THEME from localStorage", err);
+      }
+    }
+
+    if (effectiveBrand) {
+      setBrandLogo(effectiveBrand.logo || fallbackLogo);
+      setBrandName(effectiveBrand.company_name || fallbackName);
+      setBrandAccent(effectiveBrand.primary_color || fallbackAccent);
+
+      if (effectiveBrand.font_family) {
+        setBrandFont(
+          `${effectiveBrand.font_family}, system-ui, -apple-system, 'Segoe UI', 'Roboto', 'Open Sans', sans-serif`
+        );
+      } else {
+        setBrandFont(fallbackFont);
+      }
+    } else {
+      setBrandLogo(fallbackLogo);
+      setBrandName(fallbackName);
+      setBrandAccent(fallbackAccent);
+      setBrandFont(fallbackFont);
+    }
+  }, [brandFromAuth]);
 
   const handleInputChange = (e) => {
     setFormData((prev) => ({
@@ -255,7 +304,7 @@ export default function Auth() {
   const isOtpMode = loginMode === "otp";
 
   return (
-    <div className="auth-page">
+    <div className="auth-page" style={{ fontFamily: brandFont }}>
       {/* Reusable Navbar Component */}
       <Navbar showLogout={false} currentUser={user} />
 
@@ -266,9 +315,18 @@ export default function Auth() {
             {/* Logo Section */}
             <div className="auth-header">
               <div className="auth-logo">
-                <img src={profileImg} alt="Logo" className="logo-image" />
+                <img
+                  src={brandLogo || profileImg}
+                  alt={brandName}
+                  className="logo-image"
+                />
               </div>
-              <h1 className="auth-title">SHREE RAM KRUSHNA DEVELOPERS</h1>
+              <h1
+                className="auth-title"
+                style={{ fontFamily: brandFont, color: brandAccent }}
+              >
+                {brandName}
+              </h1>
               <p className="auth-subtitle">
                 {isLogin
                   ? "Welcome back! Please login to your account."
