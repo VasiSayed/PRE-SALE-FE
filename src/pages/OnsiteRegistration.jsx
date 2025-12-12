@@ -3009,31 +3009,54 @@ export default function OnsiteRegistration() {
 
       {/* Success modal after creating onsite registration */}
       {showSuccessModal && (
-        <div className="modal-overlay">
-          <div
-            className="modal"
-            style={{ maxWidth: "520px", textAlign: "center" }}
-          >
-            <h3 className="modal-title">Thank you!</h3>
+              <div className="modal-overlay">
+                <div
+                  className="modal"
+                  style={{
+                    maxWidth: "520px",
+                    textAlign: "center",
+                    padding: "24px 32px",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  <h3
+                    className="modal-title"
+                    style={{
+                      fontSize: "22px",
+                      fontWeight: "700",
+                      marginBottom: "18px",
+                      color: "#102a54",
+                    }}
+                  >
+                    Thank you!
+                  </h3>
 
-            <p style={{ fontSize: 14, color: "#4b5563", marginBottom: 12 }}>
-              Dear <strong>{successLeadName || "Customer"}</strong>,
-            </p>
-            <p style={{ fontSize: 14, color: "#4b5563", marginBottom: 16 }}>
-              Thank you so much for taking the time to fill out our registration
-              form and for trusting us with your personal details. We truly
-              appreciate it.
-            </p>
-            <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 24 }}>
-              Please rest assured that your information is safe with us. We
-              respect your privacy, and you will never receive unnecessary calls
-              or messages from our side — whether or not you decide to purchase
-              a property with us.
-            </p>
-            <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 24 }}>
-              Warm Regards,<br></br>
-              Team Shree Ram Krushna Developers
-            </p>
+                  <p style={{ fontSize: 15, color: "#4b5563", marginBottom: 12 }}>
+                    Dear {successLeadName || "Customer"},
+                  </p>
+
+                  <p style={{ fontSize: 14, color: "#4b5563", marginBottom: 16 }}>
+                    Thank you for taking the time to fill out our registration form
+                    and for trusting us with your personal details.  
+                    We truly appreciate it.
+                  </p>
+
+                  <p style={{ fontSize: 14, color: "#6b7280", marginBottom: 18 }}>
+                    Please rest assured that your information is safe with us.  
+                    We respect your privacy, and you will never receive unnecessary
+                    calls or messages from our side — whether or not you decide to
+                    purchase a property with us.
+                  </p>
+
+                  <p style={{ fontSize: 14, color: "#6b7280", marginBottom: 6 }}>
+                    Warm Regards,
+                  </p>
+
+                  <p style={{ fontSize: 14, color: "#374151", fontWeight: 600 }}>
+                    Team Shree Ram Krushna Developers
+                  </p>  
+
+
             <div className="modal-actions" style={{ justifyContent: "center" }}>
               <button
                 type="button"
@@ -3151,4 +3174,3 @@ export default function OnsiteRegistration() {
     </div>
   );
 }
-1

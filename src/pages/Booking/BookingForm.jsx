@@ -1814,7 +1814,7 @@
 //     // Development Charges @ PSF × total area
 //     const devPsqf = Number(costTemplate.development_charges_psf || 0);
 //     const devAmount = devPsqf * totalAreaForCharges;
-    
+
 //     // Electrical, Water, Gas (flat)
 //     const electrical = Number(
 //       costTemplate.electrical_watern_n_all_charges || 0
@@ -1830,10 +1830,10 @@
 
 //     // Base for GST: Legal + Development + Electrical + Provisional Maintenance
 //     const baseForGst = legalAmount + devAmount + electrical + provAmount;
-    
+
 //     // GST on possession (18%) - applied on baseForGst
 //     const possessionGst = (baseForGst * 18) / 100;
-    
+
 //     // Total with GST (includes shareFee which is not in GST base)
 //     const totalWithGst = shareFee + baseForGst + possessionGst;
 
@@ -5938,6 +5938,7 @@ const BookingForm = () => {
       null
   );
   const [projectName, setProjectName] = useState("");
+  const [photoError, setPhotoError] = useState("");
 
   // (section/activeItem kept if you later re-enable SalesSubnav)
   const [section] = useState("pre");
@@ -6165,7 +6166,8 @@ const BookingForm = () => {
 
   // Editable possession charges fields
   const [developmentChargesPsf, setDevelopmentChargesPsf] = useState("500"); // Default 500
-  const [provisionalMaintenanceMonths, setProvisionalMaintenanceMonths] = useState(6);
+  const [provisionalMaintenanceMonths, setProvisionalMaintenanceMonths] =
+    useState(6);
 
   // Computed values for display
   const [additionalChargesTotal, setAdditionalChargesTotal] = useState(0);
@@ -6808,7 +6810,9 @@ const BookingForm = () => {
           setDevelopmentChargesPsf("500"); // Default 500 if not provided
         }
         if (template.provisional_maintenance_months) {
-          setProvisionalMaintenanceMonths(Number(template.provisional_maintenance_months) || 6);
+          setProvisionalMaintenanceMonths(
+            Number(template.provisional_maintenance_months) || 6
+          );
         } else {
           setProvisionalMaintenanceMonths(6); // default
         }
@@ -7533,7 +7537,12 @@ const BookingForm = () => {
     );
 
     // Development Charges @ PSF × total area (use editable value, minimum 1, default 500)
-    const devPsqf = Math.max(1, Number(developmentChargesPsf || costTemplate.development_charges_psf || 500));
+    const devPsqf = Math.max(
+      1,
+      Number(
+        developmentChargesPsf || costTemplate.development_charges_psf || 500
+      )
+    );
     const devAmount = devPsqf * totalAreaForCharges;
 
     // Electrical, Water, Gas (flat)
@@ -7543,7 +7552,11 @@ const BookingForm = () => {
 
     // Provisional Maintenance @ PSF × total area × months (use editable value)
     const provPsqf = Number(costTemplate.provisional_maintenance_psf || 0);
-    const provMonths = Number(provisionalMaintenanceMonths || costTemplate.provisional_maintenance_months || 6);
+    const provMonths = Number(
+      provisionalMaintenanceMonths ||
+        costTemplate.provisional_maintenance_months ||
+        6
+    );
     const provAmount = provPsqf * totalAreaForCharges * provMonths;
 
     // Legal & Compliance Charges (flat)
@@ -7633,11 +7646,15 @@ const BookingForm = () => {
     }
     // Validate PAN card uploads (Front and Back are mandatory)
     if (!files.primaryPanFront) {
-      toast.error("Please upload PAN card front side image for primary applicant.");
+      toast.error(
+        "Please upload PAN card front side image for primary applicant."
+      );
       return;
     }
     if (!files.primaryPanBack) {
-      toast.error("Please upload PAN card back side image for primary applicant.");
+      toast.error(
+        "Please upload PAN card back side image for primary applicant."
+      );
       return;
     }
     if (!primaryAadharNo || !validateAadhar(primaryAadharNo)) {
@@ -7645,18 +7662,39 @@ const BookingForm = () => {
       return;
     }
     // Validate Aadhar card uploads (Front and Back are mandatory)
+    // if (!files.primaryAadharFront) {
+    //   toast.error("Please upload Aadhar card front side image for primary applicant.");
+    //   return;
+    // }
+    // if (!files.primaryAadharBack) {
+    //   toast.error("Please upload Aadhar card back side image for primary applicant.");
+    //   return;
+    // }
+
     if (!files.primaryAadharFront) {
-      toast.error("Please upload Aadhar card front side image for primary applicant.");
+      toast.error(
+        "Please upload Aadhar card front side image for primary applicant."
+      );
       return;
     }
     if (!files.primaryAadharBack) {
-      toast.error("Please upload Aadhar card back side image for primary applicant.");
+      toast.error(
+        "Please upload Aadhar card back side image for primary applicant."
+      );
       return;
     }
+
+    // NEW — block booking if no profile photo
+    if (!photoFile) {
+      toast.error("Please upload Profile Photo before saving the booking.");
+      return;
+    }
+
     if (email1 && !validateEmail(email1)) {
       toast.error("Please enter a valid email address.");
       return;
     }
+
     if (phone1 && !validatePhone(phone1)) {
       toast.error("Please enter a valid 10-digit phone number.");
       return;
@@ -7674,11 +7712,19 @@ const BookingForm = () => {
       return;
     }
     if (paymentPlanType === "MASTER" && masterTotalPercentage !== 100) {
-      toast.error(`Master payment plan slabs must total 100%. Current total: ${Math.floor(masterTotalPercentage)}%`);
+      toast.error(
+        `Master payment plan slabs must total 100%. Current total: ${Math.floor(
+          masterTotalPercentage
+        )}%`
+      );
       return;
     }
     if (paymentPlanType === "CUSTOM" && customTotalPercentage !== 100) {
-      toast.error(`Custom payment plan slabs must total 100%. Current total: ${Math.floor(customTotalPercentage)}%`);
+      toast.error(
+        `Custom payment plan slabs must total 100%. Current total: ${Math.floor(
+          customTotalPercentage
+        )}%`
+      );
       return;
     }
 
@@ -7700,29 +7746,45 @@ const BookingForm = () => {
           );
           return;
         }
-        
+
         // Validate PAN card uploads for additional applicants (if PAN is provided)
         if (app.pan && app.pan.trim()) {
           const filePrefix = ["second", "third", "fourth"][i];
           if (!files[`${filePrefix}PanFront`]) {
-            toast.error(`Please upload PAN card front side image for applicant ${i + 2}: ${app.full_name}`);
+            toast.error(
+              `Please upload PAN card front side image for applicant ${
+                i + 2
+              }: ${app.full_name}`
+            );
             return;
           }
           if (!files[`${filePrefix}PanBack`]) {
-            toast.error(`Please upload PAN card back side image for applicant ${i + 2}: ${app.full_name}`);
+            toast.error(
+              `Please upload PAN card back side image for applicant ${i + 2}: ${
+                app.full_name
+              }`
+            );
             return;
           }
         }
-        
+
         // Validate Aadhar card uploads for additional applicants (if Aadhar is provided)
         if (app.aadhar && app.aadhar.trim()) {
           const filePrefix = ["second", "third", "fourth"][i];
           if (!files[`${filePrefix}AadharFront`]) {
-            toast.error(`Please upload Aadhar card front side image for applicant ${i + 2}: ${app.full_name}`);
+            toast.error(
+              `Please upload Aadhar card front side image for applicant ${
+                i + 2
+              }: ${app.full_name}`
+            );
             return;
           }
           if (!files[`${filePrefix}AadharBack`]) {
-            toast.error(`Please upload Aadhar card back side image for applicant ${i + 2}: ${app.full_name}`);
+            toast.error(
+              `Please upload Aadhar card back side image for applicant ${
+                i + 2
+              }: ${app.full_name}`
+            );
             return;
           }
         }
@@ -7823,13 +7885,13 @@ const BookingForm = () => {
           label: charge.name,
           amount: charge.amount.toFixed(2),
         }));
-      
+
       // Send as FormData array using bracket notation (similar to applicants)
       additionalChargesFormatted.forEach((charge, index) => {
         fd.append(`additional_charges[${index}][label]`, charge.label);
         fd.append(`additional_charges[${index}][amount]`, charge.amount);
       });
-      
+
       fd.append("additional_charges_total", additionalChargesTotal.toFixed(2));
       fd.append("amount_before_taxes", amountBeforeTaxes.toFixed(2));
 
@@ -7867,14 +7929,23 @@ const BookingForm = () => {
       // ==================================================
       // Development Charges PSF (editable) - this will override the one sent in possession charges section
       // Minimum is 1, default is 500
-      const devChargesPsfValue = Math.max(1, Number(developmentChargesPsf || (costTemplate?.development_charges_psf || 500)));
+      const devChargesPsfValue = Math.max(
+        1,
+        Number(
+          developmentChargesPsf || costTemplate?.development_charges_psf || 500
+        )
+      );
       fd.append("development_charges_psf", devChargesPsfValue.toFixed(2));
 
       // Provisional Maintenance Months (editable)
-      const provMonthsValue = Number(provisionalMaintenanceMonths || costTemplate?.provisional_maintenance_months || 6);
+      const provMonthsValue = Number(
+        provisionalMaintenanceMonths ||
+          costTemplate?.provisional_maintenance_months ||
+          6
+      );
       fd.append("provisional_maintenance_months", provMonthsValue);
 
-      // Note: discount_amount, gst_percent, stamp_duty_percent, and additional_charges 
+      // Note: discount_amount, gst_percent, stamp_duty_percent, and additional_charges
       // are already sent above in their respective sections
 
       // ==================================================
@@ -8487,7 +8558,7 @@ const BookingForm = () => {
                 </div>
               )}
 
-              <div className="bf-photo-row">
+              {/* <div className="bf-photo-row">
                 <div className="bf-photo-upload">
                   <div className="bf-photo-circle" />
                   <input
@@ -8509,6 +8580,68 @@ const BookingForm = () => {
                   </label>
                   {photoFile && (
                     <div className="bf-file-name">Photo: {photoFile.name}</div>
+                  )}
+                </div>
+              </div> */}
+
+              <div className="bf-photo-row">
+                <div className="bf-photo-upload">
+                  {/* Label + Required Star */}
+                  <label
+                    style={{
+                      fontWeight: "600",
+                      marginBottom: "6px",
+                      display: "block",
+                    }}
+                  >
+                    Profile Photo <span style={{ color: "red" }}>*</span>
+                  </label>
+
+                  {/* Circle Preview */}
+                  <div className="bf-photo-circle" />
+
+                  {/* File Input */}
+                  <input
+                    id="bookingPhotoInput"
+                    type="file"
+                    accept="image/*"
+                    style={{ display: "none" }}
+                    onChange={(e) => {
+                      const f = e.target.files && e.target.files[0];
+                      if (f) {
+                        setPhotoFile(f);
+                        setPhotoError(""); // clear error
+                      }
+                    }}
+                  />
+
+                  {/* Upload Button */}
+                  <label
+                    htmlFor="bookingPhotoInput"
+                    className="bf-btn-secondary"
+                    style={{ cursor: "pointer" }}
+                  >
+                    Upload Photo
+                  </label>
+
+                  {/* Show name only when file selected */}
+                  {photoFile && (
+                    <div className="bf-file-name">
+                      Selected: {photoFile.name}
+                    </div>
+                  )}
+
+                  {/* --- ERROR MESSAGE --- */}
+                  {!photoFile && photoError && (
+                    <div
+                      style={{
+                        color: "red",
+                        marginTop: "6px",
+                        fontSize: "14px",
+                      }}
+                    >
+                      {photoError}
+                    </div>
                   )}
                 </div>
               </div>
@@ -10068,11 +10201,13 @@ const BookingForm = () => {
                             }));
                           }}
                         >
-                          {Array.from({ length: 24 }, (_, i) => i + 1).map((month) => (
-                            <option key={month} value={month}>
-                              {month} {month === 1 ? "month" : "months"}
-                            </option>
-                          ))}
+                          {Array.from({ length: 24 }, (_, i) => i + 1).map(
+                            (month) => (
+                              <option key={month} value={month}>
+                                {month} {month === 1 ? "month" : "months"}
+                              </option>
+                            )
+                          )}
                         </select>
                       </div>
                     </div>
@@ -10192,7 +10327,11 @@ const BookingForm = () => {
                                 Development Charges @ Rs.{" "}
                                 <input
                                   type="number"
-                                  value={developmentChargesPsf || possessionCharges.devPsqf || 500}
+                                  value={
+                                    developmentChargesPsf ||
+                                    possessionCharges.devPsqf ||
+                                    500
+                                  }
                                   onChange={(e) => {
                                     const val = e.target.value;
                                     // Allow empty temporarily while typing, but validate on blur
@@ -10249,7 +10388,11 @@ const BookingForm = () => {
                                 Provisional Maintenance for{" "}
                                 <input
                                   type="number"
-                                  value={provisionalMaintenanceMonths || possessionCharges?.provMonths || 6}
+                                  value={
+                                    provisionalMaintenanceMonths ||
+                                    possessionCharges?.provMonths ||
+                                    6
+                                  }
                                   onChange={(e) => {
                                     const val = Number(e.target.value) || 6;
                                     setProvisionalMaintenanceMonths(val);
@@ -10849,12 +10992,22 @@ const BookingForm = () => {
                         style={{
                           marginTop: "12px",
                           padding: "10px 12px",
-                          backgroundColor: masterTotalPercentage === 100 ? "#f0fdf4" : "#fef2f2",
+                          backgroundColor:
+                            masterTotalPercentage === 100
+                              ? "#f0fdf4"
+                              : "#fef2f2",
                           borderRadius: "4px",
                           fontSize: "14px",
                           fontWeight: "600",
-                          color: masterTotalPercentage === 100 ? "#166534" : "#dc2626",
-                          border: `2px solid ${masterTotalPercentage === 100 ? "#10b981" : "#ef4444"}`,
+                          color:
+                            masterTotalPercentage === 100
+                              ? "#166534"
+                              : "#dc2626",
+                          border: `2px solid ${
+                            masterTotalPercentage === 100
+                              ? "#10b981"
+                              : "#ef4444"
+                          }`,
                         }}
                       >
                         {toSentenceCase("Total")}:{" "}
@@ -10862,7 +11015,13 @@ const BookingForm = () => {
                           {Math.floor(masterTotalPercentage)}%
                         </span>
                         {masterTotalPercentage !== 100 && (
-                          <span style={{ marginLeft: "8px", fontSize: "12px", fontWeight: "500" }}>
+                          <span
+                            style={{
+                              marginLeft: "8px",
+                              fontSize: "12px",
+                              fontWeight: "500",
+                            }}
+                          >
                             (Should be 100%)
                           </span>
                         )}
@@ -10994,12 +11153,22 @@ const BookingForm = () => {
                         style={{
                           marginTop: "12px",
                           padding: "10px 12px",
-                          backgroundColor: customTotalPercentage === 100 ? "#f0fdf4" : "#fef2f2",
+                          backgroundColor:
+                            customTotalPercentage === 100
+                              ? "#f0fdf4"
+                              : "#fef2f2",
                           borderRadius: "4px",
                           fontSize: "14px",
                           fontWeight: "600",
-                          color: customTotalPercentage === 100 ? "#166534" : "#dc2626",
-                          border: `2px solid ${customTotalPercentage === 100 ? "#10b981" : "#ef4444"}`,
+                          color:
+                            customTotalPercentage === 100
+                              ? "#166534"
+                              : "#dc2626",
+                          border: `2px solid ${
+                            customTotalPercentage === 100
+                              ? "#10b981"
+                              : "#ef4444"
+                          }`,
                         }}
                       >
                         {toSentenceCase("Total Percentage")}:{" "}
@@ -11007,7 +11176,13 @@ const BookingForm = () => {
                           {Math.floor(customTotalPercentage)}%
                         </span>
                         {customTotalPercentage !== 100 && (
-                          <span style={{ marginLeft: "8px", fontSize: "12px", fontWeight: "500" }}>
+                          <span
+                            style={{
+                              marginLeft: "8px",
+                              fontSize: "12px",
+                              fontWeight: "500",
+                            }}
+                          >
                             ({toSentenceCase("should be 100%")})
                           </span>
                         )}
@@ -11300,7 +11475,7 @@ const BookingForm = () => {
                   ))}
                 </div>
               </Section>
-              {termsList.length > 0 && (
+              {/* {termsList.length > 0 && (
                 <div className="bf-terms-card" style={{ marginTop: "24px" }}>
                   <div className="bf-terms-title">Terms & Conditions</div>
                   <ol className="bf-terms-list">
@@ -11309,7 +11484,89 @@ const BookingForm = () => {
                     ))}
                   </ol>
                 </div>
-              )}
+              )} */}
+              <div className="bf-terms-card" style={{ marginTop: "24px" }}>
+                <div className="bf-terms-title">
+                  <b>Terms & Conditions</b>
+                </div>
+
+                <ul className="bf-terms-list" style={{ paddingLeft: "18px" }}>
+                  <li style={{ marginBottom: "10px" }}>
+                    <strong>Payment Schedule</strong>
+                    <br />
+                    All payments will follow the Payment Schedule provided. If,
+                    for any reason, the Agreement for Sale is not executed
+                    within the expected time, the applicant shall still continue
+                    making payments/instalments as per the schedule whenever
+                    demand letters are raised.
+                  </li>
+
+                  <li style={{ marginBottom: "10px" }}>
+                    <strong>Stamp Duty & Registration</strong>
+                    <br />
+                    The applicant agrees to pay the applicable stamp duty,
+                    registration charges, and any related government fees before
+                    execution of the Agreement for Sale.
+                  </li>
+
+                  <li style={{ marginBottom: "10px" }}>
+                    <strong>Delay in Payments</strong>
+                    <br />
+                    If the applicant is unable to make payments within the
+                    specified time after receiving the demand letter, an
+                    interest of 21% p.a. will be charged on the outstanding
+                    amount from the date of the demand letter until the payment
+                    is completed, along with applicable GST.
+                  </li>
+
+                  <li style={{ marginBottom: "10px" }}>
+                    <strong>Grace Period & Cancellation</strong>
+                    <br />
+                    If payment is not made even after the grace period, the
+                    booking will automatically stand cancelled. Any amount paid
+                    may be forfeited fully or as deemed appropriate in line with
+                    MAHARERA rules.
+                  </li>
+
+                  <li style={{ marginBottom: "10px" }}>
+                    <strong>Government Charges & GST Revisions</strong>
+                    <br />
+                    The purchaser will be responsible for paying any increase or
+                    revision in GST or other government taxes/charges as and
+                    when applicable. All “other charges” will attract GST at
+                    18%, payable by the applicant.
+                  </li>
+
+                  <li style={{ marginBottom: "10px" }}>
+                    <strong>Lock-In Period & Restrictions on Transfer</strong>
+                    <br />
+                    As per company policy, there is a lock-in period until
+                    possession. During this period, the applicant cannot sell,
+                    transfer, or create third-party rights over the flat without
+                    the developer’s prior written consent and completion of
+                    applicable formalities and charges as per company norms.
+                  </li>
+
+                  <li style={{ marginBottom: "10px" }}>
+                    <strong>Cancellation by Applicant</strong>
+                    <br />
+                    If the applicant chooses to cancel the booking, 10% of the
+                    total consideration + GST will be forfeited. The remaining
+                    amount will be refunded (without interest) after the
+                    applicant submits the cancellation request along with all
+                    original documents and receipts issued for the flat.
+                  </li>
+
+                  <li style={{ marginBottom: "10px" }}>
+                    <strong>Rights After Cancellation/Termination</strong>
+                    <br />
+                    In case the Agreement/Flat is cancelled or terminated, the
+                    applicant will have no legal claim or right over the flat.
+                    The developer will have complete freedom to sell the flat to
+                    any third party.
+                  </li>
+                </ul>
+              </div>
 
               <div className="bf-actions">
                 <button type="button" className="bf-btn-secondary">
