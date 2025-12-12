@@ -349,6 +349,12 @@ export default function SalesNavigation() {
           route: "/booking/approvals",
           section: "pre-sales",
         },
+        {
+          id: "user-register",
+          label: "New User",
+          route: "/new/user",
+          section: "pre-sales",
+        },
       ];
     }
 

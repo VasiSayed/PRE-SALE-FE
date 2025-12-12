@@ -254,6 +254,7 @@ import UpcommingEvent from "../src/pages/UpcomingActivities";
 import KycBlack from "./pages/Kycblack/Kycpage";
 import { Toaster } from "react-hot-toast";
 import ProfilePage from "./pages/Profile";
+import CreateUserWithProjectAccess from "./pages/CreateUserWithProjectAccess";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -289,6 +290,8 @@ export default function App() {
               {/* Dashboard */}
               <Route path="/" element={<Dashboard />} />
               <Route path="/dashboard" element={<Dashboard />} />
+
+              <Route path="/new/user" element={<CreateUserWithProjectAccess />} />
 
               {/* Projects */}
               <Route path="/sales/projects" element={<ProjectsList />} />
